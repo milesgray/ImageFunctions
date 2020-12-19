@@ -139,6 +139,8 @@ class DDBPN(nn.Module):
 
         self.add_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std, 1)
 
+        self.out_dim = args.n_colors
+
     def forward(self, x):
         x = self.sub_mean(x)
         x = self.initial(x)
