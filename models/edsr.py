@@ -15,10 +15,24 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
         in_channels, out_channels, kernel_size,
         padding=(kernel_size//2), bias=bias)
 
+class PA(nn.Module):
+    '''PA is pixel attention'''
+    def __init__(self, nf):
+        super().__init__()
+        self.conv = nn.Conv2d(nf, nf, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        y = self.conv(x)
+        y = self.sigmoid(y)
+        out = torch.mul(x, y)
+
+        return out
+
 class MeanShift(nn.Conv2d):
     def __init__(
         self, rgb_range,
-        rgb_mean=(0.4488, 0.4371, 0.4040), rgb_std=(1.0, 1.0, 1.0), sign=-1):
+        rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289), sign=-1):
 
         super(MeanShift, self).__init__(3, 3, kernel_size=1)
         std = torch.Tensor(rgb_std)
