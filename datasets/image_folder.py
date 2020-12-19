@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from tqdm.notebook import tqdm
 
 from datasets import register
 
@@ -32,7 +33,7 @@ class ImageFolder(Dataset):
         filenames = filenames[::skip_every]
 
         self.files = []
-        for filename in filenames:
+        for filename in tqdm(filenames):
             file = os.path.join(root_path, filename)
 
             if cache == 'none':
