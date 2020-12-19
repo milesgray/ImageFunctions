@@ -9,6 +9,19 @@ import torch.nn as nn
 
 from models import register
 
+class PA(nn.Module):
+    '''PA is pixel attention'''
+    def __init__(self, nf):
+        super().__init__()
+        self.conv = nn.Conv2d(nf, nf, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        y = self.conv(x)
+        y = self.sigmoid(y)
+        out = torch.mul(x, y)
+
+        return out
 
 class RDB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, kSize=3):
@@ -19,10 +32,11 @@ class RDB_Conv(nn.Module):
             nn.Conv2d(Cin, G, kSize, padding=(kSize-1)//2, stride=1),
             nn.ReLU()
         ])
+        self.pa = PA(G)
 
     def forward(self, x):
         out = self.conv(x)
-        return torch.cat((x, out), 1)
+        return torch.cat((self.pa(x), out), 1)
 
 class RDB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers, kSize=3):

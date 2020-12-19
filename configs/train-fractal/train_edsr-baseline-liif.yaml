@@ -4,11 +4,13 @@ train_dataset:
     args:
       root_path: /content/full/
       repeat: 20
-      cache: in_memory
+      cache: none
       first_k: 3500
   wrapper:
     name: sr-explicit-downsampled-randcrop
     args:
+      inp_size: 240
+      scale_min: 4
       scale_max: 4
       augment: true
       sample_q: 2304
@@ -19,12 +21,14 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      last_k: 38
+      last_k: 31
       repeat: 160
       cache: in_memory
   wrapper:
     name: sr-explicit-downsampled-randcrop
     args:
+      inp_size: 480
+      scale_min: 4
       scale_max: 4
       sample_q: 2304
   batch_size: 16
@@ -56,4 +60,6 @@ multi_step_lr:
   gamma: 0.5
 
 epoch_val: 1
-epoch_save: 100
+epoch_save: 10
+
+resume: /content/gdrive/My Drive/data/models/liif/fractal-edsr-liif_00/
