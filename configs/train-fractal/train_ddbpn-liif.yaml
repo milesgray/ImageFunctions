@@ -46,8 +46,8 @@ model:
       args:
         no_upsampling: true
         use_pa: True
-        n0: 128
-        nr: 16
+        n_feats0: 128
+        n_feats: 16
         depth: 5
     imnet_spec:
       name: mlp
