@@ -30,9 +30,9 @@ class PA(nn.Module):
         if resize == "up":
             self.conv = nn.ConvTranspose2d(nf, nf, 1, stride=2, padding=2)
         elif resize == "down":
-            self.conv = nn.Conv(nf, nf, 1, stride=2, padding=2)
+            self.conv = nn.Conv2d(nf, nf, 1, stride=2, padding=2)
         else:
-            self.conv = nn.Conv(nf, nf, 1)
+            self.conv = nn.Conv2d(nf, nf, 1)
 
     def forward(self, x):
         y = self.conv(x)
