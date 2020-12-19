@@ -3,6 +3,8 @@
 import torch
 import torch.nn as nn
 
+from models import register
+
 class MeanShift(nn.Conv2d):
     def __init__(
         self, rgb_range,
