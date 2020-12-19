@@ -14,7 +14,7 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
 
 
 class PA(nn.Module):
-    '''PA is pixel attention'''
+    '''Pixel Attention Layer'''
     def __init__(self, nf):
 
         super(PA, self).__init__()
@@ -131,11 +131,8 @@ class RCAN(nn.Module):
         scale = args.scale[0]
         act = nn.ReLU(True)
 
-        # RGB mean for movie 11 fractal set # RGB mean for DIV2K
-        rgb_mean = (0.40005, 0.42270, 0.45802)#(0.4488, 0.4371, 0.4040)
-        # RGB STD mean for movie 11 fractal set
-        rgb_std = (0.28514, 0.31383, 0.28289)
-        self.sub_mean = MeanShift(args.rgb_range, rgb_mean, rgb_std)
+        
+        self.sub_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std)
 
         # define head module
         modules_head = [conv(args.n_colors, n_feats, kernel_size)]
@@ -206,7 +203,8 @@ class RCAN(nn.Module):
 
 @register('rcan')
 def make_rcan(n_resgroups=10, n_resblocks=20, n_feats=64, reduction=16,
-              scale=2, no_upsampling=False, rgb_range=1):
+              scale=2, no_upsampling=False, rgb_range=1, rgb_mean=None,
+              rgb_std=None):
     args = Namespace()
     args.n_resgroups = n_resgroups
     args.n_resblocks = n_resblocks
@@ -217,6 +215,10 @@ def make_rcan(n_resgroups=10, n_resblocks=20, n_feats=64, reduction=16,
     args.no_upsampling = no_upsampling
 
     args.rgb_range = rgb_range
+    # RGB mean for movie 11 fractal set # RGB mean for DIV2K
+    args.rgb_mean = (0.39884, 0.42088, 0.45812) if rgb_mean is None else rgb_mean#(0.4488, 0.4371, 0.4040)
+    # RGB STD mean for movie 11 fractal set
+    args.rgb_std = (0.28514, 0.31383, 0.28289) if rgb_std is None else rgb_std
     args.res_scale = 1
     args.n_colors = 3
     return RCAN(args)

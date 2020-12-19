@@ -16,7 +16,7 @@ from datasets import register
 class ImageFolder(Dataset):
 
     def __init__(self, root_path, split_file=None, split_key=None, first_k=None,
-                 last_k=None, repeat=1, cache='none'):
+                 last_k=None, skip_every=1, repeat=1, cache='none'):
         self.repeat = repeat
         self.cache = cache
 
@@ -29,6 +29,7 @@ class ImageFolder(Dataset):
             filenames = filenames[:first_k]
         elif last_k is not None:
             filenames = filenames[-last_k:]
+        filenames = filenames[::skip_every]
 
         self.files = []
         for filename in filenames:
