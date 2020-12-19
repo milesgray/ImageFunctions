@@ -84,8 +84,8 @@ class DenseProjection(nn.Module):
         ])
         self.use_pa = use_pa
         if self.use_pa:
-            self.pa_x = PA(nr)
-            self.pa_out = PA(nr, resize="up" if up else "down")
+            self.pa_x = PA(nr, resize="up" if up else "down")
+            self.pa_out = PA(nr)
 
     def forward(self, x):
         if self.bottleneck is not None:
