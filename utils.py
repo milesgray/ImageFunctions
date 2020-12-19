@@ -117,11 +117,12 @@ def make_coord(shape, ranges=None, flatten=True):
     return ret
 
 
-def to_pixel_samples(img):
+def to_pixel_samples(img, bbox=None):
     """ Convert the image to coord-RGB pairs.
         img: Tensor, (3, H, W)
+        bbox: List of tuples, coordinate ranges of img crop, [(Hv0, Hv1), (Wv0, Wv1)]
     """
-    coord = make_coord(img.shape[-2:])
+    coord = make_coord(img.shape[-2:], ranges=bbox)
     rgb = img.view(3, -1).permute(1, 0)
     return coord, rgb
 
