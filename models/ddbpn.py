@@ -23,18 +23,19 @@ class MeanShift(nn.Conv2d):
 class PA(nn.Module):
     '''Pixel Attention Layer'''
     def __init__(self, nf, resize="same"):
-
-        super(PA, self).__init__()
+        super().__init__()
         
         self.sigmoid = nn.Sigmoid()
         if resize == "up":
-            self.conv = nn.ConvTranspose2d(nf, nf, 1, stride=2, padding=2)
+            self.resize = nn.Upsample(scale_factor=2)
         elif resize == "down":
-            self.conv = nn.Conv2d(nf, nf, 1, stride=2, padding=2)
+            self.resize = nn.AvgPool2d(2, stride=2)
         else:
-            self.conv = nn.Conv2d(nf, nf, 1)
+            self.resize = nn.Identity()
+        self.conv = nn.Conv2d(nf, nf, 1)
 
     def forward(self, x):
+        x = self.resize(x)
         y = self.conv(x)
         y = self.sigmoid(y)
         out = torch.mul(x, y)
