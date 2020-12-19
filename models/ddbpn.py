@@ -22,11 +22,17 @@ class MeanShift(nn.Conv2d):
 
 class PA(nn.Module):
     '''Pixel Attention Layer'''
-    def __init__(self, nf):
+    def __init__(self, nf, resize="same"):
 
         super(PA, self).__init__()
-        self.conv = nn.Conv2d(nf, nf, 1)
+        
         self.sigmoid = nn.Sigmoid()
+        if resize == "up":
+            self.conv = nn.ConvTranspose2d(nf, nf, 1, stride=2, padding=2)
+        elif resize == "down":
+            self.conv = nn.Conv(nf, nf, 1, stride=2, padding=2)
+        else:
+            self.conv = nn.Conv(nf, nf, 1)
 
     def forward(self, x):
         y = self.conv(x)
@@ -79,7 +85,7 @@ class DenseProjection(nn.Module):
         self.use_pa = use_pa
         if self.use_pa:
             self.pa_x = PA(nr)
-            self.pa_out = PA(nr)
+            self.pa_out = PA(nr, resize="up" if up else "down")
 
     def forward(self, x):
         if self.bottleneck is not None:
@@ -102,38 +108,38 @@ class DDBPN(nn.Module):
         super().__init__()
         scale = args.scale[0]
 
-        n0 = args.n0
-        nr = args.nr
+        n0 = args.n_feats0
+        nr = args.n_feats
         self.depth = args.depth
 
         self.sub_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std)
         initial = [
-            nn.Conv2d(args.n_colors, n0, 3, padding=1),
-            nn.PReLU(n0),
-            nn.Conv2d(n0, nr, 1),
-            nn.PReLU(nr)
+            nn.Conv2d(args.n_colors, args.n_feats0, 3, padding=1),
+            nn.PReLU(args.n_feats0),
+            nn.Conv2d(args.n_feats0, args.n_feats, 1),
+            nn.PReLU(args.n_feats)
         ]
         self.initial = nn.Sequential(*initial)
 
         self.upmodules = nn.ModuleList()
         self.downmodules = nn.ModuleList()
-        channels = nr
+        channels = args.n_feats
         for i in range(self.depth):
             self.upmodules.append(
-                DenseProjection(channels, nr, scale, True, i > 1)
+                DenseProjection(channels, args.n_feats, scale, True, i > 1)
             )
             if i != 0:
-                channels += nr
+                channels += args.n_feats
         
-        channels = nr
+        channels = args.n_feats
         for i in range(self.depth - 1):
             self.downmodules.append(
-                DenseProjection(channels, nr, scale, False, i != 0)
+                DenseProjection(channels, args.n_feats, scale, False, i != 0)
             )
-            channels += nr
+            channels += args.n_feats
 
         reconstruction = [
-            nn.Conv2d(self.depth * nr, args.n_colors, 3, padding=1) 
+            nn.Conv2d(self.depth * args.n_feats, args.n_colors, 3, padding=1) 
         ]
         self.reconstruction = nn.Sequential(*reconstruction)
 
@@ -162,12 +168,12 @@ class DDBPN(nn.Module):
         return out
 
 @register('ddbpn')
-def make_ddbpn(n0=128, nr=32, depth=5, use_pa=True,
+def make_ddbpn(n_feats0=128, n_feats=32, depth=5, use_pa=True,
              scale=2, no_upsampling=False, rgb_range=1,
              rgb_mean=None, rgb_std=None):
     args = Namespace()
-    args.n0 = n0
-    args.nr = nr
+    args.n_feats0 = n_feats0
+    args.n_feats = n_feats
     args.depth = depth
     
     args.scale = [scale]
