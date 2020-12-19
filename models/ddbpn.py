@@ -155,7 +155,7 @@ class DDBPN(nn.Module):
         return out
 
 @register('ddbpn')
-def make_rdn(n0=128, nr=32, depth=5, use_pa=True,
+def make_ddbpn(n0=128, nr=32, depth=5, use_pa=True,
              scale=2, no_upsampling=False, rgb_range=1,
              rgb_mean=None, rgb_std=None):
     args = Namespace()
@@ -173,4 +173,4 @@ def make_rdn(n0=128, nr=32, depth=5, use_pa=True,
     # RGB STD mean for movie 11 fractal set
     args.rgb_std = (0.28514, 0.31383, 0.28289) if rgb_std is None else rgb_std
     args.n_colors = 3
-    return RDN(args)
+    return DDBPN(args)
