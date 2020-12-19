@@ -131,9 +131,10 @@ class RCAN(nn.Module):
         scale = args.scale[0]
         act = nn.ReLU(True)
 
-        # RGB mean for DIV2K
-        rgb_mean = (0.4488, 0.4371, 0.4040)
-        rgb_std = (1.0, 1.0, 1.0)
+        # RGB mean for movie 11 fractal set # RGB mean for DIV2K
+        rgb_mean = (0.40005, 0.42270, 0.45802)#(0.4488, 0.4371, 0.4040)
+        # RGB STD mean for movie 11 fractal set
+        rgb_std = (0.28514, 0.31383, 0.28289)
         self.sub_mean = MeanShift(args.rgb_range, rgb_mean, rgb_std)
 
         # define head module
