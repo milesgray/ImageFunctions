@@ -1,5 +1,8 @@
 # Deep Back-Projection Networks For Super-Resolution
 # https://arxiv.org/abs/1803.02735
+
+from argparse import Namespace
+
 import torch
 import torch.nn as nn
 
