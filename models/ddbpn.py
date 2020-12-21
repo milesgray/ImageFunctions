@@ -71,19 +71,28 @@ class DenseProjection(nn.Module):
             self.bottleneck = None
             inter_channels = in_channels
 
-        self.conv_1 = nn.Sequential(*[
+        layers_1 = [
             projection_conv(inter_channels, nr, scale, up),
             nn.PReLU(nr)
-        ])
-        self.conv_2 = nn.Sequential(*[
+        ]
+        layers_2 = [
             projection_conv(nr, inter_channels, scale, not up),
-            nn.PReLU(inter_channels)
-        ])
-        self.conv_3 = nn.Sequential(*[
+            nn.PReLU(nr)
+        ]
+        layers_3 = [
             projection_conv(inter_channels, nr, scale, up),
             nn.PReLU(nr)
-        ])
+        ]
         self.use_pa = use_pa
+        if self.use_pa:
+            layers_1.append(PA(nr))
+            layers_1.append(PA(inter_channels))
+            layers_1.append(PA(nr))
+        
+        self.conv_1 = nn.Sequential(*layers_1)
+        self.conv_2 = nn.Sequential(*layers_2)
+        self.conv_3 = nn.Sequential(*layers_3)
+
         if self.use_pa:
             self.pa_x = PA(nr, resize="up" if up else "down")
             self.pa_out = PA(nr)
@@ -100,7 +109,7 @@ class DenseProjection(nn.Module):
         out = a_0.add(a_1)
 
         if self.use_pa:
-            out = self.pa_x(x).add(self.pa_out(out))
+            out = self.pa_out(out) * self.pa_x(x)
 
         return out
 
@@ -113,7 +122,6 @@ class DDBPN(nn.Module):
         nr = args.n_feats
         self.depth = args.depth
 
-        self.sub_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std)
         initial = [
             nn.Conv2d(args.n_colors, args.n_feats0, 3, padding=1),
             nn.PReLU(args.n_feats0),
@@ -131,60 +139,72 @@ class DDBPN(nn.Module):
             )
             if i != 0:
                 channels += args.n_feats
-        
+        self.no_upsampling = args.no_upsampling
+        if self.no_upsampling:
+            self.total_depth = self.depth
+            self.out_dim = args.n_feats_out
+        else:
+            self.total_depth = self.depth - 1
+            self.out_dim = args.n_colors
+
         channels = args.n_feats
-        for i in range(self.depth - 1):
+        for i in range(self.total_depth):
             self.downmodules.append(
                 DenseProjection(channels, args.n_feats, scale, False, i != 0)
             )
             channels += args.n_feats
 
         reconstruction = [
-            nn.Conv2d(self.depth * args.n_feats, args.n_colors, 3, padding=1) 
+            nn.Conv2d(self.depth * args.n_feats, self.out_dim, 3, padding=1) 
         ]
         self.reconstruction = nn.Sequential(*reconstruction)
 
-        self.add_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std, 1)
-
-        self.out_dim = args.n_colors
+        self.use_mean_shift = args.use_mean_shift
+        if self.use_mean_shift:
+            self.sub_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std)
+            self.add_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std, 1)
 
     def forward(self, x):
-        x = self.sub_mean(x)
+        if self.use_mean_shift:
+            x = self.sub_mean(x)
         x = self.initial(x)
 
         h_list = []
         l_list = []
-        for i in range(self.depth - 1):
+        for i in range(self.total_depth):
             if i == 0:
                 l = x
             else:
                 l = torch.cat(l_list, dim=1)
             h_list.append(self.upmodules[i](l))
             l_list.append(self.downmodules[i](torch.cat(h_list, dim=1)))
-        
-        h_list.append(self.upmodules[-1](torch.cat(l_list, dim=1)))
+        if not self.no_upsampling:
+            h_list.append(self.upmodules[-1](torch.cat(l_list, dim=1)))
         out = self.reconstruction(torch.cat(h_list, dim=1))
-        out = self.add_mean(out)
+        if self.use_mean_shift:
+            out = self.add_mean(out)
 
         return out
 
 @register('ddbpn')
-def make_ddbpn(n_feats0=128, n_feats=32, depth=5, use_pa=True,
-             scale=2, no_upsampling=False, rgb_range=1,
-             rgb_mean=None, rgb_std=None):
+def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, use_pa=True,
+               scale=2, no_upsampling=False, rgb_range=1,
+               use_mean_shift=False, 
+               rgb_mean=(0.39884, 0.42088, 0.45812), 
+               rgb_std=(0.28514, 0.31383, 0.28289)):
     args = Namespace()
-    args.n_feats0 = n_feats0
+    args.n_feats_in = n_feats_in
     args.n_feats = n_feats
+    args.n_feats_out = n_feats_out
     args.depth = depth
     
     args.scale = [scale]
     args.use_pa = use_pa
     args.no_upsampling = no_upsampling
 
+    args.use_mean_shift = use_mean_shift
     args.rgb_range = rgb_range
-    # RGB mean for movie 11 fractal set # RGB mean for DIV2K
-    args.rgb_mean = (0.39884, 0.42088, 0.45812) if rgb_mean is None else rgb_mean#(0.4488, 0.4371, 0.4040)
-    # RGB STD mean for movie 11 fractal set
-    args.rgb_std = (0.28514, 0.31383, 0.28289) if rgb_std is None else rgb_std
+    args.rgb_mean = rgb_mean
+    args.rgb_std = rgb_std
     args.n_colors = 3
     return DDBPN(args)

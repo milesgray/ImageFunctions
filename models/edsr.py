@@ -195,8 +195,7 @@ class EDSR(nn.Module):
 
 @register('edsr-baseline')
 def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
-                       scale=2, no_upsampling=False, use_mean_shift=False,
-                       use_pa=False,
+                       scale=2, no_upsampling=False, use_mean_shift=False, use_pa=False,
                        rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289),
                        rgb_range=1):
     args = Namespace()
@@ -219,13 +218,15 @@ def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
 
 @register('edsr')
 def make_edsr(n_resblocks=32, n_feats=256, res_scale=0.1,
-              scale=2, no_upsampling=False, use_mean_shift=False,
+              scale=2, no_upsampling=False, use_mean_shift=False, use_pa=False,
               rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289), 
               rgb_range=1):
     args = Namespace()
     args.n_resblocks = n_resblocks
     args.n_feats = n_feats
     args.res_scale = res_scale
+
+    args.use_pa = use_pa
 
     args.scale = [scale]
     args.no_upsampling = no_upsampling
