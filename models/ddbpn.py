@@ -118,14 +118,12 @@ class DDBPN(nn.Module):
         super().__init__()
         scale = args.scale[0]
 
-        n0 = args.n_feats0
-        nr = args.n_feats
         self.depth = args.depth
 
         initial = [
-            nn.Conv2d(args.n_colors, args.n_feats0, 3, padding=1),
-            nn.PReLU(args.n_feats0),
-            nn.Conv2d(args.n_feats0, args.n_feats, 1),
+            nn.Conv2d(args.n_colors, args.n_feats_in, 3, padding=1),
+            nn.PReLU(args.n_feats_in),
+            nn.Conv2d(args.n_feats_in, args.n_feats, 1),
             nn.PReLU(args.n_feats)
         ]
         self.initial = nn.Sequential(*initial)
