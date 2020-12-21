@@ -176,8 +176,9 @@ class DDBPN(nn.Module):
                 l = torch.cat(l_list, dim=1)
             h_list.append(self.upmodules[i](l))
             l_list.append(self.downmodules[i](torch.cat(h_list, dim=1)))
-        if not self.no_upsampling:
-            h_list.append(self.upmodules[-1](torch.cat(l_list, dim=1)))
+        if self.no_upsampling:
+            l_list.append(self.downmodules[-1](torch.cat(h_list, dim=1)))
+        h_list.append(self.upmodules[-1](torch.cat(l_list, dim=1)))
         out = self.reconstruction(torch.cat(h_list, dim=1))
         if self.use_mean_shift:
             out = self.add_mean(out)
