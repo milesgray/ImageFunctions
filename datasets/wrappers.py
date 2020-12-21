@@ -246,15 +246,9 @@ class SRExplicitDownsampledRandCrop(Dataset):
             crop_lr = resize_fn(crop_hr, w_lr)
             bbox = [(x0, x0+w_hr), (y0, y0+w_hr)]
         bbox[0] = (bbox[0][0] / img.shape[-2], bbox[0][1] / img.shape[-2])
-        bbox[0][0] *= 2
-        bbox[0][0] -= 1
-        bbox[0][1] *= 2
-        bbox[0][1] -= 1
+        bbox[0] = ((bbox[0][0] * 2) - 1, (bbox[0][1] * 2) - 1)
         bbox[1] = (bbox[1][0] / img.shape[-1], bbox[1][1] / img.shape[-1])
-        bbox[1][0] *= 2
-        bbox[1][0] -= 1
-        bbox[1][1] *= 2
-        bbox[1][1] -= 1
+        bbox[1] = ((bbox[1][0] * 2) - 1, (bbox[1][1] * 2) - 1)
 
         if self.augment:
             hflip = random.random() < 0.5
