@@ -140,10 +140,10 @@ class DDBPN(nn.Module):
         self.no_upsampling = args.no_upsampling
         if self.no_upsampling:
             self.total_depth = self.depth
-            self.out_dim = args.n_feats_out
         else:
             self.total_depth = self.depth - 1
-            self.out_dim = args.n_colors
+        
+        self.out_dim = args.n_feats_out
 
         channels = args.n_feats
         for i in range(self.total_depth):

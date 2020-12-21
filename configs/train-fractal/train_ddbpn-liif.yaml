@@ -10,7 +10,7 @@ train_dataset:
   wrapper:
     name: sr-explicit-downsampled-randcrop
     args:
-      inp_size: 160
+      inp_size: 32
       scale_min: 4
       scale_max: 4
       augment: true
@@ -28,7 +28,7 @@ val_dataset:
   wrapper:
     name: sr-explicit-downsampled-randcrop
     args:
-      inp_size: 480
+      inp_size: 32
       scale_min: 4
       scale_max: 4
       sample_q: 2304
@@ -44,11 +44,13 @@ model:
     encoder_spec:
       name: ddbpn
       args:
-        no_upsampling: true
+        no_upsampling: False
         use_pa: True
-        n_feats0: 32
-        n_feats: 16
-        depth: 6
+        n_feats_in: 128
+        n_feats: 32
+        n_feats_out: 256
+        depth: 5
+        scale: 4
     imnet_spec:
       name: mlp
       args:
