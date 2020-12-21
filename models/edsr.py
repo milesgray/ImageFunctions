@@ -32,9 +32,11 @@ class PA(nn.Module):
 class MeanShift(nn.Conv2d):
     def __init__(
         self, rgb_range,
-        rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289), sign=-1):
+        rgb_mean=(0.40005, 0.42270, 0.45802), 
+        rgb_std=(0.28514, 0.31383, 0.28289), 
+        sign=-1):
 
-        super(MeanShift, self).__init__(3, 3, kernel_size=1)
+        super().__init__(3, 3, kernel_size=1)
         std = torch.Tensor(rgb_std)
         self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
         self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std
@@ -44,9 +46,9 @@ class MeanShift(nn.Conv2d):
 class ResBlock(nn.Module):
     def __init__(
         self, conv, n_feats, kernel_size,
-        bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
+        bias=True, bn=False, pa=False, act=nn.ReLU(True), res_scale=1):
 
-        super(ResBlock, self).__init__()
+        super().__init__()
         m = []
         for i in range(2):
             m.append(conv(n_feats, n_feats, kernel_size, bias=bias))
@@ -57,16 +59,24 @@ class ResBlock(nn.Module):
 
         self.body = nn.Sequential(*m)
         self.res_scale = res_scale
+        self.use_pa = pa
+        if pa:
+            self.pa_add = PA(n_feats)
+            self.pa_sub = PA(n_feats)
 
     def forward(self, x):
-        res = self.body(x).mul(self.res_scale)
+        res = self.body(x)
+        if self.use_pa:
+            y = res.sub(self.pa_sub(x)).mul(self.res_scale)
+            res = y.add(self.pa_add(res))
+        else:
+            res = res.mul(self.res_scale)
         res += x
 
         return res
 
 class Upsampler(nn.Sequential):
     def __init__(self, conv, scale, n_feats, bn=False, act=False, bias=True):
-
         m = []
         if (scale & (scale - 1)) == 0:    # Is scale = 2^n?
             for _ in range(int(math.log(scale, 2))):
@@ -117,8 +127,10 @@ class EDSR(nn.Module):
             self.url = url[url_name]
         else:
             self.url = None
-        self.sub_mean = MeanShift(args.rgb_range)
-        self.add_mean = MeanShift(args.rgb_range, sign=1)
+        self.use_mean_shift = args.use_mean_shift
+        if self.use_mean_shift:
+            self.sub_mean = MeanShift(args.rgb_range, rgb_mean=args.rgb_mean, rgb_std=args.rgb_std)
+            self.add_mean = MeanShift(args.rgb_range, rgb_mean=args.rgb_mean, rgb_std=args.rgb_std, sign=1)
 
         # define head module
         m_head = [conv(args.n_colors, n_feats, kernel_size)]
@@ -126,7 +138,7 @@ class EDSR(nn.Module):
         # define body module
         m_body = [
             ResBlock(
-                conv, n_feats, kernel_size, act=act, res_scale=args.res_scale
+                conv, n_feats, kernel_size, act=act, pa=args.use_pa, res_scale=args.res_scale
             ) for _ in range(n_resblocks)
         ]
         m_body.append(conv(n_feats, n_feats, kernel_size))
@@ -146,7 +158,8 @@ class EDSR(nn.Module):
             self.tail = nn.Sequential(*m_tail)
 
     def forward(self, x):
-        #x = self.sub_mean(x)
+        if self.use_mean_shift:
+            x = self.sub_mean(x)
         x = self.head(x)
 
         res = self.body(x)
@@ -156,7 +169,8 @@ class EDSR(nn.Module):
             x = res
         else:
             x = self.tail(res)
-        #x = self.add_mean(x)
+        if self.use_mean_shift:
+            x = self.add_mean(x)
         return x
 
     def load_state_dict(self, state_dict, strict=True):
@@ -181,15 +195,23 @@ class EDSR(nn.Module):
 
 @register('edsr-baseline')
 def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
-                       scale=2, no_upsampling=False, rgb_range=1):
+                       scale=2, no_upsampling=False, use_mean_shift=False,
+                       use_pa=False,
+                       rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289),
+                       rgb_range=1):
     args = Namespace()
     args.n_resblocks = n_resblocks
     args.n_feats = n_feats
     args.res_scale = res_scale
 
+    args.use_pa = use_pa
+
     args.scale = [scale]
     args.no_upsampling = no_upsampling
-
+    
+    args.use_mean_shift = use_mean_shift
+    args.rgb_mean = rgb_mean
+    args.rgb_std = rgb_std
     args.rgb_range = rgb_range
     args.n_colors = 3
     return EDSR(args)
@@ -197,7 +219,9 @@ def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
 
 @register('edsr')
 def make_edsr(n_resblocks=32, n_feats=256, res_scale=0.1,
-              scale=2, no_upsampling=False, rgb_range=1):
+              scale=2, no_upsampling=False, use_mean_shift=False,
+              rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289), 
+              rgb_range=1):
     args = Namespace()
     args.n_resblocks = n_resblocks
     args.n_feats = n_feats
@@ -206,6 +230,9 @@ def make_edsr(n_resblocks=32, n_feats=256, res_scale=0.1,
     args.scale = [scale]
     args.no_upsampling = no_upsampling
 
+    args.use_mean_shift = use_mean_shift
+    args.rgb_mean = rgb_mean
+    args.rgb_std = rgb_std
     args.rgb_range = rgb_range
     args.n_colors = 3
     return EDSR(args)
