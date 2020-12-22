@@ -7,11 +7,63 @@ import yaml
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 import datasets
 import models
 import utils
 
+def plot_preds(model, loader, epoch, 
+               save_dir="/content", 
+               target_shape=(128,128), 
+               batch_size=16, 
+               return_data=False):
+    batch = next(iter(loader))
+    for k, v in batch.items():
+        batch[k] = v.cuda()
+    data_norm = {
+            'inp': {'sub': [0], 'div': [1]},
+            'gt': {'sub': [0], 'div': [0.5]}
+        }
+    t = data_norm['inp']
+    inp_sub = torch.FloatTensor(t['sub']).view(1, -1, 1, 1).cuda()
+    inp_div = torch.FloatTensor(t['div']).view(1, -1, 1, 1).cuda()
+    t = data_norm['gt']
+    gt_sub = torch.FloatTensor(t['sub']).view(1, 1, -1).cuda()
+    gt_div = torch.FloatTensor(t['div']).view(1, 1, -1).cuda()    
+    inp = (batch['inp'] / inp_div) - inp_sub
+    #inp = inp.clamp_(0, 1)
+    model.eval()
+    
+    coord, cell = make_coord_cell(target_shape=target_shape, batch_size=batch_size)
+    with torch.no_grad():
+        pred = model(inp, coord.cuda(), cell.cuda())
+
+    #pred = (pred / gt_div) - gt_sub
+    pred = (pred * gt_div) + gt_sub
+    #pred = (pred - pred.min()) / (pred.max() - pred.min())# (1 - pred.max().cpu().numpy())
+    pred = pred.clamp_(0, 1)
+    pred = reshape(pred, target_shape)
+    inp = batch['inp'].clamp_(0, 1)
+    gt = reshape(batch["gt"], batch["inp"].shape[-2:])
+    plt.figure(figsize=(4, batch_size * 3))
+    for i, (p, g) in enumerate(zip(pred, gt)):                 
+        plt.subplot(batch_size,3,(i * 3) + 1)
+        plt.imshow(p.cpu().numpy().transpose(1,2,0))
+        plt.subplot(batch_size,3,(i * 3) + 2)
+        plt.imshow(g.cpu().numpy().transpose(1,2,0))
+        plt.subplot(batch_size,3,(i * 3) + 3)
+        plt.imshow(batch['inp'][i].cpu().numpy().transpose(1,2,0))
+    plt.savefig(f"{save_dir}/testfig_{epoch}.png")
+    if return_data:
+        return pred, batch
+
+def make_coord_cell(target_shape=(32, 32), batch_size=8):
+    coord = make_coord(target_shape).repeat(batch_size, 1, 1)
+    cell = torch.ones_like(coord)
+    cell[..., 0] *= 2 / target_shape[1]
+    cell[..., 1] *= 2 / target_shape[0]
+    return coord, cell
 
 def batched_predict(model, inp, coord, cell, bsize):
     with torch.no_grad():
@@ -28,8 +80,47 @@ def batched_predict(model, inp, coord, cell, bsize):
     return pred
 
 
-def eval_psnr(loader, model, data_norm=None, eval_type=None, eval_bsize=None,
-              verbose=False):
+def batched_predict(model, inp, coord, cell, bsize):
+    with torch.no_grad():
+        model.gen_feat(inp)
+        n = coord.shape[1]
+        ql = 0
+        preds = []
+        while ql < n:
+            qr = min(ql + bsize, n)
+            pred = model.query_rgb(coord[:, ql: qr, :], cell[:, ql: qr, :])
+            preds.append(pred)
+            ql = qr
+        pred = torch.cat(preds, dim=1)
+    return pred
+
+def reshape(pred, t_shape):
+    ih, iw = t_shape
+    s = math.sqrt(pred.shape[1] / (ih * iw))
+    shape = [pred.shape[0], round(ih * s), round(iw * s), 3]
+    pred = pred.view(*shape) \
+        .permute(0, 3, 1, 2).contiguous()
+    return pred
+
+def make_coord(shape, ranges=None, flatten=True):
+    """ Make coordinates at grid centers.
+    """
+    coord_seqs = []
+    for i, n in enumerate(shape):
+        if ranges is None:
+            v0, v1 = -1, 1
+        else:
+            v0, v1 = ranges[i]
+        r = (v1 - v0) / (2 * n)
+        seq = v0 + r + (2 * r) * torch.arange(n)
+        coord_seqs.append(seq)
+    ret = torch.stack(torch.meshgrid(*coord_seqs), dim=-1)
+    if flatten:
+        ret = ret.view(-1, ret.shape[-1])
+    return ret
+
+def eval_psnr(loader, model, epoch, data_norm=None, eval_type=None, eval_bsize=None,
+              verbose=False, savedir="/content"):
     model.eval()
 
     if data_norm is None:
@@ -63,12 +154,10 @@ def eval_psnr(loader, model, data_norm=None, eval_type=None, eval_bsize=None,
             batch[k] = v.cuda()
 
         inp = (batch['inp'] - inp_sub) / inp_div
-        if eval_bsize is None:
-            with torch.no_grad():
-                pred = model(inp, batch['coord'], batch['cell'])
-        else:
-            pred = batched_predict(model, inp,
-                batch['coord'], batch['cell'], eval_bsize)
+        
+        with torch.no_grad():
+            pred = model(inp, batch['coord'], batch['cell'])
+
         pred = pred * gt_div + gt_sub
         pred.clamp_(0, 1)
 
@@ -86,7 +175,12 @@ def eval_psnr(loader, model, data_norm=None, eval_type=None, eval_bsize=None,
 
         if verbose:
             pbar.set_description('val {:.4f}'.format(val_res.item()))
-
+    if eval_bsize:
+        try:
+            plot_preds(model, loader, epoch, save_dir=savedir,
+                       batch_size=pred.shape[0])            
+        except Exception as e:
+            print(f"Failed to save validation preview\n{e}")
     return val_res.item()
 
 

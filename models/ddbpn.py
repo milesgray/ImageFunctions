@@ -22,17 +22,21 @@ class MeanShift(nn.Conv2d):
 
 class PA(nn.Module):
     '''Pixel Attention Layer'''
-    def __init__(self, nf, resize="same"):
+    def __init__(self, f_in, f_out=None, resize="same", scale=2):
         super().__init__()
+        if f_out is None:
+            f_out = f_in
         
         self.sigmoid = nn.Sigmoid()
         if resize == "up":
-            self.resize = nn.Upsample(scale_factor=2)
+            self.resize = nn.Upsample(scale_factor=scale)
         elif resize == "down":
-            self.resize = nn.AvgPool2d(2, stride=2)
+            self.resize = nn.AvgPool2d(scale, stride=scale)
         else:
             self.resize = nn.Identity()
-        self.conv = nn.Conv2d(nf, nf, 1)
+        if f_in != f_out:
+            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
+        self.conv = nn.Conv2d(f_out, f_out, 1)
 
     def forward(self, x):
         x = self.resize(x)
@@ -94,7 +98,7 @@ class DenseProjection(nn.Module):
         self.conv_3 = nn.Sequential(*layers_3)
 
         if self.use_pa:
-            self.pa_x = PA(nr, resize="up" if up else "down")
+            self.pa_x = PA(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale)
             self.pa_out = PA(nr)
 
     def forward(self, x):
@@ -133,7 +137,7 @@ class DDBPN(nn.Module):
         channels = args.n_feats
         for i in range(self.depth):
             self.upmodules.append(
-                DenseProjection(channels, args.n_feats, scale, True, i > 1)
+                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1, use_pa=args.use_pa)
             )
             if i != 0:
                 channels += args.n_feats
@@ -148,7 +152,7 @@ class DDBPN(nn.Module):
         channels = args.n_feats
         for i in range(self.total_depth):
             self.downmodules.append(
-                DenseProjection(channels, args.n_feats, scale, False, i != 0)
+                DenseProjection(channels, args.n_feats, scale, up=False, bottleneck=i != 0, use_pa=args.use_pa)
             )
             channels += args.n_feats
 
