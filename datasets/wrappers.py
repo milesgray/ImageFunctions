@@ -236,7 +236,6 @@ class SRExplicitDownsampledRandCrop(Dataset):
             img = img[:, :round(h_lr * s), :round(w_lr * s)] # assume round int
             img_down = resize_fn(img, (h_lr, w_lr))
             crop_lr, crop_hr = img_down, img
-            bbox = [(0, round(h_lr * s)), (0, round(w_lr * s))]
         else:
             w_lr = self.inp_size
             w_hr = round(w_lr * s)
@@ -244,11 +243,6 @@ class SRExplicitDownsampledRandCrop(Dataset):
             y0 = random.randint(0, img.shape[-1] - w_hr)
             crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
             crop_lr = resize_fn(crop_hr, w_lr)
-            bbox = [(x0, x0+w_hr), (y0, y0+w_hr)]
-        bbox[0] = (bbox[0][0] / img.shape[-2], bbox[0][1] / img.shape[-2])
-        bbox[0] = ((bbox[0][0] * 2) - 1, (bbox[0][1] * 2) - 1)
-        bbox[1] = (bbox[1][0] / img.shape[-1], bbox[1][1] / img.shape[-1])
-        bbox[1] = ((bbox[1][0] * 2) - 1, (bbox[1][1] * 2) - 1)
 
         if self.augment:
             hflip = random.random() < 0.5
@@ -267,7 +261,7 @@ class SRExplicitDownsampledRandCrop(Dataset):
             crop_lr = augment(crop_lr)
             crop_hr = augment(crop_hr)
 
-        hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous(), bbox=bbox)
+        hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous())
 
         if self.sample_q is not None:
             sample_lst = np.random.choice(

@@ -28,9 +28,9 @@ class PA(nn.Module):
             f_out = f_in
         
         self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax2d()
         if resize == "up":
-            self.resize = nn.PixelShuffle(scale)
-            f_in = f_in // (scale * scale)
+            self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
         elif resize == "down":
             self.resize = nn.AvgPool2d(scale, stride=scale)
         else:
@@ -42,29 +42,36 @@ class PA(nn.Module):
     def forward(self, x):
         x = self.resize(x)
         y = self.conv(x)
-        y = self.sigmoid(y)
+        y = self.softmax(self.sigmoid(y))
         out = torch.mul(x, y)
 
         return out
 
-def projection_conv(in_channels, out_channels, scale, up=True):
+def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
     kernel_size, stride, padding = {
         2: (6, 2, 2),
         4: (8, 4, 2),
         8: (12, 8, 2)
     }[scale]
     if up:
-        conv_f = nn.ConvTranspose2d
+        if shuffle:
+            resize = nn.PixelShuffle(scale)
+            in_channels = in_channels // (scale * scale)
+            conv_f = nn.Conv2d(in_channels, out_channels, 1, stride=1, padding=0)
+            return nn.Sequential(*[resize, conv_f])
+        else:
+            return nn.ConvTranspose2d(
+                in_channels, out_channels, kernel_size,
+                stride=stride, padding=padding
+            )
     else:
-        conv_f = nn.Conv2d
-
-    return conv_f(
-        in_channels, out_channels, kernel_size,
-        stride=stride, padding=padding
-    )
+        return nn.Conv2d(
+            in_channels, out_channels, kernel_size,
+            stride=stride, padding=padding
+        )
 
 class DenseProjection(nn.Module):
-    def __init__(self, in_channels, nr, scale, up=True, bottleneck=True, use_pa=True):
+    def __init__(self, in_channels, nr, scale, up=True, bottleneck=True, use_pa=True, use_shuffle=False):
         super(DenseProjection, self).__init__()
         if bottleneck:
             self.bottleneck = nn.Sequential(*[
@@ -77,22 +84,21 @@ class DenseProjection(nn.Module):
             inter_channels = in_channels
 
         layers_1 = [
-            projection_conv(inter_channels, nr, scale, up),
+            projection_conv(inter_channels, nr, scale, up, shuffle=not use_shuffle),
             nn.PReLU(nr)
         ]
         layers_2 = [
-            projection_conv(nr, inter_channels, scale, not up),
-            nn.PReLU(nr)
+            projection_conv(nr, inter_channels, scale, not up, shuffle=use_shuffle),
+            nn.PReLU(inter_channels)
         ]
         layers_3 = [
-            projection_conv(inter_channels, nr, scale, up),
+            projection_conv(inter_channels, nr, scale, up, shuffle=use_shuffle),
             nn.PReLU(nr)
         ]
         self.use_pa = use_pa
         if self.use_pa:
             layers_1.append(PA(nr))
-            layers_1.append(PA(inter_channels))
-            layers_1.append(PA(nr))
+            layers_2.append(PA(inter_channels))
         
         self.conv_1 = nn.Sequential(*layers_1)
         self.conv_2 = nn.Sequential(*layers_2)
@@ -114,7 +120,7 @@ class DenseProjection(nn.Module):
         out = a_0.add(a_1)
 
         if self.use_pa:
-            out = self.pa_out(out) * self.pa_x(x)
+            out = out * (self.pa_out(out) + self.pa_x(x))
 
         return out
 
@@ -138,7 +144,7 @@ class DDBPN(nn.Module):
         channels = args.n_feats
         for i in range(self.depth):
             self.upmodules.append(
-                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1, use_pa=args.use_pa)
+                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1, use_pa=args.use_pa, use_shuffle=i%2==1)
             )
             if i != 0:
                 channels += args.n_feats
