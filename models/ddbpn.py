@@ -29,7 +29,8 @@ class PA(nn.Module):
         
         self.sigmoid = nn.Sigmoid()
         if resize == "up":
-            self.resize = nn.Upsample(scale_factor=scale)
+            self.resize = nn.PixelShuffle(scale)
+            f_in = f_in // (scale * scale)
         elif resize == "down":
             self.resize = nn.AvgPool2d(scale, stride=scale)
         else:

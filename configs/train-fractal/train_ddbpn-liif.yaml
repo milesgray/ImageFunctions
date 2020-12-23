@@ -5,38 +5,38 @@ train_dataset:
       root_path: /content/full/
       repeat: 25
       cache: in_memory
-      first_k: 3400
-      skip_every: 3
+      first_k: 114
+      skip_every: 1
   wrapper:
     name: sr-explicit-downsampled-randcrop
     args:
       inp_size: 32
-      scale_min: 4
-      scale_max: 4
+      scale_min: 3
+      scale_max: 6
       augment: true
-      sample_q: 2304
-  batch_size: 16
+      sample_q: 4096
+  batch_size: 1
 
 val_dataset:
   dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      last_k: 131
-      repeat: 100
+      last_k: 30
+      repeat: 10
       cache: in_memory
   wrapper:
     name: sr-explicit-downsampled-randcrop
     args:
       inp_size: 32
-      scale_min: 4
-      scale_max: 4
-      sample_q: 2304
-  batch_size: 16
+      scale_min: 3
+      scale_max: 6
+      sample_q: 4096
+  batch_size: 1
 
 data_norm:
-  inp: {sub: [0.5], div: [0.5]}
-  gt: {sub: [0.5], div: [0.5]}
+  inp: {sub: [0], div: [1]}
+  gt: {sub: [0], div: [1]}
 
 model:
   name: liif
@@ -46,10 +46,10 @@ model:
       args:
         no_upsampling: False
         use_pa: True
-        n_feats_in: 128
+        n_feats_in: 64
         n_feats: 32
-        n_feats_out: 256
-        depth: 5
+        n_feats_out: 128
+        depth: 10
         scale: 4
     imnet_spec:
       name: mlp
@@ -61,9 +61,9 @@ optimizer:
   name: adam
   args:
     lr: 1.e-4
-epoch_max: 100
+epoch_max: 1000
 multi_step_lr:
-  milestones: [20, 40, 60, 80]
+  milestones: [200, 400, 600, 800]
   gamma: 0.5
 
 epoch_val: 1
