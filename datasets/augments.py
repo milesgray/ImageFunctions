@@ -1,9 +1,12 @@
 import pathlib
 import numbers
 import random
+from typing import Any, Optional
 
 import numpy as np
 import torch
+from torch import Tensor
+from torch.jit.annotations import List, Tuple
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -258,3 +261,37 @@ def get_color_distortion(s=1.0, use_grayscale=True):
         transform_list.append(transforms.RandomGrayscale(p=0.2))
     color_distort = transforms.Compose(transform_list)
     return color_distort
+
+def apply_color_distortion(x: Tensor, bright: float=1., contrast: float=1., saturation: float=1., hue: float=0., gamma: float=1.) -> Tensor:
+    """Applies the Pytorchvision functional HSV+G color adjustments in a deterministic manner.
+
+    Args:
+        x ([type]): [description]
+        bright (float, optional): How much to adjust the brightness. Can be
+            any non negative number. 0 gives a black image, 1 gives the
+            original image while 2 increases the brightness by a factor of 2. Defaults to 1..
+        contrast (float, optional): How much to adjust the contrast. Can be any
+            non negative number. 0 gives a solid gray image, 1 gives the
+            original image while 2 increases the contrast by a factor of 2. Defaults to 1..
+        saturation (float, optional): How much to adjust the saturation. 0 will
+            give a black and white image, 1 will give the original image while
+            2 will enhance the saturation by a factor of 2. Defaults to 1..
+        hue (float, optional): How much to shift the hue channel. Should be in
+            [-0.5, 0.5]. 0.5 and -0.5 give complete reversal of hue channel in
+            HSV space in positive and negative direction respectively.
+            0 means no shift. Therefore, both -0.5 and 0.5 will give an image
+            with complementary colors while 0 gives the original image. Defaults to 0..
+        gamma (float, optional): Non negative real number, same as :math:`\gamma` in the equation.
+            gamma larger than 1 make the shadows darker,
+            while gamma smaller than 1 make dark regions lighter. Defaults to 1..
+        use_gray (bool, optional): Applies grayscale conversion after all others.
+    Returns:
+        PIL Image or Tensor: Gamma correction adjusted image.
+    """
+    x = transforms.functional.adjust_contrast(x, contrast)
+    x = transforms.functional.adjust_brightness(x, bright)
+    x = transforms.functional.adjust_saturation(x, saturation)
+    x = transforms.functional.adjust_hue(x, hue)
+    x = transforms.functional.adjust_gamma(x, gamma)
+
+    return x
