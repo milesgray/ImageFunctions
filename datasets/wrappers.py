@@ -213,7 +213,7 @@ class SRImplicitUniformVaried(Dataset):
 class SRExplicitDownsampledRandCrop(Dataset):
 
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
-                 augment=False, sample_q=None):
+                 augment=False, sample_q=None, color_augment=False):
         self.dataset = dataset
         self.inp_size = inp_size
         self.scale_min = scale_min
@@ -222,6 +222,7 @@ class SRExplicitDownsampledRandCrop(Dataset):
         self.scale_max = scale_max
         self.augment = augment
         self.sample_q = sample_q
+        self.color_augment = color_augment
 
     def __len__(self):
         return len(self.dataset)
@@ -248,13 +249,14 @@ class SRExplicitDownsampledRandCrop(Dataset):
             hflip = random.random() < 0.5
             vflip = random.random() < 0.5
             dflip = random.random() < 0.5
-            color_aug_str = 0.8
-            color_aug_kwarg = {
-                "bright": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                "saturation": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                "hue": ((random.random() * 1.0) - 0.5) * color_aug_str,
-                "gamma": ((random.random() * 2.0) - 1.0) * color_aug_str,
-            }
+            if self.color_augment:
+                color_aug_str = 0.8
+                color_aug_kwarg = {
+                    "bright": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                    "saturation": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                    "hue": ((random.random() * 1.0) - 0.5) * color_aug_str,
+                    "gamma": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                }
 
             def augment(x):
                 if hflip:
@@ -263,7 +265,8 @@ class SRExplicitDownsampledRandCrop(Dataset):
                     x = x.flip(-1)
                 if dflip:
                     x = x.transpose(-2, -1)
-                x = augment.apply_color_distortion(x, **color_aug_kwarg)
+                if self.color_augment:
+                    x = augments.apply_color_distortion(x, **color_aug_kwarg)
                 return x
 
             crop_lr = augment(crop_lr)
@@ -291,7 +294,7 @@ class SRExplicitDownsampledRandCrop(Dataset):
 @register('sr-randrange-downsampled-randcrop')
 class SRRandRangeDownsampledRandCrop(Dataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
-                 augment=False, sample_q=None):
+                 augment=False, sample_q=None, color_augment=False):
         self.dataset = dataset
         self.inp_size = inp_size
         self.scale_min = scale_min
@@ -299,6 +302,7 @@ class SRRandRangeDownsampledRandCrop(Dataset):
             scale_max = scale_min
         self.scale_max = scale_max
         self.augment = augment
+        self.color_augment = color_augment
         self.sample_q = sample_q
 
     def __len__(self):
@@ -327,13 +331,14 @@ class SRRandRangeDownsampledRandCrop(Dataset):
             hflip = random.random() < 0.5
             vflip = random.random() < 0.5
             dflip = random.random() < 0.5
-            color_aug_str = 0.8
-            color_aug_kwarg = {
-                "bright": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                "saturation": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                "hue": ((random.random() * 1.0) - 0.5) * color_aug_str,
-                "gamma": ((random.random() * 2.0) - 1.0) * color_aug_str,
-            }
+            if self.color_augment:
+                color_aug_str = 0.8
+                color_aug_kwarg = {
+                    "bright": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                    "saturation": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                    "hue": ((random.random() * 1.0) - 0.5) * color_aug_str,
+                    "gamma": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                }
 
             def augment(x):
                 if hflip:
@@ -342,7 +347,8 @@ class SRRandRangeDownsampledRandCrop(Dataset):
                     x = x.flip(-1)
                 if dflip:
                     x = x.transpose(-2, -1)
-                x = augment.apply_color_distortion(x, **color_aug_kwarg)
+                if self.color_augment:
+                    x = augments.apply_color_distortion(x, **color_aug_kwarg)
                 return x
 
             crop_lr = augment(crop_lr)
