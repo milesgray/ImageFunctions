@@ -380,3 +380,83 @@ class SRRandRangeDownsampledRandCrop(Dataset):
         if self.return_hr:
             result["hr"] = crop_hr
         return result
+
+@register('sr-setrange-downsampled-randcrop')
+class SRSetRangeDownsampledRandCrop(Dataset):
+    def __init__(self, dataset, inp_size_min=None, inp_size_max=None, scale_min=1, scale_max=None,
+                 augment=False, sample_q=None, color_augment=False, return_hr=False):
+        self.dataset = dataset
+        self.inp_size_min = inp_size_min
+        self.inp_size_max = inp_size_max
+        self.scale_min = scale_min
+        if scale_max is None:
+            scale_max = scale_min
+        self.scale_max = scale_max
+        self.augment = augment
+        self.color_augment = color_augment
+        self.sample_q = sample_q
+        self.return_hr = return_hr
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        img = self.dataset[idx]
+        if self.color_augment:
+            color_aug_str = 0.8
+            color_aug_kwarg = {
+                "bright": (random.random() * 2.0) * color_aug_str,
+                "saturation": (random.random() * 2.0)* color_aug_str,
+                "hue": (random.random() - 0.5) * color_aug_str,
+                "gamma": (random.random() * 2.0) * color_aug_str,
+            }
+            img = augments.apply_color_distortion(img, **color_aug_kwarg)
+        s = random.uniform(self.scale_min, self.scale_max)
+
+        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[-2]), img.shape[-1]) // s, 
+                                    min(min(self.inp_size_max*s, img.shape[-2]), img.shape[-1]) // s))
+        w_hr = round(w_lr * s)
+        x0 = random.randint(0, img.shape[-2] - w_hr)
+        y0 = random.randint(0, img.shape[-1] - w_hr)
+        crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
+        crop_lr = resize_fn(crop_hr, w_lr)
+
+        if self.augment:
+            hflip = random.random() < 0.5
+            vflip = random.random() < 0.5
+            dflip = random.random() < 0.5
+            
+
+            def augment(x):
+                if hflip:
+                    x = x.flip(-2)
+                if vflip:
+                    x = x.flip(-1)
+                if dflip:
+                    x = x.transpose(-2, -1)
+                return x
+
+            crop_lr = augment(crop_lr)
+            crop_hr = augment(crop_hr)
+
+        hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous())
+
+        if self.sample_q is not None:
+            sample_lst = np.random.choice(
+                len(hr_coord), min(self.sample_q * s, len(hr_coord)), replace=False)
+            hr_coord = hr_coord[sample_lst]
+            hr_rgb = hr_rgb[sample_lst]
+
+        cell = torch.ones_like(hr_coord)
+        cell[:, 0] *= 2 / crop_hr.shape[-2]
+        cell[:, 1] *= 2 / crop_hr.shape[-1]
+
+        result = {
+            'inp': crop_lr,
+            'coord': hr_coord,
+            'cell': cell,
+            'gt': hr_rgb
+        }
+        if self.return_hr:
+            result["hr"] = crop_hr
+        return result
