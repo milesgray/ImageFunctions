@@ -3,18 +3,19 @@ train_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      repeat: 25
+      repeat: 1
       cache: in_memory
-      first_k: 115
-      skip_every: 1
+      first_k: 3300
+      skip_every: 3
   wrapper:
-    name: sr-explicit-downsampled-randcrop
+    name: sr-randrange-downsampled-randcrop
     args:
       inp_size: 32
       scale_min: 2
       scale_max: 6
       augment: true
       sample_q: 4096
+      color_augment: true
   batch_size: 1
 
 val_dataset:
@@ -22,16 +23,17 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      last_k: 29
-      repeat: 10
+      last_k: 230
+      repeat: 3
       cache: in_memory
   wrapper:
-    name: sr-explicit-downsampled-randcrop
+    name: sr-randrange-downsampled-randcrop
     args:
       inp_size: 32
       scale_min: 2
       scale_max: 6
       sample_q: 4096
+      return_hr: true
   batch_size: 1
 
 data_norm:
@@ -50,7 +52,7 @@ model:
         n_feats: 32
         n_feats_out: 128
         depth: 7
-        scale: 4
+        scale: 2
     imnet_spec:
       name: mlp
       args:

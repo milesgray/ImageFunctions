@@ -213,7 +213,7 @@ class SRImplicitUniformVaried(Dataset):
 class SRExplicitDownsampledRandCrop(Dataset):
 
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
-                 augment=False, sample_q=None, color_augment=False):
+                 augment=False, sample_q=None, color_augment=False, return_hr=False):
         self.dataset = dataset
         self.inp_size = inp_size
         self.scale_min = scale_min
@@ -223,6 +223,7 @@ class SRExplicitDownsampledRandCrop(Dataset):
         self.augment = augment
         self.sample_q = sample_q
         self.color_augment = color_augment
+        self.return_hr = return_hr
 
     def __len__(self):
         return len(self.dataset)
@@ -284,17 +285,20 @@ class SRExplicitDownsampledRandCrop(Dataset):
         cell[:, 0] *= 2 / crop_hr.shape[-2]
         cell[:, 1] *= 2 / crop_hr.shape[-1]
 
-        return {
+        result = {
             'inp': crop_lr,
             'coord': hr_coord,
             'cell': cell,
             'gt': hr_rgb
         }
+        if self.return_hr:
+            result["hr"] = crop_hr
+        return result
 
 @register('sr-randrange-downsampled-randcrop')
 class SRRandRangeDownsampledRandCrop(Dataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
-                 augment=False, sample_q=None, color_augment=False):
+                 augment=False, sample_q=None, color_augment=False, return_hr=False):
         self.dataset = dataset
         self.inp_size = inp_size
         self.scale_min = scale_min
@@ -304,6 +308,7 @@ class SRRandRangeDownsampledRandCrop(Dataset):
         self.augment = augment
         self.color_augment = color_augment
         self.sample_q = sample_q
+        self.return_hr = return_hr
 
     def __len__(self):
         return len(self.dataset)
@@ -366,9 +371,12 @@ class SRRandRangeDownsampledRandCrop(Dataset):
         cell[:, 0] *= 2 / crop_hr.shape[-2]
         cell[:, 1] *= 2 / crop_hr.shape[-1]
 
-        return {
+        result = {
             'inp': crop_lr,
             'coord': hr_coord,
             'cell': cell,
             'gt': hr_rgb
         }
+        if self.return_hr:
+            result["hr"] = crop_hr
+        return result

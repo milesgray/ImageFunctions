@@ -39,15 +39,13 @@ def plot_preds(model, loader, epoch,
     with torch.no_grad():
         pred = model(inp, coord.cuda(), cell.cuda())
 
-    #pred = (pred / gt_div) - gt_sub
     pred = (pred * gt_div) + gt_sub
-    #pred = (pred - pred.min()) / (pred.max() - pred.min())# (1 - pred.max().cpu().numpy())
     pred = pred.clamp_(0, 1)
     pred = reshape(pred, target_shape)
     inp = batch['inp'].clamp_(0, 1)
-    gt = reshape(batch["gt"], batch["inp"].shape[-2:])
+    hr_gt = reshape(batch["hr"], batch["inp"].shape[-2:])
     plt.figure(figsize=(4, batch_size * 3))
-    for i, (p, g) in enumerate(zip(pred, gt)):                 
+    for i, (p, g) in enumerate(zip(pred, hr_gt)):
         plt.subplot(batch_size,3,(i * 3) + 1)
         plt.imshow(p.cpu().numpy().transpose(1,2,0))
         plt.subplot(batch_size,3,(i * 3) + 2)
