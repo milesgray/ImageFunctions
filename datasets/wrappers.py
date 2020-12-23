@@ -315,7 +315,7 @@ class SRRandRangeDownsampledRandCrop(Dataset):
             img_down = resize_fn(img, (h_lr, w_lr))
             crop_lr, crop_hr = img_down, img
         else:
-            w_lr = round(random.uniform(min(min(self.inp_size*s, img.shape[-2] // s), img.shape[-1] // s) // s), 
+            w_lr = round(random.uniform(min(min(self.inp_size*s, img.shape[-2] // s), img.shape[-1] // s) // s, 
                                         min(min(self.inp_size*s*s, img.shape[-2] // s), img.shape[-1] // s) // s))
             w_hr = round(w_lr * s)
             x0 = random.randint(0, img.shape[-2] - w_hr)
