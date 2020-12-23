@@ -7,7 +7,7 @@ import torch
 import numpy as np
 from torch.optim import SGD, Adam
 from tensorboardX import SummaryWriter
-from skimage.measure import compare_ssim
+import piq
 
 class Averager():
 
@@ -149,7 +149,7 @@ def calc_psnr(sr, hr, dataset=None, scale=1, rgb_range=1):
 def calc_ssim(img, img_gt, normalize=False):
     if normalize:
         img = (img - img.min()) / (img.max() - img.min() + 1e-9)
-        img_gt = (img_gt - img_gt.min()) / (img_gt.max() - img_gt.min() + 1e-9)    
-    SSIM = compare_ssim(img, img_gt, data_range=img_gt.max() - img_gt.min())
+        img_gt = (img_gt - img_gt.min()) / (img_gt.max() - img_gt.min() + 1e-9)
+    SSIM = piq.ssim(img, img_gt)
 
     return SSIM
