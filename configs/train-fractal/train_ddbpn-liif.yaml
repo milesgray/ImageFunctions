@@ -15,7 +15,7 @@ train_dataset:
       scale_max: 6
       augment: true
       sample_q: 4096
-      color_augment: true
+      augment_color: true
   batch_size: 1
 
 val_dataset:
@@ -52,7 +52,7 @@ model:
         n_feats: 32
         n_feats_out: 128
         depth: 7
-        scale: 2
+        scale: 4
     imnet_spec:
       name: mlp
       args:
