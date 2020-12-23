@@ -253,10 +253,10 @@ class SRExplicitDownsampledRandCrop(Dataset):
             if self.color_augment:
                 color_aug_str = 0.8
                 color_aug_kwarg = {
-                    "bright": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                    "saturation": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                    "hue": ((random.random() * 1.0) - 0.5) * color_aug_str,
-                    "gamma": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                    "bright": (random.random() * 2.0) * color_aug_str,
+                    "saturation": (random.random() * 2.0)* color_aug_str,
+                    "hue": (random.random() - 0.5) * color_aug_str,
+                    "gamma": (random.random() * 2.0) * color_aug_str,
                 }
 
             def augment(x):
@@ -339,10 +339,10 @@ class SRRandRangeDownsampledRandCrop(Dataset):
             if self.color_augment:
                 color_aug_str = 0.8
                 color_aug_kwarg = {
-                    "bright": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                    "saturation": ((random.random() * 2.0) - 1.0) * color_aug_str,
-                    "hue": ((random.random() * 1.0) - 0.5) * color_aug_str,
-                    "gamma": ((random.random() * 2.0) - 1.0) * color_aug_str,
+                    "bright": (random.random() * 2.0) * color_aug_str,
+                    "saturation": (random.random() * 2.0)* color_aug_str,
+                    "hue": (random.random() - 0.5) * color_aug_str,
+                    "gamma": (random.random() * 2.0) * color_aug_str,
                 }
 
             def augment(x):
