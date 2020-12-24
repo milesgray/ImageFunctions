@@ -414,7 +414,7 @@ class SRSetRangeDownsampledRandCrop(Dataset):
         s = random.uniform(self.scale_min, self.scale_max)
 
         w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[-2]), img.shape[-1]) // s, 
-                                    min(min(self.inp_size_max*s, img.shape[-2]), img.shape[-1]) // s))
+                                    min(min(self.inp_size_max*s*s, img.shape[-2]), img.shape[-1]) // s))
         w_hr = round(w_lr * s)
         x0 = random.randint(0, img.shape[-2] - w_hr)
         y0 = random.randint(0, img.shape[-1] - w_hr)
@@ -425,7 +425,6 @@ class SRSetRangeDownsampledRandCrop(Dataset):
             hflip = random.random() < 0.5
             vflip = random.random() < 0.5
             dflip = random.random() < 0.5
-            
 
             def augment(x):
                 if hflip:
