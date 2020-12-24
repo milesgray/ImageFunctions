@@ -94,6 +94,9 @@ class TilesManager:
         for i, tile in enumerate(self._tiles):
             if i > (len(images)-1):
                 break
+            if tile.shape != images[i].shape:
+                print(f"Skipping {i} because shape mismatch - tile {tile.shape} != img {images[i].shape}")
+                continue
             TilesManager._insert_tile_to_image(res, images[i], tile)
         return res
 
