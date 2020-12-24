@@ -187,6 +187,9 @@ class SuperResManager:
             tile = torch.Tensor(tile.transpose(2,0,1))
             if len(tile.shape) == 3:
                 tile = tile.unsqueeze(0)
+            if any([d == 0 for d in tile.shape]):
+                self.log(f"Skipping tile {i} - {tile.shape} (0 dimension detected)")
+                continue
             self.log(f"Processing tile {i} - {tile.shape}")
             with torch.no_grad():
                 result = self.model(tile.cuda(), coord.cuda(), cell.cuda())
