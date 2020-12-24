@@ -193,7 +193,8 @@ class SuperResManager:
             self.log(f"Processing tile {i} - {tile.shape}")
             with torch.no_grad():
                 result = self.model(tile.cuda(), coord.cuda(), cell.cuda())
-            results.append(result.cpu().numpy().transpose(1,2,0))
+            result = self._reshape(result, self.target_tile_shape)
+            results.append(result.squeeze().cpu().numpy().transpose(1,2,0))
         self.log(f"Finished generating zoomed tiles - {len(results)} total. Now merging into final output.")
         self.zoom_img = self.zoom_tile_mgr.merge_images_by_tiles(results)
         self.log(f"Successfully created new image with shape {self.zoom_img.shape}!")
