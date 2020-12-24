@@ -183,6 +183,6 @@ class SuperResManager:
             coord, cell = self._make_coord_cell(target_shape=self.target_tile_shape, batch_size=1)
             with torch.no_grad():
                 result = self.model(torch.Tensor(tile).cuda(), coord.cuda(), cell.cuda())
-            results.append(result)
+            results.append(result.numpy())
         self.img = self.zoom_tile_mgr.merge_images_by_tiles(results)
         return self.img
