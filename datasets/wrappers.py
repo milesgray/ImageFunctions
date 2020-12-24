@@ -385,10 +385,11 @@ class SRRandRangeDownsampledRandCrop(Dataset):
 
 @register('sr-setrange-downsampled-randcrop')
 class SRSetRangeDownsampledRandCrop(Dataset):
-    def __init__(self, dataset, inp_size_min=None, inp_size_max=None, scale_min=1, scale_max=None,
+    def __init__(self, dataset, inp_size=None, inp_size_min=None, inp_size_max=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8, 
                  return_hr=False):
         self.dataset = dataset
+        self.inp_size = inp_size
         self.inp_size_min = inp_size_min
         self.inp_size_max = inp_size_max
         self.scale_min = scale_min
@@ -418,12 +419,13 @@ class SRSetRangeDownsampledRandCrop(Dataset):
         s = random.uniform(self.scale_min, self.scale_max)
 
         w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[-2]), img.shape[-1]) // s, 
-                                    min(min(self.inp_size_max*s*s, img.shape[-2]), img.shape[-1]) // s))
+                                    min(min(self.inp_size_max*s, img.shape[-2]), img.shape[-1]) // s))
         w_hr = round(w_lr * s)
         x0 = random.randint(0, img.shape[-2] - w_hr)
         y0 = random.randint(0, img.shape[-1] - w_hr)
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
-        crop_lr = resize_fn(crop_hr, w_lr)
+        crop_lr = resize_fn(crop_hr, self.inp_size)
+        crop_hr = resize_fn(crop_hr, round(self.inp_size * s))
 
         if self.augment:
             hflip = random.random() < 0.5

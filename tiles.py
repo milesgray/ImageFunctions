@@ -162,9 +162,9 @@ class SuperResManager:
             img = img.squeeze().transpose(2,0,1)
         self.target_img_shape = [round(img.shape[-2] * self.scale), round(img.shape[-1] * self.scale)]
         self.target_tile_shape = [round(tile_size * self.scale), round(tile_size * self.scale)]
-        self.orig_tile_mgr = self.tile_mgr.generate_tiles(img.shape[-2:], [tile_size, tile_size])        
-        self.zoom_tile_mgr = self.tile_mgr.generate_tiles(self.target_img_shape, 
-                                                          self.target_tile_shape)
+        self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles(img.shape[-2:], [tile_size, tile_size])        
+        self.zoom_tile_mgr = self.zoom_tile_mgr.generate_tiles(self.target_img_shape, 
+                                                               self.target_tile_shape)
         self.img = img
         log('Image loaded')
 
