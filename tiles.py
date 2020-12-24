@@ -168,7 +168,7 @@ class SuperResManager:
         self.log(f"Target img shape: {self.target_img_shape}")
         self.target_tile_shape = [round(tile_size * self.scale), round(tile_size * self.scale)]
         self.log(f"Target tile shape: {self.target_tile_shape}")
-        self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles([[0,0,0],img.shape[:2] + [3]], [tile_size, tile_size])        
+        self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles([[0,0,0],img.shape[:2] + (3,)], [tile_size, tile_size])        
         self.zoom_tile_mgr = self.zoom_tile_mgr.generate_tiles([[0,0,0],self.target_img_shape + [3]], 
                                                                self.target_tile_shape)
         self.img = img
