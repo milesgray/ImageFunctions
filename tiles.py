@@ -90,7 +90,7 @@ class TilesManager:
         return res
 
     def merge_images_by_tiles(self, images: [np.ndarray]) -> np.ndarray:
-        res = np.array(self._size, dtype=images[0].dtype)
+        res = np.empty(list(self._size[1]) + [3], dtype=images[0].dtype)
         for i, tile in enumerate(self._tiles):
             TilesManager._insert_tile_to_image(res, images[i], tile)
         return res
@@ -166,10 +166,10 @@ class SuperResManager:
         self.log(f"Image shape: {img.shape}, tile size: {tile_size}")
         self.target_img_shape = [round(img.shape[0] * self.scale), round(img.shape[1] * self.scale)]
         self.log(f"Target img shape: {self.target_img_shape}")
-        self.target_tile_shape = [round(tile_size * self.scale), round(tile_size * self.scale), 3]
+        self.target_tile_shape = [round(tile_size * self.scale), round(tile_size * self.scale)]
         self.log(f"Target tile shape: {self.target_tile_shape}")
-        self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles([[0,0,0],img.shape[:2] + (3,)], [tile_size, tile_size, 3])        
-        self.zoom_tile_mgr = self.zoom_tile_mgr.generate_tiles([[0,0,0],self.target_img_shape + [3]], 
+        self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles([[0,0],img.shape[:2]], [tile_size, tile_size])        
+        self.zoom_tile_mgr = self.zoom_tile_mgr.generate_tiles([[0,0],self.target_img_shape], 
                                                                self.target_tile_shape)
         self.img = img
         self.log('Image loaded')
