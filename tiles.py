@@ -160,8 +160,11 @@ class SuperResManager:
     def load_image(self, img, tile_size=32, log=print):
         if img.shape[-1] == 3:
             img = img.squeeze().transpose(2,0,1)
+        log(f"Image shape: {img.shape}, tile size: {tile_size}")
         self.target_img_shape = [round(img.shape[-2] * self.scale), round(img.shape[-1] * self.scale)]
+        log(f"Target img shape: {self.target_img_shape}")
         self.target_tile_shape = [round(tile_size * self.scale), round(tile_size * self.scale)]
+        log(f"Target tile shape: {self.target_tile_shape}")
         self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles(img.shape[-2:], [tile_size, tile_size])        
         self.zoom_tile_mgr = self.zoom_tile_mgr.generate_tiles(self.target_img_shape, 
                                                                self.target_tile_shape)
@@ -170,7 +173,7 @@ class SuperResManager:
 
     def apply(self, img=None, tile_size=32, log=print):
         if self.img is None and img is None:
-            log(f"Must run load_image before apply")
+            log(f"Must run load_image before apply or pass an img to apply")
             return
         elif self.img is None:
             self.load_image(img, tile_size=tile_size, log=log)
