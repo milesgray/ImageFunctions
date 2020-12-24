@@ -224,7 +224,7 @@ class SRExplicitDownsampledRandCrop(Dataset):
         self.augment = augment
         self.sample_q = sample_q
         self.color_augment = color_augment
-         self.color_augment_strength = color_augment_strength
+        self.color_augment_strength = color_augment_strength
         self.return_hr = return_hr
 
     def __len__(self):
