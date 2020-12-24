@@ -158,14 +158,14 @@ class SuperResManager:
         return pred
 
     def load_image(self, img, tile_size=32, log=print):
-        if img.shape[-1] == 3:
-            img = img.squeeze().transpose(2,0,1)
+        if img.shape[-1] != 3:
+            img = img.squeeze().transpose(1,2,0)
         log(f"Image shape: {img.shape}, tile size: {tile_size}")
-        self.target_img_shape = [round(img.shape[-2] * self.scale), round(img.shape[-1] * self.scale)]
+        self.target_img_shape = [round(img.shape[0] * self.scale), round(img.shape[1] * self.scale)]
         log(f"Target img shape: {self.target_img_shape}")
         self.target_tile_shape = [round(tile_size * self.scale), round(tile_size * self.scale)]
         log(f"Target tile shape: {self.target_tile_shape}")
-        self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles([[0,0],img.shape[-2:]], [tile_size, tile_size])        
+        self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles([[0,0],img.shape[:2]], [tile_size, tile_size])        
         self.zoom_tile_mgr = self.zoom_tile_mgr.generate_tiles([[0,0],self.target_img_shape], 
                                                                self.target_tile_shape)
         self.img = img
@@ -182,7 +182,7 @@ class SuperResManager:
         for tile in self.orig_tile_mgr.cut_image_by_tiles(self.img):
             coord, cell = self._make_coord_cell(target_shape=self.target_tile_shape, batch_size=1)
             with torch.no_grad():
-                result = self.model(torch.Tensor(tile).cuda(), coord.cuda(), cell.cuda())
-            results.append(result.numpy())
+                result = self.model(torch.Tensor(tile.transpose(2,0,1)).cuda(), coord.cuda(), cell.cuda())
+            results.append(result.numpy().transpose(1,2,0))
         self.img = self.zoom_tile_mgr.merge_images_by_tiles(results)
         return self.img
