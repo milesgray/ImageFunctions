@@ -114,6 +114,7 @@ class SuperResManager:
         self.orig_tile_mgr = TilesManager()
         self.zoom_tile_mgr = TilesManager()
         self.img = None
+        self.zoom_img = None
 
     @staticmethod
     def load_model(path, log=print):
@@ -160,32 +161,37 @@ class SuperResManager:
     def load_image(self, img, tile_size=32, log=print):
         if img.shape[-1] != 3:
             img = img.squeeze().transpose(1,2,0)
-        log(f"Image shape: {img.shape}, tile size: {tile_size}")
+        if self.log is None:
+            self.log = log
+        self.log(f"Image shape: {img.shape}, tile size: {tile_size}")
         self.target_img_shape = [round(img.shape[0] * self.scale), round(img.shape[1] * self.scale)]
-        log(f"Target img shape: {self.target_img_shape}")
+        self.log(f"Target img shape: {self.target_img_shape}")
         self.target_tile_shape = [round(tile_size * self.scale), round(tile_size * self.scale)]
-        log(f"Target tile shape: {self.target_tile_shape}")
+        self.log(f"Target tile shape: {self.target_tile_shape}")
         self.orig_tile_mgr = self.orig_tile_mgr.generate_tiles([[0,0],img.shape[:2]], [tile_size, tile_size])        
         self.zoom_tile_mgr = self.zoom_tile_mgr.generate_tiles([[0,0],self.target_img_shape], 
                                                                self.target_tile_shape)
         self.img = img
-        log('Image loaded')
+        self.log('Image loaded')
 
     def apply(self, img=None, tile_size=32, log=print):
         if self.img is None and img is None:
-            log(f"Must run load_image before apply or pass an img to apply")
+            self.log(f"Must run load_image before apply or pass an img to apply")
             return
         elif self.img is None:
             self.load_image(img, tile_size=tile_size, log=log)
         
         results = []
-        for tile in self.orig_tile_mgr.cut_image_by_tiles(self.img):
+        for i, tile in enumerate(self.orig_tile_mgr.cut_image_by_tiles(self.img)):
             coord, cell = self._make_coord_cell(target_shape=self.target_tile_shape, batch_size=1)
             tile = torch.Tensor(tile.transpose(2,0,1))
             if len(tile.shape) == 3:
                 tile = tile.unsqueeze(0)
+            self.log(f"Processing tile {i} - {tile.shape}")
             with torch.no_grad():
                 result = self.model(tile.cuda(), coord.cuda(), cell.cuda())
             results.append(result.cpu().numpy().transpose(1,2,0))
-        self.img = self.zoom_tile_mgr.merge_images_by_tiles(results)
-        return self.img
+        self.log(f"Finished generating zoomed tiles - {len(results)} total. Now merging into final output.")
+        self.zoom_img = self.zoom_tile_mgr.merge_images_by_tiles(results)
+        self.log(f"Successfully created new image with shape {self.zoom_img.shape}!")
+        return self.zoom_img
