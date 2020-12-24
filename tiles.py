@@ -186,6 +186,6 @@ class SuperResManager:
                 tile = tile.unsqueeze(0)
             with torch.no_grad():
                 result = self.model(tile.cuda(), coord.cuda(), cell.cuda())
-            results.append(result.numpy().transpose(1,2,0))
+            results.append(result.cpu().numpy().transpose(1,2,0))
         self.img = self.zoom_tile_mgr.merge_images_by_tiles(results)
         return self.img
