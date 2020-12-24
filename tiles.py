@@ -180,7 +180,7 @@ class SuperResManager:
         
         results = []
         for tile in self.orig_tile_mgr.cut_image_by_tiles(self.img):
-            coord, cell = make_coord_cell(target_shape=self.target_tile_shape, batch_size=1)
+            coord, cell = self._make_coord_cell(target_shape=self.target_tile_shape, batch_size=1)
             with torch.no_grad():
                 result = model(tile.cuda(), coord.cuda(), cell.cuda())
             results.append(result)
