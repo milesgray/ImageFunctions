@@ -92,6 +92,8 @@ class TilesManager:
     def merge_images_by_tiles(self, images: [np.ndarray]) -> np.ndarray:
         res = np.empty(list(self._size[1]) + [3], dtype=images[0].dtype)
         for i, tile in enumerate(self._tiles):
+            if i > len(images):
+                break
             TilesManager._insert_tile_to_image(res, images[i], tile)
         return res
 
