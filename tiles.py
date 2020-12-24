@@ -181,8 +181,11 @@ class SuperResManager:
         results = []
         for tile in self.orig_tile_mgr.cut_image_by_tiles(self.img):
             coord, cell = self._make_coord_cell(target_shape=self.target_tile_shape, batch_size=1)
+            tile = torch.Tensor(tile.transpose(2,0,1))
+            if len(tile.shape) == 3:
+                tile = tile.unsqueeze(0)
             with torch.no_grad():
-                result = self.model(torch.Tensor(tile.transpose(2,0,1)).cuda(), coord.cuda(), cell.cuda())
+                result = self.model(tile.cuda(), coord.cuda(), cell.cuda())
             results.append(result.numpy().transpose(1,2,0))
         self.img = self.zoom_tile_mgr.merge_images_by_tiles(results)
         return self.img
