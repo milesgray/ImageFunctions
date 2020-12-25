@@ -213,7 +213,10 @@ class SuperResManager:
             with torch.no_grad():
                 result = self.model(tile, coord, cell)
             result = self._reshape(result, target_shape[:2]) # reorders dimensions to H,W,C
-            results.append(result.squeeze().cpu().numpy())
+            if torch.cuda.is_available():
+                results.append(result.squeeze().cpu().numpy())
+            else:
+                results.append(result.squeeze().numpy())
         self.log(f"Finished generating zoomed tiles - {len(results)} total. Now merging into final output.")
         self.zoom_img = self.zoom_tile_mgr.merge_images_by_tiles(results)
         self.log(f"Successfully created new image with shape {self.zoom_img.shape}!")
