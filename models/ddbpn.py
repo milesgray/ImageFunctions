@@ -254,7 +254,7 @@ class DDBPN(nn.Module):
         self.depth = args.depth
         self.use_pa = args.use_pa
         self.use_pa_learn_scale = args.use_pa_learn_scale
-        self.use_hessian = args.use_hessian
+        self.use_hessian = args.use_hessian_attn
 
         initial = [
             nn.Conv2d(args.n_colors, args.n_feats_in, 3, padding=1),
@@ -360,8 +360,8 @@ class DDBPN(nn.Module):
 
 @register('ddbpn')
 def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, use_pa=True,
-               scale=2, no_upsampling=False, rgb_range=1,
-               use_mean_shift=False, 
+               use_pa_learn_attn=True, use_hessian_attn=True, scale=2, no_upsampling=False, 
+               rgb_range=1, use_mean_shift=False, 
                rgb_mean=(0.39884, 0.42088, 0.45812), 
                rgb_std=(0.28514, 0.31383, 0.28289)):
     args = Namespace()
@@ -372,7 +372,9 @@ def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, use_pa=True,
     
     args.scale = [scale]
     args.use_pa = use_pa
+    args.use_pa_learn_scale = use_pa_learn_scale
     args.no_upsampling = no_upsampling
+    args.use_hessian_attn = use_hessian_attn
 
     args.use_mean_shift = use_mean_shift
     args.rgb_range = rgb_range
