@@ -126,6 +126,9 @@ def to_pixel_samples(img, bbox=None):
     rgb = img.view(3, -1).permute(1, 0)
     return coord, rgb
 
+def to_frequency_samples(f_img):
+    freq = f_img.view(4, -1).permute(1, 0)
+    return freq
 
 def calc_psnr(sr, hr, dataset=None, scale=1, rgb_range=1):
     diff = (sr - hr) / rgb_range

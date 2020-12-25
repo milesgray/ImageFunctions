@@ -5,11 +5,12 @@ from PIL import Image
 
 import numpy as np
 import torch
+import torch.fft as tfft
 from torch.utils.data import Dataset
 from torchvision import transforms
 
 from datasets import register
-from utils import to_pixel_samples
+from utils import to_pixel_samples, to_frequency_samples
 from datasets import augments
 
 @register('sr-implicit-paired')
@@ -387,7 +388,7 @@ class SRRandRangeDownsampledRandCrop(Dataset):
 class SRSetRangeDownsampledRandCrop(Dataset):
     def __init__(self, dataset, inp_size=None, inp_size_min=None, inp_size_max=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8, 
-                 return_hr=False):
+                 return_hr=False, resize_hr=False):
         self.dataset = dataset
         self.inp_size = inp_size
         self.inp_size_min = inp_size_min
@@ -401,12 +402,14 @@ class SRSetRangeDownsampledRandCrop(Dataset):
         self.color_augment_strength = color_augment_strength
         self.sample_q = sample_q
         self.return_hr = return_hr
+        self.resize_hr = resize_hr
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
         img = self.dataset[idx]
+        f_img = tfft.hfft(img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
         if self.color_augment:
             s = self.color_augment_strength
             color_aug_kwarg = {
@@ -424,8 +427,10 @@ class SRSetRangeDownsampledRandCrop(Dataset):
         x0 = random.randint(0, img.shape[-2] - w_hr)
         y0 = random.randint(0, img.shape[-1] - w_hr)
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
+        f_crop_hr = f_img[:, x0: x0 + w_hr, y0: y0 + w_hr]
         crop_lr = resize_fn(crop_hr, self.inp_size)
-        crop_hr = resize_fn(crop_hr, round(self.inp_size * s))
+        if self.resize_hr:
+            crop_hr = resize_fn(crop_hr, round(self.inp_size * s))
 
         if self.augment:
             hflip = random.random() < 0.5
@@ -445,12 +450,14 @@ class SRSetRangeDownsampledRandCrop(Dataset):
             crop_hr = augment(crop_hr)
 
         hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous())
+        hr_freq = to_frequency_samples(f_crop_hr.contiguous())
 
         if self.sample_q is not None:
             sample_lst = np.random.choice(
                 len(hr_coord), min(round(self.sample_q * s), len(hr_coord)), replace=False)
             hr_coord = hr_coord[sample_lst]
             hr_rgb = hr_rgb[sample_lst]
+            hr_freq = hr_freq[sample_lst]
 
         cell = torch.ones_like(hr_coord)
         cell[:, 0] *= 2 / crop_hr.shape[-2]
@@ -460,7 +467,8 @@ class SRSetRangeDownsampledRandCrop(Dataset):
             'inp': crop_lr,
             'coord': hr_coord,
             'cell': cell,
-            'gt': hr_rgb
+            'gt': hr_rgb,
+            'f_gt': hr_freq,
         }
         if self.return_hr:
             result["hr"] = crop_hr
