@@ -193,7 +193,7 @@ def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
 
 class DenseProjection(nn.Module):
     def __init__(self, in_channels, nr, scale, up=True, bottleneck=True, use_pa=True, use_shuffle=False,
-                 use_attn_scale=True):
+                 use_pa_learn_scale=False):
         super(DenseProjection, self).__init__()
         if bottleneck:
             self.bottleneck = nn.Sequential(*[
@@ -219,16 +219,16 @@ class DenseProjection(nn.Module):
         ]
         self.use_pa = use_pa
         if self.use_pa:
-            layers_1.append(PA(nr, scale=use_attn_scale))
-            layers_2.append(PA(inter_channels, scale=use_attn_scale))
+            layers_1.append(PA(nr, learn_scale=use_pa_learn_scale))
+            layers_2.append(PA(inter_channels, learn_scale=use_pa_learn_scale))
         
         self.conv_1 = nn.Sequential(*layers_1)
         self.conv_2 = nn.Sequential(*layers_2)
         self.conv_3 = nn.Sequential(*layers_3)
 
         if self.use_pa:
-            self.pa_x = PA(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale)
-            self.pa_out = PA(nr)
+            self.pa_x = PA(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale, learn_scale=use_pa_learn_scale)
+            self.pa_out = PA(nr, learn_scale=use_pa_learn_scale)
 
     def forward(self, x):
         if self.bottleneck is not None:
@@ -254,6 +254,7 @@ class DDBPN(nn.Module):
         self.depth = args.depth
         self.use_pa = args.use_pa
         self.use_pa_learn_scale = args.use_pa_learn_scale
+        self.use_pa_bridge = args.use_pa_bridge
         self.use_hessian = args.use_hessian_attn
 
         initial = [
@@ -279,7 +280,9 @@ class DDBPN(nn.Module):
         
         for i in range(self.depth):
             self.upmodules.append(
-                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1, use_pa=args.use_pa, use_shuffle=i%2==1)
+                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1, 
+                                use_pa=args.use_pa, use_shuffle=i%2==1,
+                                use_pa_learn_scale=self.use_pa_learn_scale)
             )
             if i != 0:
                 channels += args.n_feats
@@ -294,15 +297,16 @@ class DDBPN(nn.Module):
         channels = args.n_feats
         for i in range(self.total_depth):
             self.downmodules.append(
-                DenseProjection(channels, args.n_feats, scale, up=False, bottleneck=i != 0, use_pa=args.use_pa)
+                DenseProjection(channels, args.n_feats, scale, up=False, bottleneck=i != 0, 
+                                use_pa=args.use_pa, use_pa_learn_scale=self.use_pa_learn_scale)
             )
             channels += args.n_feats
 
-        if self.use_pa:
+        if self.use_pa_bridge:
             channels = args.n_feats
             for i in range(self.total_depth):
                 self.attnmodules.append(
-                    PA(channels)
+                    PA(channels, learn_scale=self.use_pa_learn_scale)
                 )
                 channels += args.n_feats
 
@@ -340,13 +344,13 @@ class DDBPN(nn.Module):
             else:
                 l = torch.cat(l_list, dim=1)                
             h_list.append(self.upmodules[i](l))
-            if self.use_pa:
+            if self.use_pa_bridge:
                 h = self.attnmodules[i](torch.cat(h_list, dim=1))
             else:
                 h = torch.cat(h_list, dim=1)
             l_list.append(self.downmodules[i](h))
         if self.no_upsampling:
-            if self.use_pa:
+            if self.use_pa_bridge:
                 h = self.attnmodules[-1](torch.cat(h_list, dim=1))
             else:
                 h = torch.cat(h_list, dim=1)
@@ -359,8 +363,9 @@ class DDBPN(nn.Module):
         return out
 
 @register('ddbpn')
-def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, use_pa=True,
-               use_pa_learn_attn=True, use_hessian_attn=True, scale=2, no_upsampling=False, 
+def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, 
+               use_pa=True, use_pa_learn_scale=False, use_pa_bridge=False,
+               use_hessian_attn=True, scale=2, no_upsampling=False, 
                rgb_range=1, use_mean_shift=False, 
                rgb_mean=(0.39884, 0.42088, 0.45812), 
                rgb_std=(0.28514, 0.31383, 0.28289)):
@@ -373,6 +378,7 @@ def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, use_pa=True,
     args.scale = [scale]
     args.use_pa = use_pa
     args.use_pa_learn_scale = use_pa_learn_scale
+    args.use_pa_bridge = use_pa_bridge
     args.no_upsampling = no_upsampling
     args.use_hessian_attn = use_hessian_attn
 

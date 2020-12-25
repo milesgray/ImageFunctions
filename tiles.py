@@ -114,6 +114,7 @@ class SuperResManager:
             self.model = self.load_model(model, log=log)
         else:        
             self.model = model
+        self.model.eval()
         self.log = log
         self.scale = scale
         self.orig_tile_mgr = TilesManager()
@@ -185,6 +186,8 @@ class SuperResManager:
         self.log('Image loaded')
 
     def apply(self, img=None, tile_size=32, log=print):
+        assert self.model is not None, "Model is None! Please pass a model when initializing"
+        self.model.eval()
         if self.img is None and img is None:
             self.log(f"Must run load_image before apply or pass an img to apply")
             return
@@ -203,8 +206,12 @@ class SuperResManager:
                 self.log(f"Skipping tile {i} - {tile.shape} (0 dimension detected)")
                 continue
             self.log(f"Processing tile {i} - {tile.shape}")
+            if torch.cuda.is_available():
+                tile = tile.cuda()
+                coord = coord.cuda()
+                cell = cell.cuda()
             with torch.no_grad():
-                result = self.model(tile.cuda(), coord.cuda(), cell.cuda())
+                result = self.model(tile, coord, cell)
             result = self._reshape(result, target_shape[:2]) # reorders dimensions to H,W,C
             results.append(result.squeeze().cpu().numpy())
         self.log(f"Finished generating zoomed tiles - {len(results)} total. Now merging into final output.")
