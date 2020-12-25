@@ -474,7 +474,8 @@ class SRSetRangeDownsampledRandCrop(Dataset):
                 len(hr_coord), min(round(self.sample_q * s), len(hr_coord)), replace=False)
             hr_coord = hr_coord[sample_lst]
             hr_rgb = hr_rgb[sample_lst]
-            hr_freq = hr_freq[sample_lst]
+            if self.return_freq:
+                hr_freq = hr_freq[sample_lst]
 
         cell = torch.ones_like(hr_coord)
         cell[:, 0] *= 2 / crop_hr.shape[-2]
