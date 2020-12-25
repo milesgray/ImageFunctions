@@ -130,6 +130,7 @@ class DDBPN(nn.Module):
         scale = args.scale[0]
 
         self.depth = args.depth
+        self.use_pa = args.use_pa
 
         initial = [
             nn.Conv2d(args.n_colors, args.n_feats_in, 3, padding=1),
@@ -141,6 +142,8 @@ class DDBPN(nn.Module):
 
         self.upmodules = nn.ModuleList()
         self.downmodules = nn.ModuleList()
+        if self.use_pa:
+            self.attnmodules = nn.ModuleList()
         channels = args.n_feats
         for i in range(self.depth):
             self.upmodules.append(
@@ -162,6 +165,13 @@ class DDBPN(nn.Module):
                 DenseProjection(channels, args.n_feats, scale, up=False, bottleneck=i != 0, use_pa=args.use_pa)
             )
             channels += args.n_feats
+        if self.use_pa:
+            channels = args.n_feats
+            for i in range(self.total_depth):
+                self.attnmodules.append(
+                    PA(channels)
+                )
+                channels += args.n_feats
 
         reconstruction = [
             nn.Conv2d(self.depth * args.n_feats, self.out_dim, 3, padding=1) 
@@ -184,11 +194,19 @@ class DDBPN(nn.Module):
             if i == 0:
                 l = x
             else:
-                l = torch.cat(l_list, dim=1)
+                l = torch.cat(l_list, dim=1)                
             h_list.append(self.upmodules[i](l))
-            l_list.append(self.downmodules[i](torch.cat(h_list, dim=1)))
+            if self.use_pa:
+                h = self.attnmodules[i](torch.cat(h_list, dim=1))
+            else:
+                h = torch.cat(h_list, dim=1)
+            l_list.append(self.downmodules[i](h))
         if self.no_upsampling:
-            l_list.append(self.downmodules[-1](torch.cat(h_list, dim=1)))
+            if self.use_pa:
+                h = self.attnmodules[-1](torch.cat(h_list, dim=1))
+            else:
+                h = torch.cat(h_list, dim=1)
+            l_list.append(self.downmodules[-1](h))
         h_list.append(self.upmodules[-1](torch.cat(l_list, dim=1)))
         out = self.reconstruction(torch.cat(h_list, dim=1))
         if self.use_mean_shift:
