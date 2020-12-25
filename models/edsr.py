@@ -17,14 +17,19 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
 
 class PA(nn.Module):
     '''PA is pixel attention'''
-    def __init__(self, nf):
+    def __init__(self, nf, softmax=True):
         super().__init__()
         self.conv = nn.Conv2d(nf, nf, 1)
         self.sigmoid = nn.Sigmoid()
+        self.use_softmax = softmax
+        if self.use_softmax:
+            self.softmax = nn.Softmax2d()
 
     def forward(self, x):
         y = self.conv(x)
         y = self.sigmoid(y)
+        if self.use_softmax:
+            y = self.softmax(y)
         out = torch.mul(x, y)
 
         return out
