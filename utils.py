@@ -146,10 +146,50 @@ def calc_psnr(sr, hr, dataset=None, scale=1, rgb_range=1):
     mse = valid.pow(2).mean()
     return -10 * torch.log10(mse)
 
-def calc_ssim(img, img_gt, normalize=False):
-    if normalize:
-        img = (img - img.min()) / (img.max() - img.min() + 1e-9)
-        img_gt = (img_gt - img_gt.min()) / (img_gt.max() - img_gt.min() + 1e-9)
-    SSIM = piq.ssim(img, img_gt)
+def rgb2ycbcrT(rgb):
+    rgb = rgb.numpy().transpose(1, 2, 0)
+    yCbCr = sc.rgb2ycbcr(rgb) / 255
 
-    return SSIM
+    return torch.Tensor(yCbCr[:, :, 0])
+
+def ssim(img1, img2):
+    C1 = (0.01 * 255) ** 2
+    C2 = (0.03 * 255) ** 2
+
+    img1 = img1.astype(np.float64)
+    img2 = img2.astype(np.float64)
+    kernel = cv2.getGaussianKernel(11, 1.5)
+    window = np.outer(kernel, kernel.transpose())
+
+    mu1 = cv2.filter2D(img1, -1, window)[5:-5, 5:-5]  # valid
+    mu2 = cv2.filter2D(img2, -1, window)[5:-5, 5:-5]
+    mu1_sq = mu1 ** 2
+    mu2_sq = mu2 ** 2
+    mu1_mu2 = mu1 * mu2
+    sigma1_sq = cv2.filter2D(img1 ** 2, -1, window)[5:-5, 5:-5] - mu1_sq
+    sigma2_sq = cv2.filter2D(img2 ** 2, -1, window)[5:-5, 5:-5] - mu2_sq
+    sigma12 = cv2.filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
+
+    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) *
+                                                            (sigma1_sq + sigma2_sq + C2))
+    return ssim_map.mean()
+
+
+def calc_SSIM(input, target, rgb_range, shave):
+    '''calculate SSIM
+    the same outputs as MATLAB's
+    img1, img2: [0, 255]
+    '''
+
+    c, h, w = input.size()
+    if c > 1:
+        input = input.mul(255).clamp(0, 255).round()
+        target = target[:, 0:h, 0:w].mul(255).clamp(0, 255).round()
+        input = rgb2ycbcrT(input)
+        target = rgb2ycbcrT(target)
+    else:
+        input = input
+        target = target[:, 0:h, 0:w]
+    input = input[shave:(h - shave), shave:(w - shave)]
+    target = target[shave:(h - shave), shave:(w - shave)]
+    return ssim(input.numpy(), target.numpy())
