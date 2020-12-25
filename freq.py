@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.fft import *
 import torch
+import torch.fft as tfft
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -91,6 +92,47 @@ def batch_ifftshift2d(x):
         real = roll_n(real, axis=dim, n=real.size(dim)//2)
         imag = roll_n(imag, axis=dim, n=imag.size(dim)//2)
     return torch.stack((real, imag), -1)  # last dim=2 (real&imag)
+
+##########################################################################################
+####### From https://github.com/v0lta/Spectral-RNN/blob/master/custom_cells.py ######
+################################################################################
+
+def hilbert(xr):
+    '''
+    Implements the hilbert transform, a mapping from C to R.
+    Args:
+        xr: The input sequence.
+    Returns:
+        xc: A complex sequence of the same length.
+    '''    
+    n = xr.shape[0]
+    # Run the fft on the columns no the rows.
+    x = tfft.fft(xr.t()).t()
+    h = np.zeros([n])
+    if n > 0 and 2*np.fix(n/2) == n:
+        # even and nonempty
+        h[0:int(n/2+1)] = 1
+        h[1:int(n/2)] = 2
+    elif n > 0:
+        # odd and nonempty
+        h[0] = 1
+        h[1:int((n+1)/2)] = 2
+    torch_h = torch.from_numpy(h)
+    if len(x.shape) == 2:
+        hs = np.stack([h]*x.shape[-1], -1)
+        reps = x.shape()[-1]
+        hs = torch.stack([torch_h]*reps, -1)
+    elif len(x.shape) == 1:
+        hs = torch_h
+    else:
+        raise NotImplementedError
+    torch_hc = torch.complex(hs, torch.zeros_like(hs))
+    xc = x*torch_hc
+    return tfft.ifft(xc.t()).t()
+
+#####################################################
+# Discrete Cosine Transform #################
+#####################################
 
 class Dct2d(nn.Module):
     """
