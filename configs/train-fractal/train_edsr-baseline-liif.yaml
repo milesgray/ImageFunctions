@@ -10,6 +10,7 @@ train_dataset:
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
+      inp_size: 32
       inp_size_min: 32
       inp_size_max: 128
       scale_min: 2
@@ -31,6 +32,7 @@ val_dataset:
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
+      inp_size: 32
       inp_size_min: 32
       inp_size_max: 128
       scale_min: 2
@@ -67,5 +69,3 @@ multi_step_lr:
 
 epoch_val: 1
 epoch_save: 10
-
-resume: /content/gdrive/My Drive/data/models/liif/fractal-edsr-liif_00/

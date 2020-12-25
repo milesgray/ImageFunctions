@@ -155,12 +155,17 @@ class SuperResManager:
         return ret
     
     @staticmethod
-    def _reshape(pred, t_shape):
+    def _reshape(pred, t_shape, channels=3):
         ih, iw = t_shape
         s = math.sqrt(pred.shape[1] / (ih * iw))
-        shape = [pred.shape[0], round(ih * s), round(iw * s), 3]
-        pred = pred.view(*shape) \
-            .permute(0, 3, 1, 2).contiguous()
+        shape = [channels, pred.shape[0], round(ih * s), round(iw * s)]
+        if pred.shape[0] == 1:
+            pred = pred.view(*shape) \
+                .permute(2, 0, 1).contiguous()
+        else:
+            shape = [pred.shape[0]] + shape
+            pred = pred.view(*shape) \
+                .permute(0, 3, 1, 2).contiguous()
         return pred
 
     def load_image(self, img, tile_size=32, log=print):
@@ -188,7 +193,9 @@ class SuperResManager:
         
         results = []
         for i, tile in enumerate(self.orig_tile_mgr.cut_image_by_tiles(self.img)):
-            coord, cell = self._make_coord_cell(target_shape=self.target_tile_shape, batch_size=1)
+            target_shape = (round(tile.shape[0] * self.scale), round(tile.shape[1] * self.scale), tile.shape[2])
+            #torch_target_shape = (target_shape[2], target_shape[0], target_shape[1])
+            coord, cell = self._make_coord_cell(target_shape=target_shape, batch_size=1)
             tile = torch.Tensor(tile.transpose(2,0,1))
             if len(tile.shape) == 3:
                 tile = tile.unsqueeze(0)
@@ -198,8 +205,8 @@ class SuperResManager:
             self.log(f"Processing tile {i} - {tile.shape}")
             with torch.no_grad():
                 result = self.model(tile.cuda(), coord.cuda(), cell.cuda())
-            result = self._reshape(result, self.target_tile_shape)
-            results.append(result.squeeze().cpu().numpy().transpose(1,2,0))
+            result = self._reshape(result, target_shape[:2]) # reorders dimensions to H,W,C
+            results.append(result.squeeze().cpu().numpy())
         self.log(f"Finished generating zoomed tiles - {len(results)} total. Now merging into final output.")
         self.zoom_img = self.zoom_tile_mgr.merge_images_by_tiles(results)
         self.log(f"Successfully created new image with shape {self.zoom_img.shape}!")
