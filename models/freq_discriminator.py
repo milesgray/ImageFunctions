@@ -1,9 +1,13 @@
+from argparse import Namespace
+
 import torch
 import torch.nn as nn
 
+from models import register
+
 class BasicDiscriminatorBlock(nn.Module):
     def __init__(self, in_channel, out_channel):
-        super(BasicDiscriminatorBlock, self).__init__()
+        super().__init__()
         self.block = nn.Sequential(
             nn.utils.weight_norm(nn.Conv2d(
                 in_channel,
@@ -39,7 +43,6 @@ class BasicDiscriminatorBlock(nn.Module):
                 stride=1,
                 padding=1,
             )),
-
         )
 
     def forward(self, x):
@@ -47,7 +50,7 @@ class BasicDiscriminatorBlock(nn.Module):
 
 class ResDiscriminatorBlock(nn.Module):
     def __init__(self, in_channel, out_channel):
-        super(ResDiscriminatorBlock, self).__init__()
+        super().__init__()
         self.block1 = nn.Sequential(
             nn.utils.weight_norm(nn.Conv2d(
                 in_channel,
@@ -107,8 +110,8 @@ class ResDiscriminatorBlock(nn.Module):
 
 
 class ResNet18Discriminator(nn.Module):
-    def __init__(self, stft_channel, in_channel = 64):
-        super(ResNet18Discriminator, self).__init__()
+    def __init__(self, stft_channel, in_channel=64):
+        super().__init__()
         self.input = nn.Sequential(
             nn.utils.weight_norm(nn.Conv2d(stft_channel, in_channel, kernel_size=7, stride=2, padding=1,)),
             nn.LeakyReLU(0.2, True),
@@ -128,14 +131,14 @@ class ResNet18Discriminator(nn.Module):
 
 
 class FrequencyDiscriminator(nn.Module):
-    def __init__(self, in_channel = 64, fft_size = 1024, hop_length = 256, win_length = 1024, window="hann_window"):
-        super(FrequencyDiscriminator, self).__init__()
-        self.fft_size = fft_size
-        self.hop_length = hop_length
-        self.win_length = win_length
-        self.window = getattr(torch, window)(win_length)
-        self.stft_channel = fft_size // 2 + 1
-        self.resnet_disc = ResNet18Discriminator(self.stft_channel, in_channel)
+    def __init__(self, args):
+        super().__init__()
+        self.fft_size = args.fft_size
+        self.hop_length = args.hop_length
+        self.win_length = args.win_length
+        self.window = getattr(torch, window)(args.win_length)
+        self.stft_channel = args.fft_size // 2 + 1
+        self.resnet_disc = ResNet18Discriminator(self.stft_channel, args.in_channel)
 
     def forward(self, x):
         x_stft = torch.stft(x, self.fft_size, self.hop_length, self.win_length, self.window.cuda())
@@ -145,4 +148,17 @@ class FrequencyDiscriminator(nn.Module):
         x_real = self.resnet_disc(real)
         x_imag = self.resnet_disc(imag)
 
+        # return magnitude
         return torch.sqrt(torch.clamp(x_real ** 2 + x_imag ** 2, min=1e-7)).transpose(2, 1)
+
+
+@register('freq_disc')
+def make_freq_disc(in_channel=64, fft_size=1024, hop_length=256, win_length=1024, window="hann_window"):
+    args = Namespace()
+    args.in_channel = in_channel
+    args.fft_size = fft_size
+    args.hop_length = hop_length
+    args.win_length = win_length
+    args.window = window
+
+    return FrequencyDiscriminator(args)
