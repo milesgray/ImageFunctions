@@ -1,5 +1,6 @@
 import os
 import json
+import random
 from PIL import Image
 
 import pickle
