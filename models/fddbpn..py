@@ -260,7 +260,7 @@ class DenseProjection(nn.Module):
 
         return out
 
-class DDBPN(nn.Module):
+class FDDBPN(nn.Module):
     def __init__(self, args):
         super().__init__()
         scale = args.scale[0]
@@ -438,4 +438,4 @@ def make_fddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5,
     args.rgb_mean = rgb_mean
     args.rgb_std = rgb_std
     args.n_colors = 3
-    return DDBPN(args)
+    return FDDBPN(args)
