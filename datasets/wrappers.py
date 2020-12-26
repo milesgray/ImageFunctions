@@ -492,3 +492,6 @@ class SRSetRangeDownsampledRandCrop(Dataset):
         if self.return_hr:
             result["hr"] = crop_hr
         return result
+
+    def shuffle_mapping(self):
+        self.dataset.shuffle_mapping()

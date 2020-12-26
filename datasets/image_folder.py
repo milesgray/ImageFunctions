@@ -57,11 +57,14 @@ class ImageFolder(Dataset):
                 self.files.append(transforms.ToTensor()(
                     Image.open(file).convert('RGB')))
 
+        self.mapping = [i for i in range(len(self.files))]
+
     def __len__(self):
         return len(self.files) * self.repeat
 
     def __getitem__(self, idx):
-        x = self.files[idx % len(self.files)]
+        idx = self.mapping[idx % len(self.files)]
+        x = self.files[idx]
 
         if self.cache == 'none':
             return transforms.ToTensor()(Image.open(x).convert('RGB'))
@@ -75,6 +78,9 @@ class ImageFolder(Dataset):
 
         elif self.cache == 'in_memory':
             return x
+
+    def shuffle_mapping(self):
+        random.shuffle(self.mapping)
 
 
 @register('paired-image-folders')
