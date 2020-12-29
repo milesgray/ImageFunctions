@@ -5,6 +5,7 @@ import math
 
 import torch
 import numpy as np
+from PIL import Image
 from torchvision import transforms
 from torch.optim import SGD, Adam
 from tensorboardX import SummaryWriter

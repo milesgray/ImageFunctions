@@ -16,7 +16,8 @@ train_dataset:
       scale_max: 6
       augment: true
       sample_q: 4096
-      color_augment: true
+      vary_q: false
+      color_augment: false
       color_augment_strength: 0.2
   batch_size: 1
 
