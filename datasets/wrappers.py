@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 
 from datasets import register
-from utils import to_pixel_samples, to_frequency_samples
+from utils import to_pixel_samples, to_frequency_samples, resize_fn
 from datasets import augments
 
 @register('sr-implicit-paired')
@@ -79,16 +79,8 @@ class SRImplicitPaired(Dataset):
             'gt': hr_rgb
         }
 
-
-def resize_fn(img, size):
-    return transforms.ToTensor()(
-        transforms.Resize(size, Image.BICUBIC)(
-            transforms.ToPILImage()(img)))
-
-
 @register('sr-implicit-downsampled')
 class SRImplicitDownsampled(Dataset):
-
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None):
         self.dataset = dataset
@@ -157,11 +149,8 @@ class SRImplicitDownsampled(Dataset):
             'gt': hr_rgb
         }
 
-
-
 @register('sr-implicit-uniform-varied')
 class SRImplicitUniformVaried(Dataset):
-
     def __init__(self, dataset, size_min, size_max=None,
                  augment=False, gt_resize=None, sample_q=None):
         self.dataset = dataset
@@ -209,10 +198,8 @@ class SRImplicitUniformVaried(Dataset):
             'gt': hr_rgb
         }
 
-
 @register('sr-explicit-downsampled-randcrop')
 class SRExplicitDownsampledRandCrop(Dataset):
-
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8,
                  return_hr=False):
@@ -300,7 +287,7 @@ class SRExplicitDownsampledRandCrop(Dataset):
 @register('sr-randrange-downsampled-randcrop')
 class SRRandRangeDownsampledRandCrop(Dataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
-                 augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8, 
+                 augment=False, sample_q=None, vary_q=False, color_augment=False, color_augment_strength=0.8, 
                  return_hr=False):
         self.dataset = dataset
         self.inp_size = inp_size
@@ -312,6 +299,7 @@ class SRRandRangeDownsampledRandCrop(Dataset):
         self.color_augment = color_augment
         self.color_augment_strength = color_augment_strength
         self.sample_q = sample_q
+        self.vary_q = vary_q
         self.return_hr = return_hr
 
     def __len__(self):
@@ -365,8 +353,10 @@ class SRRandRangeDownsampledRandCrop(Dataset):
         hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous())
 
         if self.sample_q is not None:
-            sample_lst = np.random.choice(
-                len(hr_coord), self.sample_q, replace=False)
+            if self.vary_q:
+                sample_lst = np.random.choice(len(hr_coord), min(round(self.sample_q * s), len(hr_coord)), replace=False)
+            else:
+                sample_lst = np.random.choice(len(hr_coord), self.sample_q, replace=False)
             hr_coord = hr_coord[sample_lst]
             hr_rgb = hr_rgb[sample_lst]
 
@@ -387,7 +377,8 @@ class SRRandRangeDownsampledRandCrop(Dataset):
 @register('sr-setrange-downsampled-randcrop')
 class SRSetRangeDownsampledRandCrop(Dataset):
     def __init__(self, dataset, inp_size=None, inp_size_min=None, inp_size_max=None, scale_min=1, scale_max=None,
-                 augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8, 
+                 augment=False, sample_q=None, vary_q=False, 
+                 color_augment=False, color_augment_strength=0.8, 
                  return_hr=False, resize_hr=False, return_freq=False):
         self.dataset = dataset
         self.inp_size = inp_size
@@ -401,6 +392,7 @@ class SRSetRangeDownsampledRandCrop(Dataset):
         self.color_augment = color_augment
         self.color_augment_strength = color_augment_strength
         self.sample_q = sample_q
+        self.vary_q = vary_q
         self.return_hr = return_hr
         self.resize_hr = resize_hr
         self.return_freq = return_freq
@@ -470,8 +462,14 @@ class SRSetRangeDownsampledRandCrop(Dataset):
             hr_freq = to_frequency_samples(f_crop_hr.contiguous())
 
         if self.sample_q is not None:
-            sample_lst = np.random.choice(
-                len(hr_coord), min(round(self.sample_q * s), len(hr_coord)), replace=False)
+            if self.vary_q:
+                sample_lst = np.random.choice(len(hr_coord), 
+                                              min(round(self.sample_q * s), len(hr_coord)), 
+                                              replace=False)
+            else:
+                sample_lst = np.random.choice(len(hr_coord), 
+                                              min(self.sample_q, len(hr_coord)), 
+                                              replace=False)
             hr_coord = hr_coord[sample_lst]
             hr_rgb = hr_rgb[sample_lst]
             if self.return_freq:

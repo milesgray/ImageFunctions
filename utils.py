@@ -10,7 +10,6 @@ from tensorboardX import SummaryWriter
 import piq
 
 class Averager():
-
     def __init__(self):
         self.n = 0.0
         self.v = 0.0
@@ -22,9 +21,7 @@ class Averager():
     def item(self):
         return self.v
 
-
 class Timer():
-
     def __init__(self):
         self.v = time.time()
 
@@ -34,7 +31,6 @@ class Timer():
     def t(self):
         return time.time() - self.v
 
-
 def time_text(t):
     if t >= 3600:
         return '{:.1f}h'.format(t / 3600)
@@ -43,21 +39,17 @@ def time_text(t):
     else:
         return '{:.1f}s'.format(t)
 
-
 _log_path = None
-
 
 def set_log_path(path):
     global _log_path
     _log_path = path
-
 
 def log(obj, filename='log.txt'):
     print(obj)
     if _log_path is not None:
         with open(os.path.join(_log_path, filename), 'a') as f:
             print(obj, file=f)
-
 
 def ensure_path(path, remove=True):
     basename = os.path.basename(path.rstrip('/'))
@@ -68,7 +60,6 @@ def ensure_path(path, remove=True):
             os.makedirs(path)
     else:
         os.makedirs(path)
-
 
 def set_save_path(save_path, remove=True):
     ensure_path(save_path, remove=remove)
@@ -98,6 +89,10 @@ def make_optimizer(param_list, optimizer_spec, load_sd=False):
         optimizer.load_state_dict(optimizer_spec['sd'])
     return optimizer
 
+def resize_fn(img, size):
+    return transforms.ToTensor()(
+        transforms.Resize(size, Image.BICUBIC)(
+            transforms.ToPILImage()(img)))
 
 def make_coord(shape, ranges=None, flatten=True):
     """ Make coordinates at grid centers.
@@ -115,7 +110,6 @@ def make_coord(shape, ranges=None, flatten=True):
     if flatten:
         ret = ret.view(-1, ret.shape[-1])
     return ret
-
 
 def to_pixel_samples(img, bbox=None):
     """ Convert the image to coord-RGB pairs.

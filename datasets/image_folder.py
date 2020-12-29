@@ -33,8 +33,11 @@ class ImageFolder(Dataset):
             filenames = filenames[-last_k:]
         filenames = filenames[::skip_every]
 
+        self.mapping = np.random.perturbation(len(self.files))
+
         self.files = []
-        for filename in tqdm(filenames):
+        for file_idx in tqdm(self.mapping):
+            filename = self.files[file_idx]
             file = os.path.join(root_path, filename)
 
             if cache == 'none':
