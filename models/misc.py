@@ -6,6 +6,8 @@ import models
 from models import register
 from utils import make_coord
 
+def get_same_padding(size, kernel, dilation, stride):
+    return ((size - 1) * (stride - 1) + dilation * (kernel - 1)) // 2
 
 @register('metasr')
 class MetaSR(nn.Module):

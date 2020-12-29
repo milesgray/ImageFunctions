@@ -10,8 +10,8 @@ class MLPDiscriminator(nn.Module):
         layers = []
         lastv = args.in_dim
         for hidden in args.hidden_list:
-            layers.append(nn.Linear(lastv, hidden))
-            layers.append(nn.ReLU())
+            layers.append(nn.utils.weight_norm(nn.Linear(lastv, hidden)))
+            layers.append(nn.LeakyReLU(0.2))
             lastv = hidden
         layers.append(nn.Linear(lastv, args.out_dim))
         self.layers = nn.Sequential(*layers)
