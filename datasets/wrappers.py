@@ -639,9 +639,9 @@ class ZRSetRangeDownsampledRandCrop(Dataset):
                 else:
                     f_crop_hr = resize_fn(f_crop_hr, round(self.inp_size * s))
         if self.inp_size is None:
-            crop_lr = f_img[:, x0 + (w_lr//s): x0 + w_lr, y0 + (w_lr//s): y0 + w_lr]
+            crop_lr = img[:, x0 + (w_lr//s): x0 + w_lr, y0 + (w_lr//s): y0 + w_lr]
         else:
-            crop_lr = resize_fn(f_img[:, x0 + (w_lr//s): x0 + w_lr, y0 + (w_lr//s): y0 + w_lr], self.inp_size)
+            crop_lr = resize_fn(img[:, x0 + (w_lr//s): x0 + w_lr, y0 + (w_lr//s): y0 + w_lr], self.inp_size)
         if self.resize_hr:
             if self.inp_size is None:
                 crop_hr = resize_fn(crop_hr, round(w_lr * s))
