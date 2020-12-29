@@ -33,7 +33,7 @@ class ImageFolder(Dataset):
             filenames = filenames[-last_k:]
         filenames = filenames[::skip_every]
 
-        self.mapping = np.random.perturbation(len(self.files))
+        self.mapping = np.random.permutation(len(self.files))
 
         self.files = []
         for file_idx in tqdm(self.mapping):
