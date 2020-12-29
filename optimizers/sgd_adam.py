@@ -1,9 +1,31 @@
 import math
 import os
+from argparse import Namespace
 
 import torch
 from torch.optim import Optimizer
 
+from registry import register
+
+@register('adam_sgd_weighted')
+def make_adam_sgd_weighted(params=None, lr=1e-3, weight_decay=0,
+                           betas=(0.9, 0.999), eps=1e-8, amsgrad=False,
+                           momentum=0, dampening=0, nesterov=False,
+                           adam_w=0.5, sgd_w=0.5):
+    args = Namespace()
+    args.params = params
+    args.lr = lr
+    args.betas = betas
+    args.eps = eps
+    args.weight_decay = weight_decay
+    args.amsgrad = amsgrad
+    args.momentum = momentum
+    args.dampening = dampening
+    args.nesterov = nesterov
+    args.adam_w = adam_w
+    args.sgd_w = sgd_w
+
+    return AdamSGDWeighted(args)
 
 class AdamSGDWeighted(Optimizer):
     r"""Implements Adam and SGD mix algorithm.
@@ -14,11 +36,18 @@ class AdamSGDWeighted(Optimizer):
     ```
     """
 
-    def __init__(self,
-                 params, lr=1e-3, weight_decay=0,
-                 betas=(0.9, 0.999), eps=1e-8, amsgrad=False,
-                 momentum=0, dampening=0, nesterov=False,
-                 adam_w=0.5, sgd_w=0.5):
+    def __init__(self, args):
+        params = args.params
+        lr = args.lr
+        betas = args.betas
+        eps = args.eps
+        weight_decay = args.weight_decay
+        amsgrad = args.amsgrad
+        momentum = args.momentum
+        dampening = args.dampening
+        nesterov = args.nesterov
+        adam_w = args.adam_w
+        sgd_w = args.sgd_w
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:

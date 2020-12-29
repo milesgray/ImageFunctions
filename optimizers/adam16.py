@@ -1,7 +1,23 @@
+from argparse import Namespace
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim.optimizer import Optimizer
+
+from registry import register
+
+@register('adam16')
+def make_adam16(params=None, lr=1e-3, betas=(0.9,0.999), eps=1e-8, weight_decay=0):
+    args = Namespace()
+    args.params = params
+    args.lr = lr
+    args.betas = betas
+    args.eps = eps
+    args.weight_decay = weight_decay
+    return Adam16(args)
+
+
 # This version of Adam keeps an fp32 copy of the parameters and
 # does all of the parameter updates in fp32, while still doing the
 # forwards and backwards passes using fp16 (i.e. fp16 copies of the
@@ -10,7 +26,12 @@ from torch.optim.optimizer import Optimizer
 # Note that this calls .float().cuda() on the params.
 
 class Adam16(Optimizer):
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0):
+    def __init__(self, args):
+        params = args.params
+        lr = args.lr
+        betas = args.betas
+        eps = args.eps
+        weight_decay = args.weight_decay
         defaults = dict(lr=lr, betas=betas, eps=eps,
                         weight_decay=weight_decay)
         params = list(params)

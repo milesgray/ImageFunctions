@@ -1,7 +1,19 @@
+from argparse import Namespace
 
 import torch
 from torch.optim.optimizer import Optimizer, required
 
+from registry import register
+
+@register('adaiw')
+def make_adaiw(params=None, lr=0.0005, betas=(0.1,0.99), eps=1e-03, weight_decay=0):
+    args = Namespace()
+    args.params = params
+    args.lr = lr
+    args.betas = betas
+    args.eps = eps
+    args.weight_decay = weight_decay
+    return AdaiW(args)
 
 class AdaiW(Optimizer):
     r"""Implements Adai with decoupled weight decay (AdaiW).
@@ -19,8 +31,12 @@ class AdaiW(Optimizer):
 
     """
 
-    def __init__(self, params, lr=required, betas=(0.1, 0.99), eps=1e-03,
-                 weight_decay=0):
+    def __init__(self, args):
+        params = args.params
+        lr = args.lr
+        betas = args.betas
+        eps = args.eps
+        weight_decay = args.weight_decay
         if lr is not required and lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:

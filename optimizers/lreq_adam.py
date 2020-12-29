@@ -12,16 +12,32 @@
 # Copyright (c) 2001-2004 Idiap Research Institute (Ronan Collobert, Samy Bengio, Johnny Mariethoz)
 
 # https://github.com/pytorch/pytorch/blob/master/LICENSE
-
+from argparse import Namespace
 
 import math
 import torch
 from torch.optim.optimizer import Optimizer
 
+from registry import register
+
+@register('lreq_adam')
+def make_lreq_adam(params=None, lr=1e-3, betas=(0.0, 0.99), eps=1e-8, weight_decay=0):
+    args = Namespace()
+    args.params = params
+    args.lr = lr
+    args.betas = betas
+    args.eps = eps
+    args.weight_decay = weight_decay
+    return LREQAdam(args)
 
 class LREQAdam(Optimizer):
-    def __init__(self, params, lr=1e-3, betas=(0.0, 0.99), eps=1e-8,
-                 weight_decay=0):
+    def __init__(self, args):
+        params = args.params
+        lr = args.lr
+        betas = args.betas
+        eps = args.eps
+        weight_decay = args.weight_decay
+
         beta_2 = betas[1]
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
