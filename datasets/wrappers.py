@@ -630,18 +630,18 @@ class ZRSetRangeDownsampledRandCrop(Dataset):
         x0 = random.randint(0, img.shape[-2] - w_hr)
         y0 = random.randint(0, img.shape[-1] - w_hr)
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
-        if self.return_freq:
-            f_img = tfft.hfft(img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
-            f_crop_hr = f_img[:, x0: x0 + w_hr, y0: y0 + w_hr]
+        if self.return_frf_img[:, x0: x0 + w_hr, y0: y0 + w_hr]
             if self.resize_hr:
-                if self.inp_size is None:
+                if self.eq:
+            f_img = tfft.hfft(img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
+            f_crop_hr = inp_size is None:
                     f_crop_hr = resize_fn(f_crop_hr, round(w_lr * s))
                 else:
                     f_crop_hr = resize_fn(f_crop_hr, round(self.inp_size * s))
         if self.inp_size is None:
-            crop_lr = img[:, x0 + round(w_lr/s): x0 + w_lr, y0 + round(w_lr/s): y0 + w_lr]
+            crop_lr = img[:, x0 + round(w_lr/s): x0 + w_lr + round(w_lr/s), y0 + round(w_lr/s): y0 + w_lr + round(w_lr/s)]
         else:
-            crop_lr = resize_fn(img[:, x0 + round(w_lr/s): x0 + w_lr, y0 + round(w_lr/s): y0 + w_lr], self.inp_size)
+            crop_lr = resize_fn(img[:, x0 + round(w_lr/s): x0 + w_lr + round(w_lr/s), y0 + round(w_lr/s): y0 + w_lr + round(w_lr/s)], self.inp_size)
         if self.resize_hr:
             if self.inp_size is None:
                 crop_hr = resize_fn(crop_hr, round(w_lr * s))
