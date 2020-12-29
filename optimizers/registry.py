@@ -1,6 +1,11 @@
 import copy
 
-lookup = {}
+from torch.optim import SGD, Adam
+
+lookup = {
+    'sgd': SGD,
+    'adam': Adam
+}
 
 def register(name):
     def decorator(cls):
