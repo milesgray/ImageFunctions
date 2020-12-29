@@ -96,6 +96,17 @@ def resize_fn(img, size):
         transforms.Resize(size, Image.BICUBIC)(
             transforms.ToPILImage()(img)))
 
+def compute_covariance(feats: Tensor) -> Tensor:
+    """
+    Computes empirical covariance matrix for a batch of feature vectors
+    """
+    assert feats.ndim == 2
+
+    feats -= feats.mean(dim=0)
+    cov_unscaled = feats.t() @ feats # [feat_dim, feat_dim]
+    cov = cov_unscaled / (feats.size(0) - 1)
+
+    return cov
 
 def generate_coords(batch_size: int, img_size: int) -> Tensor:
     row = torch.arange(0, img_size).float() / img_size # [img_size]
@@ -249,3 +260,26 @@ def calc_SSIM(input, target, rgb_range, shave):
     input = input[shave:(h - shave), shave:(w - shave)]
     target = target[shave:(h - shave), shave:(w - shave)]
     return ssim(input.numpy(), target.numpy())
+
+def sample_noise(dist: str, z_dim: int, batch_size: int, correction: Config=None) -> Tensor:
+    assert dist in {'normal', 'uniform'}, f'Unknown latent distribution: {dist}'
+
+    if dist == 'normal':
+        if not correction is None and correction.enabled and correction.type == 'truncated':
+            r = correction.kwargs.truncation_factor
+            z = truncnorm.rvs(a=-r, b=r, size=(batch_size, z_dim))
+            z = torch.from_numpy(z).float()
+        else:
+            z = torch.randn(batch_size, z_dim)
+
+            if not correction is None and correction.enabled and correction.type == 'projected':
+                # https://math.stackexchange.com/questions/827826/average-norm-of-a-n-dimensional-vector-given-by-a-normal-distribution
+                norm = (1 / np.sqrt(2)) * z_dim * gamma((z_dim + 1)/2) / gamma((z_dim + 2)/2)
+                # norm = np.sqrt(z_dim) # A fast approximation
+                z /= z.norm(dim=1, keepdim=True)
+                z *= norm
+    elif dist == 'uniform':
+        assert correction is None or correction.enabled == False, f"Unimplemented correction for uniform dist: {correction}"
+        z = torch.rand(batch_size, z_dim) * 2 - 1
+
+    return z
