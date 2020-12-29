@@ -9,11 +9,11 @@ class MLPDiscriminator(nn.Module):
         super().__init__()
         layers = []
         lastv = args.in_dim
-        for hidden in hidden_list:
+        for hidden in args.hidden_list:
             layers.append(nn.Linear(lastv, hidden))
             layers.append(nn.ReLU())
             lastv = hidden
-        layers.append(nn.Linear(lastv, out_dim))
+        layers.append(nn.Linear(lastv, args.out_dim))
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
