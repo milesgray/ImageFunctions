@@ -5,7 +5,7 @@ from argparse import Namespace
 import torch
 from torch.optim import Optimizer
 
-from registry import register
+from .registry import register
 
 @register('adam_sgd_weighted')
 def make_adam_sgd_weighted(params, lr=1e-3, weight_decay=0,

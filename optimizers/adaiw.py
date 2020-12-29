@@ -3,7 +3,7 @@ from argparse import Namespace
 import torch
 from torch.optim.optimizer import Optimizer, required
 
-from registry import register
+from .registry import register
 
 @register('adaiw')
 def make_adaiw(params, lr=0.0005, betas=(0.1,0.99), eps=1e-03, weight_decay=0):
