@@ -37,7 +37,7 @@ class ImageFolder(Dataset):
 
         self.files = []
         for file_idx in tqdm(self.mapping):
-            filename = self.files[file_idx]
+            filename = filenames[file_idx]
             file = os.path.join(root_path, filename)
 
             if cache == 'none':
