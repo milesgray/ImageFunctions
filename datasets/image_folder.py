@@ -37,29 +37,32 @@ class ImageFolder(Dataset):
 
         self.files = []
         for file_idx in tqdm(self.mapping):
-            filename = filenames[file_idx]
-            file = os.path.join(root_path, filename)
+            try:
+                filename = filenames[file_idx]
+                file = os.path.join(root_path, filename)
 
-            if cache == 'none':
-                self.files.append(file)
+                if cache == 'none':
+                    self.files.append(file)
 
-            elif cache == 'bin':
-                bin_root = os.path.join(os.path.dirname(root_path),
-                    '_bin_' + os.path.basename(root_path))
-                if not os.path.exists(bin_root):
-                    os.mkdir(bin_root)
-                    print('mkdir', bin_root)
-                bin_file = os.path.join(
-                    bin_root, filename.split('.')[0] + '.pkl')
-                if not os.path.exists(bin_file):
-                    with open(bin_file, 'wb') as f:
-                        pickle.dump(imageio.imread(file), f)
-                    print('dump', bin_file)
-                self.files.append(bin_file)
+                elif cache == 'bin':
+                    bin_root = os.path.join(os.path.dirname(root_path),
+                        '_bin_' + os.path.basename(root_path))
+                    if not os.path.exists(bin_root):
+                        os.mkdir(bin_root)
+                        print('mkdir', bin_root)
+                    bin_file = os.path.join(
+                        bin_root, filename.split('.')[0] + '.pkl')
+                    if not os.path.exists(bin_file):
+                        with open(bin_file, 'wb') as f:
+                            pickle.dump(imageio.imread(file), f)
+                        print('dump', bin_file)
+                    self.files.append(bin_file)
 
-            elif cache == 'in_memory':
-                self.files.append(transforms.ToTensor()(
-                    Image.open(file).convert('RGB')))
+                elif cache == 'in_memory':
+                    self.files.append(transforms.ToTensor()(
+                        Image.open(file).convert('RGB')))
+            except Exception as e:
+                print(f"Failed to load image {filename}: {e}")
 
         self.mapping = [i for i in range(len(self.files))]
 
