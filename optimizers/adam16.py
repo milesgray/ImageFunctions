@@ -8,7 +8,7 @@ from torch.optim.optimizer import Optimizer
 from registry import register
 
 @register('adam16')
-def make_adam16(params=None, lr=1e-3, betas=(0.9,0.999), eps=1e-8, weight_decay=0):
+def make_adam16(params, lr=1e-3, betas=(0.9,0.999), eps=1e-8, weight_decay=0):
     args = Namespace()
     args.params = params
     args.lr = lr

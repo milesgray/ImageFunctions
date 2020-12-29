@@ -21,7 +21,7 @@ from torch.optim.optimizer import Optimizer
 from registry import register
 
 @register('lreq_adam')
-def make_lreq_adam(params=None, lr=1e-3, betas=(0.0, 0.99), eps=1e-8, weight_decay=0):
+def make_lreq_adam(params, lr=1e-3, betas=(0.0, 0.99), eps=1e-8, weight_decay=0):
     args = Namespace()
     args.params = params
     args.lr = lr

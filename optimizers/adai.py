@@ -6,7 +6,7 @@ from torch.optim.optimizer import Optimizer, required
 from registry import register
 
 @register('adai')
-def make_adai(params=None, lr=0.0005, betas=(0.1,0.99), eps=1e-03, weight_decay=0):
+def make_adai(params, lr=0.0005, betas=(0.1,0.99), eps=1e-03, weight_decay=0):
     args = Namespace()
     args.params = params
     args.lr = lr

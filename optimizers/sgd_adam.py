@@ -8,7 +8,7 @@ from torch.optim import Optimizer
 from registry import register
 
 @register('adam_sgd_weighted')
-def make_adam_sgd_weighted(params=None, lr=1e-3, weight_decay=0,
+def make_adam_sgd_weighted(params, lr=1e-3, weight_decay=0,
                            betas=(0.9, 0.999), eps=1e-8, amsgrad=False,
                            momentum=0, dampening=0, nesterov=False,
                            adam_w=0.5, sgd_w=0.5):
