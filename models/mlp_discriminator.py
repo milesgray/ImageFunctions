@@ -17,6 +17,7 @@ class MLPDiscriminator(nn.Module):
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
+        x = x.view(x.shape[0], -1)
         x = self.layers(x)
         return x
 
