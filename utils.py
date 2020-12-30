@@ -3,6 +3,7 @@ import time
 import shutil
 import math
 from typing import Callable, Optional, Tuple, Dict, List
+from argparse import Namespace
 
 import torch
 from torch import Tensor
@@ -263,7 +264,7 @@ def calc_SSIM(input, target, rgb_range, shave):
     target = target[shave:(h - shave), shave:(w - shave)]
     return ssim(input.numpy(), target.numpy())
 
-def sample_noise(dist: str, z_dim: int, batch_size: int, correction: Config=None) -> Tensor:
+def sample_noise(dist: str, z_dim: int, batch_size: int, args: Namespace=None) -> Tensor:
     assert dist in {'normal', 'uniform'}, f'Unknown latent distribution: {dist}'
 
     if dist == 'normal':
