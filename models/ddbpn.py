@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from models import register
+from layers import FourierINR
 
 def calc_mean_std(feat, eps=1e-5):
     # eps is a small value added to the variance to avoid divide-by-zero.
@@ -320,7 +321,7 @@ class DDBPN(nn.Module):
             self.sub_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std)
             self.add_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std, 1)
 
-    def forward(self, x):
+    def forward(self, x, coords=None):
         if self.use_mean_shift:
             x = self.sub_mean(x)
         x = self.initial(x)

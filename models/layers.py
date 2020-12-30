@@ -487,32 +487,34 @@ class FourierINR(nn.Module):
     """
     INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
     """
-    def __init__(self, args: Namespace):
+    def __init__(self, num_fourier_feats=128, layer_sizes: [64,64,128], out_features=128, 
+                 has_bias=True, activation="scaled_leaky_relu", residual=True,
+                 learnable_basis=True,):
         super(FourierINR, self).__init__()
 
         layers = [
-            nn.Linear(args.num_fourier_feats * 2, args.layer_sizes[0], bias=args.has_bias),
-            create_activation(args.activation)
+            nn.Linear(num_fourier_feats * 2, layer_sizes[0], bias=has_bias),
+            create_activation(activation)
         ]
 
-        for index in range(len(args.layer_sizes) - 1):
+        for index in range(len(layer_sizes) - 1):
             transform = nn.Sequential(
-                nn.Linear(args.layer_sizes[index], args.layer_sizes[index + 1], bias=args.has_bias),
-                create_activation(args.activation)
+                nn.Linear(layer_sizes[index], layer_sizes[index + 1], bias=has_bias),
+                create_activation(activation)
             )
 
-            if args.residual.enabled:
+            if residual.enabled:
                 layers.append(LinearResidual(args.residual, transform))
             else:
                 layers.append(transform)
 
-        layers.append(nn.Linear(args.layer_sizes[-1], args.out_features, bias=args.has_bias))
+        layers.append(nn.Linear(layer_sizes[-1], out_features, bias=has_bias))
 
         self.model = nn.Sequential(*layers)
 
         # Initializing the basis
-        basis_matrix = args.scale * torch.randn(args.num_fourier_feats, args.in_features)
-        self.basis_matrix = nn.Parameter(basis_matrix, requires_grad=args.learnable_basis)
+        basis_matrix = scale * torch.randn(num_fourier_feats, in_features)
+        self.basis_matrix = nn.Parameter(basis_matrix, requires_grad=learnable_basis)
 
     def compute_fourier_feats(self, coords: Tensor) -> Tensor:
         sines = (2 * np.pi * coords @ self.basis_matrix.t()).sin() # [batch_size, num_fourier_feats]
