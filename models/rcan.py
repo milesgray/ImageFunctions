@@ -19,7 +19,7 @@ class SpatialSoftmax2d(nn.Module):
         self.temp = temp
 
     def forward(self, x):
-        x = spatial_softmax(x, temperature=self.temp)
+        x = spatial_softmax2d(x, temperature=self.temp)
         return x
 
 class Scale(nn.Module):
