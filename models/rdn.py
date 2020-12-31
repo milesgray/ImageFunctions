@@ -65,7 +65,7 @@ class RDB_Conv(nn.Module):
 
     def forward(self, x):
         out = self.conv(x)
-        return torch.cat((self.pa(x), out), 1)
+        return torch.cat((x, self.pa(out)), 1)
 
 class RDB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers, kSize=3):

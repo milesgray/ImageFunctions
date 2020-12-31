@@ -96,13 +96,13 @@ class LIIF(nn.Module):
         fourier_args.residual.learnable_weight = True
         fourier_args.residual.enabled = True
 
-        self.fourier = FourierINR(self.encoder.out_dim, fourier_args, out_features=fourier_features)
+        self.fourier = FourierINR(2, fourier_args, num_fourier_feats=fourier_features, out_features=self.encoder.out_dim)
 
         if imnet_spec is not None:
             imnet_in_dim = self.encoder.out_dim
             if self.feat_unfold:
                 imnet_in_dim *= 9
-            imnet_in_dim += fourier_features # attach coord
+            imnet_in_dim += self.encoder.out_dim # attach coord
             if self.cell_decode:
                 imnet_in_dim += 2
             self.imnet = models.make(imnet_spec, args={'in_dim': imnet_in_dim})
@@ -137,13 +137,12 @@ class LIIF(nn.Module):
         rx = 2 / feat.shape[-2] / 2
         ry = 2 / feat.shape[-1] / 2
 
-        feat_coord = make_coord(feat.shape[-2:], flatten=False)
+        feat_coord = make_coord(feat.shape[-2:], flatten=True)
         if torch.cuda.is_available():
             feat_coord = feat_coord.cuda()
-        feat_coord = self.fourier(feat_coord)
+        feat_coord = self.fourier(feat_coord).view(feat.shape[-2:] + (-1,))
         feat_coord = feat_coord.permute(2, 0, 1) \
-                      .unsqueeze(0).expand(feat.shape[0], 2, *feat.shape[-2:])
-        
+                      .unsqueeze(0).expand(feat.shape[0], self.encoder.out_dim, *feat.shape[-2:])
 
         preds = []
         areas = []
@@ -161,7 +160,9 @@ class LIIF(nn.Module):
                     feat_coord, coord_.flip(-1).unsqueeze(1),
                     mode='nearest', align_corners=False)[:, :, 0, :] \
                     .permute(0, 2, 1)
-                rel_coord = coord - q_coord
+                freq_coord = self.fourier(coord.view(-1, 2)).view(q_coord.shape)
+                
+                rel_coord = freq_coord - q_coord
                 rel_coord[:, :, 0] *= feat.shape[-2]
                 rel_coord[:, :, 1] *= feat.shape[-1]
                 inp = torch.cat([q_feat, rel_coord], dim=-1)
