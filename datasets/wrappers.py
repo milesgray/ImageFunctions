@@ -377,7 +377,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                  inp_size=None, inp_size_min=None, inp_size_max=None, 
                  scale_min=1, scale_max=None,
                  augment=False, color_augment=False, color_augment_strength=0.8, 
-                 sample_q=None, vary_q=False,
+                 sample_q=None, vary_q=False, use_subgrid_coords=False,
                  return_hr=False, resize_hr=False, return_freq=False):
         super().__init__(dataset, inp_size=inp_size, scale_min=scale_min, scale_max=scale_max,
                  augment=augment, sample_q=sample_q, color_augment=color_augment, 
@@ -388,6 +388,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         self.resize_hr = resize_hr
         self.return_freq = return_freq
         self.vary_q = vary_q
+        self.use_subgrid_coords = use_subgrid_coords
 
 
     def __getitem__(self, idx):
@@ -395,12 +396,12 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         if self.color_augment:
             img = self.apply_color_aug(img)
         
-        crop_lr, crop_hr, f_crop_hr = self.make_crops(img)
+        crop_lr, crop_hr, f_crop_hr, grid_crop_hr = self.make_crops(img)
 
         if self.augment:
-            crop_lr, crop_hr, f_crop_hr = self.apply_augs(crop_lr, crop_hr, f_crop_hr)
+            crop_lr, crop_hr, f_crop_hr, grid_crop_hr = self.apply_augs(crop_lr, crop_hr, f_crop_hr, grid_crop_hr)
 
-        hr_coord, hr_rgb, cell, hr_freq = self.create_targets(crop_hr, f_crop_hr)
+        hr_coord, hr_rgb, cell, hr_freq = self.create_targets(crop_hr, f_crop_hr, grid_crop_hr)
 
         result = {
             'inp': crop_lr,
@@ -415,6 +416,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         return result
 
     def make_crops(self, img):
+        grid = kornia.utils.create_meshgrid(img.shape[1], img.shape[2]).squeeze()
         s = random.uniform(self.scale_min, self.scale_max)
 
         w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[-2]), img.shape[-1]) // s, 
@@ -444,9 +446,9 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
             else:
                 crop_hr = resize_fn(crop_hr, round(self.inp_size * s))
 
-        return crop_lr, crop_hr, f_crop_hr
+        return crop_lr, crop_hr, f_crop_hr, grid_crop_hr
 
-    def apply_augs(self, crop_lr, crop_hr, f_crop_hr):
+    def apply_augs(self, crop_lr, crop_hr, f_crop_hr, grid_crop_hr):
         hflip = random.random() < 0.5
         vflip = random.random() < 0.5
         dflip = random.random() < 0.5
@@ -462,12 +464,13 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
 
         crop_lr = augment(crop_lr)
         crop_hr = augment(crop_hr)
+        grid_crop_hr = augment(grid_crop_hr)
         if self.return_freq:
             f_crop_hr = augment(f_crop_hr)
 
-        return crop_lr, crop_hr, f_crop_hr
+        return crop_lr, crop_hr, f_crop_hr, grid_crop_hr
 
-    def create_targets(self, crop_hr, f_crop_hr):
+    def create_targets(self, crop_hr, f_crop_hr, grid_crop_hr):
         hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous())
         if self.return_freq:
             hr_freq = to_frequency_samples(f_crop_hr.contiguous())
@@ -483,7 +486,10 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                 sample_lst = np.random.choice(len(hr_coord), 
                                               min(self.sample_q, len(hr_coord)), 
                                               replace=False)
-            hr_coord = hr_coord[sample_lst]
+            if self.use_subgrid_coords:
+                hr_coord = grid_crop_hr.view(-1, 2)[sample_lst]
+            else:
+                hr_coord = hr_coord[sample_lst]
             hr_rgb = hr_rgb[sample_lst]
             if self.return_freq:
                 hr_freq = hr_freq[sample_lst]
