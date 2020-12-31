@@ -75,9 +75,8 @@ class FourierINR(nn.Module):
         return self.model(self.compute_fourier_feats(coords))
 
 
-@register('liif')
-class LIIF(nn.Module):
-
+@register('liif_inr')
+class LIIF_INR(nn.Module):
     def __init__(self, encoder_spec, imnet_spec=None,
                  local_ensemble=True, feat_unfold=True, cell_decode=True,
                  fourier_features=64):
