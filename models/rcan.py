@@ -3,6 +3,7 @@ from argparse import Namespace
 
 import torch
 import torch.nn as nn
+from kornia.geometry.subpix import spatial_softmax2d
 
 from models import register
 
@@ -12,20 +13,56 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
         in_channels, out_channels, kernel_size,
         padding=(kernel_size//2), bias=bias)
 
+class SpatialSoftmax2d(nn.Module):
+    def __init__(self, temp=1.0):
+        super().__init__()
+        self.temp = temp
+
+    def forward(self, x):
+        x = spatial_softmax(x, temperature=self.temp)
+        return x
+
+class Scale(nn.Module):
+    def __init__(self, init_value=1e-3):
+        super().__init__()
+        self.scale = nn.Parameter(torch.FloatTensor([init_value]))
+
+    def forward(self, input):
+        return input * self.scale
 
 class PA(nn.Module):
     '''Pixel Attention Layer'''
-    def __init__(self, nf):
-
-        super(PA, self).__init__()
-        self.conv = nn.Conv2d(nf, nf, 1)
+    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_scale=True):
+        super().__init__()
+        if f_out is None:
+            f_out = f_in
+        
         self.sigmoid = nn.Sigmoid()
+        if resize == "up":
+            self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
+        elif resize == "down":
+            self.resize = nn.AvgPool2d(scale, stride=scale)
+        else:
+            self.resize = nn.Identity()
+        if f_in != f_out:
+            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
+        self.conv = nn.Conv2d(f_out, f_out, 1)
+        self.use_softmax = softmax
+        if self.use_softmax:
+            self.softmax = SpatialSoftmax2d()
+        self.learn_scale = learn_scale
+        if self.learn_scale:
+            self.scale = Scale(1.0)
 
     def forward(self, x):
+        x = self.resize(x)
         y = self.conv(x)
         y = self.sigmoid(y)
+        if self.use_softmax:
+            y = self.softmax(y)
         out = torch.mul(x, y)
-
+        if self.learn_scale:
+            out = self.scale(out)
         return out
 
 class MeanShift(nn.Conv2d):
@@ -40,7 +77,6 @@ class MeanShift(nn.Conv2d):
 
 class Upsampler(nn.Sequential):
     def __init__(self, conv, scale, n_feat, bn=False, act=False, bias=True):
-
         m = []
         if (scale & (scale - 1)) == 0:    # Is scale = 2^n?
             for _ in range(int(math.log(scale, 2))):
@@ -110,11 +146,15 @@ class ResidualGroup(nn.Module):
                 conv, n_feat, kernel_size, reduction, bias=True, bn=False, act=nn.ReLU(True), res_scale=1) \
             for _ in range(n_resblocks)]
         modules_body.append(conv(n_feat, n_feat, kernel_size))
+        
         self.body = nn.Sequential(*modules_body)
+
+        self.pa = PA(n_feat)
 
     def forward(self, x):
         res = self.body(x)
-        res += x
+        res *= self.pa(res)
+        res += x 
         return res
 
 ## Residual Channel Attention Network (RCAN)
@@ -131,8 +171,10 @@ class RCAN(nn.Module):
         scale = args.scale[0]
         act = nn.ReLU(True)
 
-        
-        self.sub_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std)
+        self.use_mean = args.use_mean_shift
+        if self.use_mean:
+            self.sub_mean = MeanShift(args.rgb_range, args.rgb_mean, args.rgb_std)
+            self.add_mean = MeanShift(args.rgb_range, rgb_mean, rgb_std, 1)
 
         # define head module
         modules_head = [conv(args.n_colors, n_feats, kernel_size)]
@@ -144,8 +186,6 @@ class RCAN(nn.Module):
             for _ in range(n_resgroups)]
 
         modules_body.append(conv(n_feats, n_feats, kernel_size))
-
-        self.add_mean = MeanShift(args.rgb_range, rgb_mean, rgb_std, 1)
 
         self.head = nn.Sequential(*modules_head)
         self.body = nn.Sequential(*modules_body)
@@ -161,7 +201,8 @@ class RCAN(nn.Module):
             self.tail = nn.Sequential(*modules_tail)
 
     def forward(self, x):
-        #x = self.sub_mean(x)
+        if self.use_mean: 
+            x = self.sub_mean(x)
         x = self.head(x)
 
         res = self.body(x)
@@ -171,7 +212,8 @@ class RCAN(nn.Module):
             x = res
         else:
             x = self.tail(res)
-        #x = self.add_mean(x)
+        if self.use_mean: 
+            x = self.add_mean(x)
         return x
 
     def load_state_dict(self, state_dict, strict=False):
@@ -203,8 +245,9 @@ class RCAN(nn.Module):
 
 @register('rcan')
 def make_rcan(n_resgroups=10, n_resblocks=20, n_feats=64, reduction=16,
-              scale=2, no_upsampling=False, rgb_range=1, rgb_mean=None,
-              rgb_std=None):
+              scale=2, no_upsampling=False, 
+              use_mean_shift=False, rgb_range=1, rgb_mean=(0.39884, 0.42088, 0.45812),
+              rgb_std=(0.28514, 0.31383, 0.28289)):
     args = Namespace()
     args.n_resgroups = n_resgroups
     args.n_resblocks = n_resblocks
@@ -214,11 +257,12 @@ def make_rcan(n_resgroups=10, n_resblocks=20, n_feats=64, reduction=16,
     args.scale = [scale]
     args.no_upsampling = no_upsampling
 
+    args.use_mean_shift = use_mean_shift
     args.rgb_range = rgb_range
     # RGB mean for movie 11 fractal set # RGB mean for DIV2K
-    args.rgb_mean = (0.39884, 0.42088, 0.45812) if rgb_mean is None else rgb_mean#(0.4488, 0.4371, 0.4040)
+    args.rgb_mean = rgb_mean#(0.4488, 0.4371, 0.4040)
     # RGB STD mean for movie 11 fractal set
-    args.rgb_std = (0.28514, 0.31383, 0.28289) if rgb_std is None else rgb_std
+    args.rgb_std = rgb_std
     args.res_scale = 1
     args.n_colors = 3
     return RCAN(args)

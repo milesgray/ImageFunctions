@@ -6,18 +6,8 @@ from argparse import Namespace
 
 import torch
 import torch.nn as nn
-from kornia.geometry.subpix import spatial_softmax2d
 
 from models import register
-
-class SpatialSoftmax2d(nn.Module):
-    def __init__(self, temp=1.0):
-        super().__init__()
-        self.temp = temp
-
-    def forward(self, x):
-        x = spatial_softmax(x, temperature=self.temp)
-        return x
 
 class Scale(nn.Module):
     def __init__(self, init_value=1e-3):
@@ -46,7 +36,7 @@ class PA(nn.Module):
         self.conv = nn.Conv2d(f_out, f_out, 1)
         self.use_softmax = softmax
         if self.use_softmax:
-            self.softmax = SpatialSoftmax2d()
+            self.softmax = nn.Softmax2d()
         self.learn_scale = learn_scale
         if self.learn_scale:
             self.scale = Scale(1.0)
