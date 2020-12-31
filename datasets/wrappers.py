@@ -566,7 +566,7 @@ class SRRandRangeDownsampledRandCrop(Dataset):
             if self.vary_q:
                 sample_lst = np.random.choice(len(hr_coord), min(round(self.sample_q * s), len(hr_coord)), replace=False)
             else:
-                sample_lst = np.random.choice(len(hr_coord), self.sample_q, replace=False)
+                sample_lst = np.random.choice(len(hr_coord), self.sample_q, replace=len(hr_coord) > self.sample_q)
             hr_coord = hr_coord[sample_lst]
             hr_rgb = hr_rgb[sample_lst]
 

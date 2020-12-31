@@ -9,18 +9,47 @@ import torch.nn as nn
 
 from models import register
 
-class PA(nn.Module):
-    '''PA is pixel attention'''
-    def __init__(self, nf):
+class Scale(nn.Module):
+    def __init__(self, init_value=1e-3):
         super().__init__()
-        self.conv = nn.Conv2d(nf, nf, 1)
+        self.scale = nn.Parameter(torch.FloatTensor([init_value]))
+
+    def forward(self, input):
+        return input * self.scale
+
+class PA(nn.Module):
+    '''Pixel Attention Layer'''
+    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_scale=True):
+        super().__init__()
+        if f_out is None:
+            f_out = f_in
+        
         self.sigmoid = nn.Sigmoid()
+        if resize == "up":
+            self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
+        elif resize == "down":
+            self.resize = nn.AvgPool2d(scale, stride=scale)
+        else:
+            self.resize = nn.Identity()
+        if f_in != f_out:
+            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
+        self.conv = nn.Conv2d(f_out, f_out, 1)
+        self.use_softmax = softmax
+        if self.use_softmax:
+            self.softmax = nn.Softmax2d()
+        self.learn_scale = learn_scale
+        if self.learn_scale:
+            self.scale = Scale(1.0)
 
     def forward(self, x):
+        x = self.resize(x)
         y = self.conv(x)
         y = self.sigmoid(y)
+        if self.use_softmax:
+            y = self.softmax(y)
         out = torch.mul(x, y)
-
+        if self.learn_scale:
+            out = self.scale(out)
         return out
 
 class RDB_Conv(nn.Module):
