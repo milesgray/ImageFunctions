@@ -11,70 +11,6 @@ import models
 from models import register
 from utils import make_coord
 
-class LinearResidual(nn.Module):
-    def __init__(self, args: Namespace, transform: Callable):
-        super().__init__()
-
-        self.args = args
-        self.transform = transform
-        self.weight = nn.Parameter(
-            torch.tensor(args.weight).float(), requires_grad=args.learnable_weight)
-
-    def forward(self, x: Tensor) -> Tensor:
-        if self.args.weighting_type == 'shortcut':
-            return self.transform(x) + self.weight * x
-        elif self.args.weighting_type == 'residual':
-            return self.weight * self.transform(x) + x
-        else:
-            raise ValueError
-
-def create_activation(activation_type: str, *args, **kwargs) -> nn.Module:
-    if activation_type == 'leaky_relu':
-        return nn.LeakyReLU(*args, **kwargs)
-
-class FourierINR(nn.Module):
-    """
-    INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
-    """
-    def __init__(self, in_features, args: Namespace, num_fourier_feats=64, layer_sizes=[64,64,64], out_features=64, 
-                 has_bias=True, activation="leaky_relu", 
-                 learnable_basis=True,):
-        super(FourierINR, self).__init__()
-
-        layers = [
-            nn.Linear(num_fourier_feats * 2, layer_sizes[0], bias=has_bias),
-            create_activation(activation)
-        ]
-
-        for index in range(len(layer_sizes) - 1):
-            transform = nn.Sequential(
-                nn.Linear(layer_sizes[index], layer_sizes[index + 1], bias=has_bias),
-                create_activation(activation)
-            )
-
-            if args.residual.enabled:
-                layers.append(LinearResidual(args.residual, transform))
-            else:
-                layers.append(transform)
-
-        layers.append(nn.Linear(layer_sizes[-1], out_features, bias=has_bias))
-
-        self.model = nn.Sequential(*layers)
-
-        # Initializing the basis
-        basis_matrix = args.scale * torch.randn(num_fourier_feats, in_features)
-        self.basis_matrix = nn.Parameter(basis_matrix, requires_grad=learnable_basis)
-
-    def compute_fourier_feats(self, coords: Tensor) -> Tensor:
-        sines = (2 * np.pi * coords @ self.basis_matrix.t()).sin() # [batch_size, num_fourier_feats]
-        cosines = (2 * np.pi * coords @ self.basis_matrix.t()).cos() # [batch_size, num_fourier_feats]
-
-        return torch.cat([sines, cosines], dim=1) # [batch_size, num_fourier_feats * 2]
-
-    def forward(self, coords: Tensor) -> Tensor:
-        return self.model(self.compute_fourier_feats(coords))
-
-
 @register('liif')
 class LIIF(nn.Module):
 
@@ -88,21 +24,11 @@ class LIIF(nn.Module):
 
         self.encoder = models.make(encoder_spec)
 
-        fourier_args = Namespace()
-        fourier_args.scale = 1.0
-        fourier_args.residual = Namespace()
-        fourier_args.residual.weight = 1.0
-        fourier_args.residual.weighting_type = 'residual'
-        fourier_args.residual.learnable_weight = True
-        fourier_args.residual.enabled = True
-
-        self.fourier = FourierINR(2, fourier_args, num_fourier_feats=fourier_features, out_features=self.encoder.out_dim)
-
         if imnet_spec is not None:
             imnet_in_dim = self.encoder.out_dim
             if self.feat_unfold:
                 imnet_in_dim *= 9
-            imnet_in_dim += self.encoder.out_dim # attach coord
+            imnet_in_dim += 2 # attach coord
             if self.cell_decode:
                 imnet_in_dim += 2
             self.imnet = models.make(imnet_spec, args={'in_dim': imnet_in_dim})
@@ -137,10 +63,9 @@ class LIIF(nn.Module):
         rx = 2 / feat.shape[-2] / 2
         ry = 2 / feat.shape[-1] / 2
 
-        feat_coord = make_coord(feat.shape[-2:], flatten=True)
+        feat_coord = make_coord(feat.shape[-2:], flatten=False)
         if torch.cuda.is_available():
             feat_coord = feat_coord.cuda()
-        feat_coord = self.fourier(feat_coord).view(feat.shape[-2:] + (-1,))
         feat_coord = feat_coord.permute(2, 0, 1) \
                       .unsqueeze(0).expand(feat.shape[0], self.encoder.out_dim, *feat.shape[-2:])
 

@@ -205,8 +205,8 @@ class RCAN(nn.Module):
             x = self.sub_mean(x)
         x = self.head(x)
 
-        res = self.body(x)
-        res += x
+        res = self.body(x).add(x)
+        #res += x
 
         if self.args.no_upsampling:
             x = res

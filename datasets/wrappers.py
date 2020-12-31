@@ -389,6 +389,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         self.return_freq = return_freq
         self.vary_q = vary_q
         self.use_subgrid_coords = use_subgrid_coords
+        self.rand_scale = None
 
 
     def __getitem__(self, idx):
@@ -417,7 +418,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
 
     def make_crops(self, img):
         grid = kornia.utils.create_meshgrid(img.shape[1], img.shape[2]).squeeze()
-        s = random.uniform(self.scale_min, self.scale_max)
+        s = self.rand_scale = random.uniform(self.scale_min, self.scale_max)
 
         w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[-2]), img.shape[-1]) // s, 
                                     min(min(self.inp_size_max*s, img.shape[-2]), img.shape[-1]) // s))
@@ -480,7 +481,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         if self.sample_q is not None:
             if self.vary_q:
                 sample_lst = np.random.choice(len(hr_coord), 
-                                              min(round(self.sample_q * s), len(hr_coord)), 
+                                              min(round(self.sample_q * self.rand_scale), len(hr_coord)), 
                                               replace=False)
             else:
                 sample_lst = np.random.choice(len(hr_coord), 
