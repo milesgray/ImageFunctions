@@ -111,7 +111,7 @@ class CALayer(nn.Module):
     def forward(self, x):
         y = self.avg_pool(x)
         y = self.conv_du(y)
-        return x * y
+        return torch.mul(x, y)
 
 ## Residual Channel Attention Block (RCAB)
 class RCAB(nn.Module):
@@ -133,8 +133,8 @@ class RCAB(nn.Module):
     def forward(self, x):
         res = self.body(x)
         #res = self.body(x).mul(self.res_scale)
-        res -= self.pa(x)
-        return res + x
+        res = torch.sub(res, self.pa(x))
+        return torch.add(res, x)
 
 ## Residual Group (RG)
 class ResidualGroup(nn.Module):
@@ -153,8 +153,8 @@ class ResidualGroup(nn.Module):
 
     def forward(self, x):
         res = self.body(x)
-        res *= self.pa(res)
-        res += x 
+        res = torch.mul(res, self.pa(res))
+        res = torch.add(res, x)
         return res
 
 ## Residual Channel Attention Network (RCAN)
