@@ -432,16 +432,17 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
     def make_crops(self, img):
         grid = kornia.utils.create_meshgrid(img.shape[1], img.shape[2]).squeeze()
         s = self.rand_scale = random.uniform(self.scale_min, self.scale_max)
+        s = max(1, s)
         if img.shape[0] == 3:
-            w_index = 1
-            h_index = 2
-        else:
-            w_index = 0
             h_index = 1
-        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[w_index]), img.shape[h_index]) // s, 
-                                    min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) // s))
+            w_index = 2
+        else:
+            h_index = 0
+            w_index = 1
+        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[w_index]), img.shape[h_index]) / s, 
+                                    min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) / s))
         w_lr = max(self.min_size, w_lr)
-        w_hr = round(w_lr * s)
+        w_hr = max(round(self.min_size * s), round(w_lr * s))
         x0 = random.randint(0, max(img.shape[w_index] - w_hr, self.min_size))
         y0 = random.randint(0, max(img.shape[h_index] - w_hr, self.min_size))
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
