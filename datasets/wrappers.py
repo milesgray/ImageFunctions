@@ -478,7 +478,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                         crop_hr = img[x0: x0 + w_hr, y0: y0 + w_hr, :]
         else:
             if crop_hr.shape[h_index] < self.inp_size or crop_hr.shape[w_index] < self.inp_size:
-                print(f"Bad shape: {crop_hr.shape}, low res size: {w_lr}
+                print(f"Bad shape: {crop_hr.shape}, low res size: {w_lr}")
             crop_lr = resize_fn(crop_hr, self.inp_size)
         if self.resize_hr:
             if self.inp_size is None:
