@@ -441,8 +441,8 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
             w_index = 1
         img_width = img.shape[w_index]
         img_height = img.shape[h_index]
-        rand_range_min = min(min(self.inp_size_min*s, img_width), img_height) / s
-        rand_range_max = min(min(self.inp_size_max*s, img_width), img_height) / s
+        rand_range_min = round(min(min(round(self.inp_size_min*s), img_width), img_height) / s)
+        rand_range_max = round(min(min(round(self.inp_size_max*s), img_width), img_height) / s)
         rand_range_min = max(rand_range_min, self.min_size)
         rand_range_max = max(rand_range_max, self.min_size)
         w_lr = round(random.uniform(rand_range_min, 
@@ -451,7 +451,11 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         w_hr = max(round(self.min_size * s), round(w_lr * s))
         x0 = random.randint(0, max( - w_hr, self.min_size))
         y0 = random.randint(0, max(img_height - w_hr, self.min_size))
-        crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
+        
+        if img.shape[0] == 3:
+            crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
+        else:
+            crop_hr = img[x0: x0 + w_hr, y0: y0 + w_hr, :]
         grid_crop_hr = grid[x0: x0 + w_hr, y0: y0 + w_hr, :]
         if self.return_freq:
             f_img = tfft.hfft(img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
@@ -465,7 +469,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
             f_crop_hr = None
         if self.inp_size is None:
             try:
-                if crop_hr.shape[h_index] < w_lr or crop_hr.shape[w_index] < w_lr:
+                if crop_hr.shape[h_index] <= w_lr or crop_hr.shape[w_index] <= w_lr:
                     print(f"Bad shape: {crop_hr.shape}, low res size: {w_lr}")
                 crop_lr = resize_fn(crop_hr, w_lr)
             except Exception as e:
