@@ -442,8 +442,8 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                                     min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) // s))
         w_lr = max(self.min_size, w_lr)
         w_hr = round(w_lr * s)
-        x0 = random.randint(0, img.shape[w_index] - w_hr)
-        y0 = random.randint(0, img.shape[h_index] - w_hr)
+        x0 = random.randint(0, max(img.shape[w_index] - w_hr, self.min_size))
+        y0 = random.randint(0, max(img.shape[h_index] - w_hr, self.min_size))
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
         grid_crop_hr = grid[x0: x0 + w_hr, y0: y0 + w_hr, :]
         if self.return_freq:
