@@ -439,12 +439,18 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         else:
             h_index = 0
             w_index = 1
-        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[w_index]), img.shape[h_index]) / s, 
-                                    min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) / s))
+        img_width = img.shape[w_index]
+        img_height = img.shape[h_index]
+        rand_range_min = min(min(self.inp_size_min*s, img_width), img_height) / s
+        rand_range_max = min(min(self.inp_size_max*s, img_width), img_height) / s
+        rand_range_min = max(rand_range_min, self.min_size)
+        rand_range_max = max(rand_range_max, self.min_size)
+        w_lr = round(random.uniform(rand_range_min, 
+                                    rand_range_max))
         w_lr = max(self.min_size, w_lr)
         w_hr = max(round(self.min_size * s), round(w_lr * s))
-        x0 = random.randint(0, max(img.shape[w_index] - w_hr, self.min_size))
-        y0 = random.randint(0, max(img.shape[h_index] - w_hr, self.min_size))
+        x0 = random.randint(0, max( - w_hr, self.min_size))
+        y0 = random.randint(0, max(img_height - w_hr, self.min_size))
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
         grid_crop_hr = grid[x0: x0 + w_hr, y0: y0 + w_hr, :]
         if self.return_freq:
@@ -465,7 +471,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
             except Exception as e:
                 print(f"Bad shape: {crop_hr.shape}, low res size: {w_lr}\n{e}")
                 if all([d > 0 for d in crop_hr.shape]):
-                    if self.min_size > img.shape[w_index] or self.min_size > img.shape[h_index]:
+                    if self.min_size > img_width or self.min_size > img_height:
                         if w_hr <= 0:
                             w_hr = self.min_size
                         if x0 <= 0:
