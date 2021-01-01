@@ -242,19 +242,25 @@ class RandCropDataset(Dataset):
         return result
 
     def make_crops(self, img):
+        if img.shape[0] == 3:
+            w_index = img.shape[1]
+            h_index = img.shape[2]
+        else:
+            w_index = img.shape[0]
+            h_index = img.shape[1]
         s = random.uniform(self.scale_min, self.scale_max)
 
         if self.inp_size is None:
-            h_lr = math.floor(img.shape[-2] / s + 1e-9)
-            w_lr = math.floor(img.shape[-1] / s + 1e-9)
+            h_lr = math.floor(img.shape[h_index] / s + 1e-9)
+            w_lr = math.floor(img.shape[w_index] / s + 1e-9)
             img = img[:, :round(h_lr * s), :round(w_lr * s)] # assume round int
             img_down = resize_fn(img, (h_lr, w_lr))
             crop_lr, crop_hr = img_down, img
         else:
             w_lr = self.inp_size
             w_hr = round(w_lr * s)
-            x0 = random.randint(0, img.shape[-2] - w_hr)
-            y0 = random.randint(0, img.shape[-1] - w_hr)
+            x0 = random.randint(0, img.shape[h_index] - w_hr)
+            y0 = random.randint(0, img.shape[w_index] - w_hr)
             crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
             crop_lr = resize_fn(crop_hr, w_lr)
 
@@ -339,8 +345,14 @@ class SRRandRangeDownsampledRandCrop(RandCropDataset):
             img_down = resize_fn(img, (h_lr, w_lr))
             crop_lr, crop_hr = img_down, img
         else:
-            w_lr = round(random.uniform(min(min(self.inp_size*s, img.shape[-2] // s), img.shape[-1] // s) // s, 
-                                        min(min(self.inp_size*s*s, img.shape[-2] // s), img.shape[-1] // s) // s))
+            if img.shape[0] == 3:
+                w_index = img.shape[1]
+                h_index = img.shape[2]
+            else:
+                w_index = img.shape[0]
+                h_index = img.shape[1]
+            w_lr = round(random.uniform(min(min(self.inp_size*s, img.shape[w_index]), img.shape[h_index]) // s, 
+                                        min(min(self.inp_size*s*s, img.shape[w_index]), img.shape[h_index]) // s))
             w_hr = round(w_lr * s)
             x0 = random.randint(0, img.shape[-2] - w_hr)
             y0 = random.randint(0, img.shape[-1] - w_hr)
@@ -419,9 +431,14 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
     def make_crops(self, img):
         grid = kornia.utils.create_meshgrid(img.shape[1], img.shape[2]).squeeze()
         s = self.rand_scale = random.uniform(self.scale_min, self.scale_max)
-
-        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[-2]), img.shape[-1]) // s, 
-                                    min(min(self.inp_size_max*s, img.shape[-2]), img.shape[-1]) // s))
+        if img.shape[0] == 3:
+            w_index = img.shape[1]
+            h_index = img.shape[2]
+        else:
+            w_index = img.shape[0]
+            h_index = img.shape[1]
+        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[w_index]), img.shape[h_index]) // s, 
+                                    min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) // s))
         w_hr = round(w_lr * s)
         x0 = random.randint(0, img.shape[-2] - w_hr)
         y0 = random.randint(0, img.shape[-1] - w_hr)
@@ -504,13 +521,19 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
 @register('zr-setrange-downsampled-randcrop')
 class ZRSetRangeDownsampledRandCrop(SRSetRangeDownsampledRandCrop):
     def make_crops(self, img):
+        if img.shape[0] == 3:
+            w_index = img.shape[1]
+            h_index = img.shape[2]
+        else:
+            w_index = img.shape[0]
+            h_index = img.shape[1]
         s = random.uniform(self.scale_min, self.scale_max)
 
-        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[-2]), img.shape[-1]) // s, 
-                                    min(min(self.inp_size_max*s, img.shape[-2]), img.shape[-1]) // s))
+        w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[w_index]), img.shape[h_index]) // s, 
+                                    min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) // s))
         w_hr = round(w_lr * s)
-        x0 = random.randint(0, img.shape[-2] - w_hr)
-        y0 = random.randint(0, img.shape[-1] - w_hr)
+        x0 = random.randint(0, img.shape[w_index] - w_hr)
+        y0 = random.randint(0, img.shape[h_index] - w_hr)
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
         if self.return_freq:
             f_img = tfft.hfft(img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
