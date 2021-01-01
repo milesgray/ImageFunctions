@@ -386,7 +386,7 @@ class SRRandRangeDownsampledRandCrop(RandCropDataset):
 @register('sr-setrange-downsampled-randcrop')
 class SRSetRangeDownsampledRandCrop(RandCropDataset):
     def __init__(self, dataset, 
-                 inp_size=None, inp_size_min=None, inp_size_max=None, 
+                 inp_size=None, inp_size_min=None, inp_size_max=None, min_size=16,
                  scale_min=1, scale_max=None,
                  augment=False, color_augment=False, color_augment_strength=0.8, 
                  sample_q=None, vary_q=False, use_subgrid_coords=False,
@@ -397,6 +397,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                  return_hr=return_hr)
         self.inp_size_min = inp_size_min
         self.inp_size_max = inp_size_max
+        self.min_size = min_size
         self.resize_hr = resize_hr
         self.return_freq = return_freq
         self.vary_q = vary_q
@@ -439,6 +440,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
             h_index = 1
         w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[w_index]), img.shape[h_index]) // s, 
                                     min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) // s))
+        w_lr = max(self.min_size, w_lr)
         w_hr = round(w_lr * s)
         x0 = random.randint(0, img.shape[w_index] - w_hr)
         y0 = random.randint(0, img.shape[h_index] - w_hr)
