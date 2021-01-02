@@ -38,8 +38,8 @@ class FourierINR(nn.Module):
     """
     INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
     """
-    def __init__(self, num_fourier_feats=128, layer_sizes=[32,32,32], out_features=128, 
-                 has_bias=True, activation="leaky_relu", residual=True,
+    def __init__(self, in_features, args: Namespace, num_fourier_feats=64, layer_sizes=[64,64,64], out_features=64, 
+                 has_bias=True, activation="leaky_relu", 
                  learnable_basis=True,):
         super(FourierINR, self).__init__()
 
@@ -54,7 +54,7 @@ class FourierINR(nn.Module):
                 create_activation(activation)
             )
 
-            if residual.enabled:
+            if args.residual.enabled:
                 layers.append(LinearResidual(args.residual, transform))
             else:
                 layers.append(transform)
@@ -64,7 +64,7 @@ class FourierINR(nn.Module):
         self.model = nn.Sequential(*layers)
 
         # Initializing the basis
-        basis_matrix = scale * torch.randn(num_fourier_feats, in_features)
+        basis_matrix = args.scale * torch.randn(num_fourier_feats, in_features)
         self.basis_matrix = nn.Parameter(basis_matrix, requires_grad=learnable_basis)
 
     def compute_fourier_feats(self, coords: Tensor) -> Tensor:
