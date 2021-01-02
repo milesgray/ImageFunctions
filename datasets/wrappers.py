@@ -449,8 +449,8 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                                     rand_range_max))
         w_lr = max(self.min_size, w_lr)
         w_hr = max(round(self.min_size * s), round(w_lr * s))
-        x0 = random.randint(0, max(img_width- w_hr, self.min_size))
-        y0 = random.randint(0, max(img_height - w_hr, self.min_size))
+        x0 = random.randint(0, max(img_width - w_hr, 0))
+        y0 = random.randint(0, max(img_height - w_hr, 0))
         
         if img.shape[0] == 3:
             crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
