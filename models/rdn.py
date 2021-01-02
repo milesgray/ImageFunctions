@@ -66,13 +66,13 @@ class PA(nn.Module):
             spatial_y = self.spatial_conv(x)
             spatial_y = self.sigmoid(spatial_y)
             if self.use_softmax:
-                spatial_y = self.softmax(spatial_y)
+                spatial_y = self.spatial_softmax(spatial_y)
             spatial_out = torch.mul(x, spatial_y)
         if self.channel_wise:
             channel_y = self.channel_conv(x)
             channel_y = self.sigmoid(channel_y)
             if self.use_softmax:
-                channel_y = self.softmax(channel_y)
+                channel_y = self.channel_softmax(channel_y)
             channel_out = torch.mul(x, channel_y)
         if self.channel_wise and self.spatial_wise:
             out = spatial_out + channel_out
