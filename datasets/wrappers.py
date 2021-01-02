@@ -470,10 +470,10 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         if self.inp_size is None:
             try:
                 if crop_hr.shape[h_index] <= w_lr or crop_hr.shape[w_index] <= w_lr:
-                    print(f"Bad shape: {crop_hr.shape}, scale: {s}, low res size: {w_lr}, img size: {img.shape}")
+                    print(f"0 Bad shape: {crop_hr.shape}, scale: {s}, low res size: {w_lr}, img size: {img.shape}")
                 crop_lr = resize_fn(crop_hr, w_lr)
             except Exception as e:
-                print(f"Bad shape: {crop_hr.shape}, low res size: {w_lr}\n{e}")
+                print(f"1 Bad shape: {crop_hr.shape}, scale: {s}, low res size: {w_lr}, img size: {img.shape}")
                 if all([d > 0 for d in crop_hr.shape]):
                     if self.min_size > img_width or self.min_size > img_height:
                         if w_hr <= 0:
@@ -501,7 +501,7 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                     crop_lr = resize_fn(crop_hr, round(self.min_size * s))
         else:
             if crop_hr.shape[h_index] < self.inp_size or crop_hr.shape[w_index] < self.inp_size:
-                print(f"Bad shape: {crop_hr.shape}, low res size: {w_lr}")
+                print(f"2 Bad shape: {crop_hr.shape}, scale: {s}, low res size: {w_lr}, img size: {img.shape}")
             crop_lr = resize_fn(crop_hr, self.inp_size)
         if self.resize_hr:
             if self.inp_size is None:
