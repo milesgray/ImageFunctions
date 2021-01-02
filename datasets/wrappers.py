@@ -449,6 +449,9 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
                                     rand_range_max))
         w_lr = max(self.min_size, w_lr)
         w_hr = max(round(self.min_size * s), round(w_lr * s))
+        if img_height - w_hr < self.min_size or img_width - w_hr < self.min_size:
+            w_lr = self.min_size
+            w_hr = round(w_lr * s)
         x0 = random.randint(0, max(img_height - w_hr, 0))
         y0 = random.randint(0, max(img_width - w_hr, 0))
         x0 = min(img_height - w_hr, x0)

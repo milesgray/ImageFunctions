@@ -5,19 +5,19 @@ train_dataset:
       root_path: /content/full/
       repeat: 1
       cache: in_memory
-      first_k: 3300
-      skip_every: 3
+      first_k: 600
+      skip_every: 6
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
       inp_size_min: 32
-      inp_size_max: 128
+      inp_size_max: 64
       scale_min: 2
       scale_max: 6
       augment: true
       sample_q: 4096
-      color_augment: true
-      color_augment_strength: 0.2
+      vary_q: true
+      return_hr: true
   batch_size: 1
 
 val_dataset:
@@ -25,14 +25,14 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      last_k: 230
+      last_k: 53
       repeat: 3
       cache: in_memory
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
       inp_size_min: 32
-      inp_size_max: 128
+      inp_size_max: 32
       scale_min: 2
       scale_max: 6
       sample_q: 4096
@@ -44,22 +44,26 @@ data_norm:
   gt: {sub: [0], div: [1]}
 
 model:
-  name: liif
+  name: liif_inr
   args:
     encoder_spec:
       name: rdn
       args:
+        RDNconfig: 'A'
         no_upsampling: true
     imnet_spec:
       name: mlp
       args:
         out_dim: 3
         hidden_list: [256, 256, 256, 256]
+        has_bn: true
+        use_sine: true
 
 optimizer:
   name: adam
   args:
     lr: 1.e-4
+
 epoch_max: 500
 multi_step_lr:
   milestones: [100, 200, 300, 400]
