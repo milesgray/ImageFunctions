@@ -485,9 +485,9 @@ class DDBPN(nn.Module):
             else:
                 h = torch.cat(h_list, dim=1)
             if freq_coord:
-                l_list.append(self.downmodules[i](torch.cat(h, freq_coord.view(h.shape[0], -1, h.shape[2], h.shape[3]), dim=1))
+                l_list.append(self.downmodules[i](torch.cat(h, freq_coord.view(h.shape[0], -1, h.shape[2], h.shape[3]), dim=1)))
             else:
-                l_list.append(self.downmodules[i](h)
+                l_list.append(self.downmodules[i](h))
         if self.no_upsampling:
             if self.use_pa_bridge:
                 h = self.attnmodules[-1](torch.cat(h_list, dim=1))
