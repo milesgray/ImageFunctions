@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from kornia.geometry.subpix import spatial_softmax2d
 
 from models import register
 #from layers import FourierINR
@@ -192,6 +193,15 @@ class MeanShift(nn.Conv2d):
         for p in self.parameters():
             p.requires_grad = False
 
+class SpatialSoftmax2d(nn.Module):
+    def __init__(self, temp=1.0):
+        super().__init__()
+        self.temp = temp
+
+    def forward(self, x):
+        x = spatial_softmax2d(x, temperature=self.temp)
+        return x
+
 class Scale(nn.Module):
     def __init__(self, init_value=1e-3):
         super().__init__()
@@ -202,7 +212,7 @@ class Scale(nn.Module):
 
 class PA(nn.Module):
     '''Pixel Attention Layer'''
-    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_scale=True):
+    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_weight=True, channel_wise=True, spatial_wise=True):
         super().__init__()
         if f_out is None:
             f_out = f_in
@@ -216,23 +226,51 @@ class PA(nn.Module):
             self.resize = nn.Identity()
         if f_in != f_out:
             self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
-        self.conv = nn.Conv2d(f_out, f_out, 1)
+        self.channel_wise = channel_wise
+        self.spatial_wise = spatial_wise
+        if channel_wise:
+            self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out)
+        if spatial_wise:
+            self.spatial_conv = nn.Conv2d(f_out, f_out, 1)
+        if not channel_wise and not spatial_wise:
+            self.conv = nn.Conv2d(f_out, f_out, 1)
+        
         self.use_softmax = softmax
         if self.use_softmax:
-            self.softmax = nn.Softmax2d()
-        self.learn_scale = learn_scale
-        if self.learn_scale:
-            self.scale = Scale(1.0)
+            self.spatial_softmax = SpatialSoftmax2d()
+            self.channel_softmax = nn.Softmax2d()
+        self.learn_weight = learn_weight
+        if self.learn_weight:
+            self.weight_scale = Scale(1.0)
 
     def forward(self, x):
         x = self.resize(x)
-        y = self.conv(x)
-        y = self.sigmoid(y)
-        if self.use_softmax:
-            y = self.softmax(y)
-        out = torch.mul(x, y)
-        if self.learn_scale:
-            out = self.scale(out)
+        if self.spatial_wise:
+            spatial_y = self.spatial_conv(x)
+            spatial_y = self.sigmoid(spatial_y)
+            if self.use_softmax:
+                spatial_y = self.softmax(spatial_y)
+            spatial_out = torch.mul(x, spatial_y)
+        if self.channel_wise:
+            channel_y = self.channel_conv(x)
+            channel_y = self.sigmoid(channel_y)
+            if self.use_softmax:
+                channel_y = self.softmax(channel_y)
+            channel_out = torch.mul(x, channel_y)
+        if self.channel_wise and self.spatial_wise:
+            out = spatial_out + channel_out
+        elif self.channel_wise:
+            out = channel_wise
+        elif self.spatial_wise:
+            out = spatial_wise
+        else:
+            y = self.conv(x)
+            y = self.sigmoid(y)
+            if self.use_softmax:
+                y = self.spatial_softmax(y)
+            out = torch.mul(x, y)
+        if self.learn_weight:
+            out = self.weight_scale(out)
         return out
 
 def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
