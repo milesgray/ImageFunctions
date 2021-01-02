@@ -347,16 +347,16 @@ class DenseProjection(nn.Module):
         ]
         self.use_pa = use_pa
         if self.use_pa:
-            layers_1.append(PA(nr, learn_scale=use_pa_learn_scale))
-            layers_2.append(PA(inter_channels, learn_scale=use_pa_learn_scale))
+            layers_1.append(PA(nr, learn_weight=use_pa_learn_scale))
+            layers_2.append(PA(inter_channels, learn_weight=use_pa_learn_scale))
         
         self.conv_1 = nn.Sequential(*layers_1)
         self.conv_2 = nn.Sequential(*layers_2)
         self.conv_3 = nn.Sequential(*layers_3)
 
         if self.use_pa:
-            self.pa_x = PA(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale, learn_scale=use_pa_learn_scale)
-            self.pa_out = PA(nr, learn_scale=use_pa_learn_scale)
+            self.pa_x = PA(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale, learn_weight=use_pa_learn_scale)
+            self.pa_out = PA(nr, learn_weight=use_pa_learn_scale)
 
     def forward(self, x):
         if self.bottleneck is not None:
@@ -443,7 +443,7 @@ class DDBPN(nn.Module):
             channels = args.n_feats
             for i in range(self.total_depth):
                 self.attnmodules.append(
-                    PA(channels, learn_scale=self.use_pa_learn_scale)
+                    PA(channels, learn_weight=self.use_pa_learn_scale)
                 )
                 channels += args.n_feats
 
