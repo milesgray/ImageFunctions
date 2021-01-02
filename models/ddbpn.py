@@ -38,7 +38,7 @@ class FourierINR(nn.Module):
     """
     INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
     """
-    def __init__(self, num_fourier_feats=128, layer_sizes=[64,64,128], out_features=128, 
+    def __init__(self, num_fourier_feats=128, layer_sizes=[32,32,32], out_features=128, 
                  has_bias=True, activation="leaky_relu", residual=True,
                  learnable_basis=True,):
         super(FourierINR, self).__init__()
@@ -180,6 +180,29 @@ class DAC(nn.Module):
         referred_std = self.std(referred_std)
         output = normalized_feat * referred_std.expand(size) + referred_mean.expand(size)
         return output
+
+class HessianAttention(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.coder = nn.Sequential(DiEnDec(3, nn.ReLU(True)))
+        self.dac = nn.Sequential(DAC(channels))
+        self.hessian3 = nn.Sequential(MSHF(channels, kernel=3))
+        self.hessian5 = nn.Sequential(MSHF(channels, kernel=5))
+        self.hessian7 = nn.Sequential(MSHF(channels, kernel=7))
+
+    def forward(self, x):
+        hessian3 = self.hessian3(x)
+        hessian5 = self.hessian5(x)
+        hessian7 = self.hessian7(x)
+        hessian = torch.cat((torch.mean(hessian3, dim=1, keepdim=True),
+                             torch.mean(hessian5, dim=1, keepdim=True),
+                             torch.mean(hessian7, dim=1, keepdim=True))
+                            , 1)
+        hessian = self.coder(hessian)
+        attention = torch.sigmoid(self.dac[0](hessian.expand(x.size()), x))
+        x = x * attention
+        return x
+
 
 class MeanShift(nn.Conv2d):
     def __init__(
@@ -362,6 +385,19 @@ class DDBPN(nn.Module):
         self.use_pa_bridge = args.use_pa_bridge
         self.use_hessian = args.use_hessian_attn
 
+        fourier_args = Namespace()
+        fourier_args.scale = 1.0
+        fourier_args.residual = Namespace()
+        fourier_args.residual.weight = 1.0
+        fourier_args.residual.weighting_type = 'residual'
+        fourier_args.residual.learnable_weight = True
+        fourier_args.residual.enabled = True
+
+        self.fourier = FourierINR(2, fourier_args, 
+                                  num_fourier_feats=args.fourier_features, 
+                                  layer_sizes=args.fourier_layer_sizes,
+                                  out_features=args.fourier_out)
+
         initial = [
             nn.Conv2d(args.n_colors, args.n_feats_in, 3, padding=1),
             nn.PReLU(args.n_feats_in),
@@ -372,11 +408,7 @@ class DDBPN(nn.Module):
 
         channels = args.n_feats
         if self.use_hessian:
-            self.coder = nn.Sequential(DiEnDec(3, nn.ReLU(True)))
-            self.dac = nn.Sequential(DAC(channels))
-            self.hessian3 = nn.Sequential(MSHF(channels, kernel=3))
-            self.hessian5 = nn.Sequential(MSHF(channels, kernel=5))
-            self.hessian7 = nn.Sequential(MSHF(channels, kernel=7))
+            self.hessian = HessianAttention(channels)
 
         self.upmodules = nn.ModuleList()
         self.downmodules = nn.ModuleList()
@@ -430,16 +462,12 @@ class DDBPN(nn.Module):
             x = self.sub_mean(x)
         x = self.initial(x)
         if self.use_hessian:
-            hessian3 = self.hessian3(x)
-            hessian5 = self.hessian5(x)
-            hessian7 = self.hessian7(x)
-            hessian = torch.cat((torch.mean(hessian3, dim=1, keepdim=True),
-                                    torch.mean(hessian5, dim=1, keepdim=True),
-                                    torch.mean(hessian7, dim=1, keepdim=True))
-                                , 1)
-            hessian = self.coder(hessian)
-            attention = torch.sigmoid(self.dac[0](hessian.expand(x.size()), x))
-            x = x * attention
+            x = self.hessian(x)
+
+        if coords:
+            freq_coord = self.fourier(coords.view(-1, 2))
+        else:
+            freq_coord = False
 
         h_list = []
         l_list = []
@@ -447,13 +475,19 @@ class DDBPN(nn.Module):
             if i == 0:
                 l = x
             else:
-                l = torch.cat(l_list, dim=1)                
-            h_list.append(self.upmodules[i](l))
+                l = torch.cat(l_list, dim=1)
+            if freq_coord:
+                h_list.append(self.upmodules[i](torch.cat(l, freq_coord.view(l.shape[0], -1, l.shape[2], l.shape[3]), dim=1)))
+            else:
+                h_list.append(self.upmodules[i](l))
             if self.use_pa_bridge:
                 h = self.attnmodules[i](torch.cat(h_list, dim=1))
             else:
                 h = torch.cat(h_list, dim=1)
-            l_list.append(self.downmodules[i](h))
+            if freq_coord:
+                l_list.append(self.downmodules[i](torch.cat(h, freq_coord.view(h.shape[0], -1, h.shape[2], h.shape[3]), dim=1))
+            else:
+                l_list.append(self.downmodules[i](h)
         if self.no_upsampling:
             if self.use_pa_bridge:
                 h = self.attnmodules[-1](torch.cat(h_list, dim=1))
@@ -471,6 +505,7 @@ class DDBPN(nn.Module):
 def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, 
                use_pa=True, use_pa_learn_scale=False, use_pa_bridge=False,
                use_hessian_attn=True, scale=2, no_upsampling=False, 
+               fourier_out=32, fourier_features=32, fourier_layer_sizes=[32,32],
                rgb_range=1, use_mean_shift=False, 
                rgb_mean=(0.39884, 0.42088, 0.45812), 
                rgb_std=(0.28514, 0.31383, 0.28289)):
@@ -486,6 +521,10 @@ def make_ddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5,
     args.use_pa_bridge = use_pa_bridge
     args.no_upsampling = no_upsampling
     args.use_hessian_attn = use_hessian_attn
+
+    args.fourier_out = fourier_out
+    args.fourier_features = fourier_features
+    args.fourier_layer_sizes = fourier_layer_sizes
 
     args.use_mean_shift = use_mean_shift
     args.rgb_range = rgb_range
