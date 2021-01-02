@@ -434,11 +434,11 @@ class SRSetRangeDownsampledRandCrop(RandCropDataset):
         s = self.rand_scale = random.uniform(self.scale_min, self.scale_max)
         s = max(1, s)
         if img.shape[0] == 3:
-            h_index = 2
-            w_index = 1
-        else:
             h_index = 1
-            w_index = 0
+            w_index = 2
+        else:
+            h_index = 0
+            w_index = 1
         img_width = img.shape[w_index]
         img_height = img.shape[h_index]
         rand_range_min = round(min(min(round(self.inp_size_min*s), img_width), img_height) / s)
