@@ -12,6 +12,102 @@ from torch import Tensor
 from .op import fused_leaky_relu, upfirdn2d
 
 
+#####################
+# https://github.com/zongyi-li/fourier_neural_operator/blob/master/scripts/fourier_on_images.py
+############
+
+def compl_mul2d(a, b):
+    op = partial(torch.einsum, "bctq,dctq->bdtq")
+    return torch.stack([
+        op(a[..., 0], b[..., 0]) - op(a[..., 1], b[..., 1]),
+        op(a[..., 1], b[..., 0]) + op(a[..., 0], b[..., 1])
+    ], dim=-1)
+
+
+class SpectralConv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, mode):
+        super(SpectralConv2d, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.modes1 = mode #Number of Fourier modes to multiply, at most floor(N/2) + 1
+        self.modes2 = mode
+
+        self.scale = (1 / (in_channels * out_channels))
+        self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, 2))
+        self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, 2))
+
+    def forward(self, x):
+        batchsize = x.shape[0]
+        #Compute Fourier coeffcients up to factor of e^(- something constant)
+        x_ft = torch.rfft(x, 2, normalized=True, onesided=True)
+
+        # Multiply relevant Fourier modes
+        out_ft = torch.zeros(batchsize, self.in_channels,  x.size(-2), x.size(-1)//2 + 1, 2, device=x.device)
+        out_ft[:, :, :self.modes1, :self.modes2] = \
+            compl_mul2d(x_ft[:, :, :self.modes1, :self.modes2], self.weights1)
+        out_ft[:, :, -self.modes1:, :self.modes2] = \
+            compl_mul2d(x_ft[:, :, -self.modes1:, :self.modes2], self.weights2)
+
+        #Return to physical space
+        x = torch.irfft(out_ft, 2, normalized=True, onesided=True, signal_sizes=( x.size(-2), x.size(-1)))
+        return x
+
+class SimpleBlock2d(nn.Module):
+    def __init__(self, modes):
+        super(SimpleBlock2d, self).__init__()
+
+        self.conv1 = SpectralConv2d(1, 16, modes=modes)
+        self.conv2 = SpectralConv2d(16, 32, modes=modes)
+        self.conv3 = SpectralConv2d(32, 64, modes=modes)
+
+        self.pool = nn.MaxPool2d(2, 2)
+
+
+        self.fc1 = nn.Linear(64 * 14 * 14, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = self.pool(x)
+
+        x = x.view(-1, 64 * 14 * 14)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        return x
+
+
+class Net2d(nn.Module):
+    def __init__(self, modes, width):
+        super(Net2d, self).__init__()
+
+        """
+        A wrapper function
+        """
+
+        self.conv1 = SimpleBlock2d(modes, modes,  width)
+
+
+    def forward(self, x):
+        x = self.conv1(x)
+        return x.squeeze()
+
+
+    def count_params(self):
+        c = 0
+        for p in self.parameters():
+            c += reduce(operator.mul, list(p.size()))
+
+        return c
+
+#######################################
+
 class ScaledLinear(nn.Module):
     def __init__(self, in_features: int, out_features: int, bias: bool=True, scale: float=1.0):
         super().__init__()

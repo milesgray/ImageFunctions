@@ -38,5 +38,5 @@ def make(spec, args=None):
         target_args.update(args)
     else:
         target_args = spec['args']
-    target = lookup[spec['name']](param_list, **target_args)
+    target = lookup[spec['name']](**target_args)
     return target
