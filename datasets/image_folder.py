@@ -18,7 +18,8 @@ from datasets import register
 class ImageFolder(Dataset):
 
     def __init__(self, root_path, split_file=None, split_key=None, first_k=None,
-                 last_k=None, skip_every=1, repeat=1, cache='none'):
+                 last_k=None, skip_every=1, repeat=1, cache='none', 
+                 shuffle_mapping=False, forced_mapping=None):
         self.repeat = repeat
         self.cache = cache
 
@@ -33,13 +34,21 @@ class ImageFolder(Dataset):
             filenames = filenames[-last_k:]
         filenames = filenames[::skip_every]
 
-        self.mapping = np.random.permutation(len(filenames))
+        if shuffle_mapping:
+            self.init_mapping = np.random.permutation(len(filenames))
+        else:
+            self.init_mapping = [i for i in range(len(filenames))]
+        if forced_mapping is not None:
+            self.init_mapping = forced_mapping
 
         self.files = []
-        for file_idx in tqdm(self.mapping):
+        self.filenames = []
+        for file_idx in tqdm(self.init_mapping):
             try:
                 filename = filenames[file_idx]
                 file = os.path.join(root_path, filename)
+                
+                self.filenames.append(file)
 
                 if cache == 'none':
                     self.files.append(file)
@@ -94,8 +103,8 @@ class ImageFolder(Dataset):
 class PairedImageFolders(Dataset):
 
     def __init__(self, root_path_1, root_path_2, **kwargs):
-        self.dataset_1 = ImageFolder(root_path_1, **kwargs)
-        self.dataset_2 = ImageFolder(root_path_2, **kwargs)
+        self.dataset_1 = ImageFolder(root_path_1, shuffle_mapping=True, **kwargs)
+        self.dataset_2 = ImageFolder(root_path_2, forced_mapping=self.dataset_1.init_mapping, **kwargs)
 
     def __len__(self):
         return len(self.dataset_1)

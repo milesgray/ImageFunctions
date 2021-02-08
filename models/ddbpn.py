@@ -2,6 +2,7 @@
 # https://arxiv.org/abs/1803.02735
 from typing import Tuple, Callable
 from argparse import Namespace
+from functools import partial
 
 import torch
 import torch.nn as nn
@@ -398,7 +399,7 @@ def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
         if shuffle:
             resize = nn.PixelShuffle(scale)
             in_channels = in_channels // (scale * scale)
-            conv_f = SpectralConv2d(in_channels, out_channels, mode=10)
+            conv_f = nn.Conv2d(in_channels, out_channels, 1, groups=in_channels)
             return nn.Sequential(*[resize, conv_f])
         else:
             return nn.ConvTranspose2d(

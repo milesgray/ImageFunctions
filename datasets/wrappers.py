@@ -612,8 +612,8 @@ class EDSetRangeDownsampledRandCrop(RandCropDataset):
     def __init__(self, dataset, 
                  inp_size=None, inp_size_min=None, inp_size_max=None, crop_size=32,
                  augment=False, color_augment=False, color_augment_strength=0.8, 
-                 sample_q=None, vary_q=False, 
-                 use_subgrid_coords=False, use_rgb_grayscale=True,
+                 sample_q=None, vary_q=False,
+                 use_subgrid_coords=False, use_rgb_grayscale=False,
                  return_hr=False, resize_hr=False, return_freq=False):
         super().__init__(dataset, inp_size=inp_size,
                  augment=augment, sample_q=sample_q, color_augment=color_augment, 
@@ -627,6 +627,7 @@ class EDSetRangeDownsampledRandCrop(RandCropDataset):
         self.vary_q = vary_q
         self.use_subgrid_coords = use_subgrid_coords
         self.use_rgb_grayscale = use_rgb_grayscale
+        self.out_channels = 3 if use_rgb_grayscale else 1
         self.rand_scale = None
 
 
@@ -786,7 +787,7 @@ class EDSetRangeDownsampledRandCrop(RandCropDataset):
         return crop_lr, crop_hr, f_crop_hr, grid_crop_hr
 
     def create_targets(self, crop_hr, f_crop_hr, grid_crop_hr):
-        hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous())
+        hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous(), channels=self.out_channels)
         if self.return_freq:
             hr_freq = to_frequency_samples(f_crop_hr.contiguous())
         else:

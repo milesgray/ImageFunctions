@@ -1,0 +1,72 @@
+train_dataset:
+  dataset:
+    name: paired-image-folders
+    args:
+      root_path_1: /content/FEDGE/imgs/
+      root_path_2: /content/FEDGE/lbl/
+      repeat: 3
+      cache: in_memory
+      first_k: 90
+      skip_every: 1
+  wrapper:
+    name: ed-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 32
+      inp_size_max: 128
+      crop_size: 48
+      augment: true
+      sample_q: 4096
+      vary_q: false
+      return_hr: false
+  batch_size: 1
+
+val_dataset:
+  dataset:
+    name: paired-image-folders
+    args:
+      root_path_1: /content/FEDGE/imgs/
+      root_path_2: /content/FEDGE/lbl/
+      last_k: 10
+      repeat: 10
+      cache: in_memory
+  wrapper:
+    name: ed-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 48
+      inp_size_max: 48
+      crop_size: 48
+      sample_q: 4096
+      return_hr: true
+  batch_size: 1
+data_norm:
+  inp: {sub: [0], div: [1]}
+  gt: {sub: [0], div: [1]}
+
+model:
+  name: liif_inr
+  args:
+    encoder_spec:
+      name: rcan
+      args:
+        no_upsampling: true
+        n_resgroups: 5
+        n_resblocks: 15
+    imnet_spec:
+      name: mlp
+      args:
+        out_dim: 1
+        hidden_list: [256, 256, 256, 256]
+        has_bn: true
+        use_sine: false
+
+optimizer:
+  name: adam
+  args:
+    lr: 1.e-4
+epoch_max: 500
+multi_step_lr:
+  milestones: [100, 200, 300, 400]
+  gamma: 0.5
+
+epoch_val: 1
+epoch_save: 10
