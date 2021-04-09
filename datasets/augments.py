@@ -12,6 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import torchvision.datasets as datasets
 import torchvision.transforms.functional as TF
+from torchvision.transforms import InterpolationMode
 from PIL import Image
 import cv2
 try:
@@ -48,7 +49,7 @@ class MultiCrop:
                  pad_if_needed=False, 
                  fill=0, 
                  padding_mode='constant', 
-                 interpolation=Image.BILINEAR):
+                 interpolation=InterpolationMode.BILINEAR):
         if isinstance(crop_size, numbers.Number):
             self.crop_size = (int(crop_size), int(crop_size))
         else:
