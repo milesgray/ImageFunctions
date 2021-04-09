@@ -14,7 +14,7 @@ def compute_gradient_penalty(type: str, discriminator, x_real, x_fake, y: Tensor
     else:
         raise NotImplementedError(f'Unknown gradient penalty: {type}')
 
-@register('r1_penalty')
+@register('r1_grad_penalty')
 def compute_r1_penalty(discriminator, x_real, y: Tensor=None):
     """
     Computes gradient penalty using R1 regularization.
@@ -49,7 +49,7 @@ def compute_r1_penalty_from_outputs(d_outputs, x_real):
 
     return r1_reg.mean()
 
-@register('wgan_gp')
+@register('wgan_grad_penalty')
 def compute_wgan_gp(discriminator, x_real, x_fake, y: Tensor=None):
     """
     Computes gradient penalty according to WGAN-GP paper
