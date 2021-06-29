@@ -10,6 +10,7 @@ from torch import Tensor
 import numpy as np
 from PIL import Image
 from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 from torch.optim import SGD, Adam
 from tensorboardX import SummaryWriter
 import piq
@@ -96,7 +97,7 @@ def make_optimizer(param_list, optimizer_spec, load_sd=False):
 
 def resize_fn(img, size):
     return transforms.ToTensor()(
-        transforms.Resize(size, Image.BICUBIC)(
+        transforms.Resize(size, InterpolationMode.BICUBIC)(
             transforms.ToPILImage()(img)))
 
 def compute_covariance(feats: Tensor) -> Tensor:

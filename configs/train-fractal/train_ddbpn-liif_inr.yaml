@@ -1,0 +1,76 @@
+train_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/
+      repeat: 1
+      cache: in_memory
+      first_k: 3300
+      skip_every: 3
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 32
+      inp_size_max: 128
+      scale_min: 2
+      scale_max: 6
+      augment: true
+      sample_q: 4096
+      vary_q: false
+      color_augment: false
+      color_augment_strength: 0.2
+  batch_size: 1
+
+val_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/
+      last_k: 230
+      repeat: 3
+      cache: in_memory
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 32
+      inp_size_max: 128
+      scale_min: 2
+      scale_max: 6
+      sample_q: 4096
+      return_hr: true
+  batch_size: 1
+
+data_norm:
+  inp: {sub: [0], div: [1]}
+  gt: {sub: [0], div: [1]}
+
+model:
+  name: liif_inr
+  args:
+    encoder_spec:
+      name: ddbpn
+      args:
+        no_upsampling: False
+        use_pa: True
+        n_feats_in: 64
+        n_feats: 256
+        n_feats_out: 128
+        depth: 15
+        scale: 2
+    imnet_spec:
+      name: mlp
+      args:
+        out_dim: 3
+        hidden_list: [256, 256, 256, 256]
+
+optimizer:
+  name: adam
+  args:
+    lr: 1.e-4
+epoch_max: 500
+multi_step_lr:
+  milestones: [100, 200, 300, 400]
+  gamma: 0.5
+
+epoch_val: 1
+epoch_save: 10
