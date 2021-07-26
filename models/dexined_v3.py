@@ -8,10 +8,9 @@ from kornia.geometry.subpix import spatial_softmax2d
 #### START PIXEL ATTENTION ##########################
 
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
-    return nn.Conv2d(
-        in_channels, out_channels, kernel_size,
-        padding=(kernel_size//2), bias=bias)
-
+    return nn.Conv2d(in_channels, out_channels, kernel_size,
+        padding=(kernel_size//2), 
+        bias=bias)
 
 class SpatialSoftmax2d(nn.Module):
     def __init__(self, temp=1.0):
@@ -32,38 +31,53 @@ class Scale(nn.Module):
 
 class PA(nn.Module):
     '''Pixel Attention Layer'''
-    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_weight=True, channel_wise=True, spatial_wise=True):
+    def __init__(self, f_in, 
+                 f_out=None, 
+                 resize="same", 
+                 scale=2, 
+                 softmax=True, 
+                 learn_weight=True, 
+                 channel_wise=True, 
+                 spatial_wise=True):
         super().__init__()
         if f_out is None:
             f_out = f_in
-        
+
         self.sigmoid = nn.Sigmoid()
+        # layers for defined resizing of input so that it matches output
         if resize == "up":
             self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
         elif resize == "down":
             self.resize = nn.AvgPool2d(scale, stride=scale)
         else:
             self.resize = nn.Identity()
+        # automatic resizing to ensure input and output sizes match for attention/residual layer
         if f_in != f_out:
             self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
+
+        # layers for optional channel-wise and/or spacial attention
         self.channel_wise = channel_wise
         self.spatial_wise = spatial_wise
-        if channel_wise:
+        if self.channel_wise:
             self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out)
-        if spatial_wise:
+        if self.spatial_wise:
             self.spatial_conv = nn.Conv2d(f_out, f_out, 1)
-        if not channel_wise and not spatial_wise:
+        if not self.channel_wise and not self.spatial_wise:
             self.conv = nn.Conv2d(f_out, f_out, 1)
-        
+
+        # optional softmax operations for channel-wise and spatial attention layers
         self.use_softmax = softmax
         if self.use_softmax:
             self.spatial_softmax = SpatialSoftmax2d()
             self.channel_softmax = nn.Softmax2d()
+
+        # optional learnable scaling layer that is applied after attention
         self.learn_weight = learn_weight
         if self.learn_weight:
             self.weight_scale = Scale(1.0)
 
     def forward(self, x):
+        # make x same shape as y
         x = self.resize(x)
         if self.spatial_wise:
             spatial_y = self.spatial_conv(x)
@@ -121,10 +135,9 @@ def weight_init(m):
         if m.bias is not None:
             torch.nn.init.zeros_(m.bias)
 
-
 class _DenseLayer(nn.Sequential):
     def __init__(self, input_features, out_features):
-        super(_DenseLayer, self).__init__()
+        super().__init__()
 
         # self.add_module('relu2', nn.ReLU(inplace=True)),
         self.add_module('conv1', nn.Conv2d(input_features, out_features,
@@ -139,25 +152,23 @@ class _DenseLayer(nn.Sequential):
     def forward(self, x):
         x1, x2 = x
 
-        new_features = super(_DenseLayer, self).forward(F.relu(x1))  # F.relu()
+        new_features = super().forward(F.relu(x1))  # F.relu()
         # if new_features.shape[-1]!=x2.shape[-1]:
         #     new_features =F.interpolate(new_features,size=(x2.shape[2],x2.shape[-1]), mode='bicubic',
         #                                 align_corners=False)
         return 0.5 * (new_features + x2), x2
 
-
 class _DenseBlock(nn.Sequential):
     def __init__(self, num_layers, input_features, out_features):
-        super(_DenseBlock, self).__init__()
+        super().__init__()
         for i in range(num_layers):
             layer = _DenseLayer(input_features, out_features)
             self.add_module('denselayer%d' % (i + 1), layer)
             input_features = out_features
 
-
 class UpConvBlock(nn.Module):
     def __init__(self, in_features, up_scale, up_factor = 2):
-        super(UpConvBlock, self).__init__()
+        super().__init__()
         self.up_factor = up_factor
         self.constant_features = 16
         layers = self.make_deconv_layers(in_features, up_scale)
@@ -177,7 +188,7 @@ class UpConvBlock(nn.Module):
             layers.append(nn.ReLU(inplace=True))
             layers.append(nn.Conv2d(bottleneck_features, int(out_features * (self.up_factor ** 2)), 1))
             layers.append(nn.Hardtanh(-5,5))
-            
+
             if i % 2 == 0 or up_scale == i and out_features > 4:
                 layers.append(nn.PixelShuffle(self.up_factor))
                 layers.append(nn.Conv2d(out_features, out_features, 1))
@@ -185,9 +196,9 @@ class UpConvBlock(nn.Module):
                 layers.append(PA(int(out_features * (self.up_factor ** 2)), out_features, resize="up"))
                 layers.append(nn.Conv2d(out_features, out_features, 3, stride=2, padding=1))
                 layers.append(nn.ConvTranspose2d(
-                    out_features, out_features, kernel_size, stride=self.up_factor, padding=pad))            
+                    out_features, out_features, kernel_size, stride=self.up_factor, padding=pad))
                 layers.append(nn.Conv2d(out_features, out_features, 1))
-            
+
             in_features = out_features
         return layers
 
@@ -197,12 +208,11 @@ class UpConvBlock(nn.Module):
     def forward(self, x):
         return self.features(x)
 
-
 class SingleConvBlock(nn.Module):
     def __init__(self, in_features, out_features, stride,
                  use_bs=True
                  ):
-        super(SingleConvBlock, self).__init__()
+        super().__init__()
         self.use_bn = use_bs
         self.conv = nn.Conv2d(in_features, out_features, 1, stride=stride,
                               bias=True)
@@ -214,13 +224,12 @@ class SingleConvBlock(nn.Module):
             x = self.bn(x)
         return x
 
-
 class DoubleConvBlock(nn.Module):
     def __init__(self, in_features, mid_features,
                  out_features=None,
                  stride=1,
                  use_act=True):
-        super(DoubleConvBlock, self).__init__()
+        super().__init__()
 
         self.use_act = use_act
         if out_features is None:
@@ -242,12 +251,11 @@ class DoubleConvBlock(nn.Module):
             x = self.relu(x)
         return x
 
-
 class DexiNed(nn.Module):
     """ Definition of the DXtrem network. """
 
     def __init__(self):
-        super(DexiNed, self).__init__()
+        super().__init__()
         self.block_1 = DoubleConvBlock(3, 32, 64, stride=2,)
         self.block_2 = DoubleConvBlock(64, 128, use_act=False)
         self.dblock_3 = _DenseBlock(2, 128, 256)
@@ -267,7 +275,7 @@ class DexiNed(nn.Module):
         self.pre_dense_2 = SingleConvBlock(128, 256, 2, use_bs=False)
         self.pre_dense_3 = SingleConvBlock(128, 256, 1)
         self.pre_dense_4 = SingleConvBlock(256, 512, 1)
-        self.pre_dense_5_0 = SingleConvBlock(256, 512, 2,use_bs=False)
+        self.pre_dense_5_0 = SingleConvBlock(256, 512, 2, use_bs=False)
         self.pre_dense_5 = SingleConvBlock(512, 512, 1)
         self.pre_dense_6 = SingleConvBlock(512, 256, 1)
 
@@ -286,8 +294,10 @@ class DexiNed(nn.Module):
         t_shape = tensor.shape
         height, width = slice_shape
         if t_shape[-1]!=slice_shape[-1]:
-            new_tensor = F.interpolate(
-                tensor, size=(height, width), mode='bicubic',align_corners=False)
+            new_tensor = F.interpolate(tensor, 
+                                       size=(height, width), 
+                                       mode='bicubic',
+                                       align_corners=False)
         else:
             new_tensor=tensor
         # tensor[..., :height, :width]
@@ -318,8 +328,7 @@ class DexiNed(nn.Module):
 
         # Block 4
         block_4_pre_dense_256 = self.pre_dense_2(block_2_down)
-        block_4_pre_dense = self.pre_dense_4(
-            block_4_pre_dense_256 + block_3_down)
+        block_4_pre_dense = self.pre_dense_4(block_4_pre_dense_256 + block_3_down)
         block_4, _ = self.dblock_4([block_3_add, block_4_pre_dense])
         block_4_down = self.maxpool(block_4)
         block_4_add = block_4_down + block_3_side
@@ -327,8 +336,7 @@ class DexiNed(nn.Module):
 
         # Block 5
         block_5_pre_dense_512 = self.pre_dense_5_0(block_4_pre_dense_256)
-        block_5_pre_dense = self.pre_dense_5(
-            block_5_pre_dense_512 + block_4_down)
+        block_5_pre_dense = self.pre_dense_5(block_5_pre_dense_512 + block_4_down)
         block_5, _ = self.dblock_5([block_4_add, block_5_pre_dense])
         block_5_add = block_5 + block_4_side
 
