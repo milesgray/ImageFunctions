@@ -195,7 +195,7 @@ class RDN(nn.Module):
             return self.UPNet(x)
 
 
-@register('rdn')
+@register('inr_rdn')
 def make_rdn(G0=64, RDNkSize=3, RDNconfig='B',
              scale=2, no_upsampling=False):
     args = Namespace()

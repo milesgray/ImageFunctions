@@ -251,7 +251,7 @@ class DoubleConvBlock(nn.Module):
             x = self.relu(x)
         return x
 
-class DexiNed(nn.Module):
+class DexiNed_v3(nn.Module):
     """ Definition of the DXtrem network. """
 
     def __init__(self):
@@ -365,6 +365,9 @@ class DexiNed(nn.Module):
         results.append(block_cat)
         return results
 
+@register('dexined_v3')
+def make_dexinedv3():
+    return DexiNed_v3()
 
 if __name__ == '__main__':
     batch_size = 8

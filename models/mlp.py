@@ -28,7 +28,7 @@ class MLP(nn.Module):
         x = self.layers(x.view(-1, x.shape[-1]))
         return x.view(*shape, -1)
 
-
+@register('sine')
 class Sine(nn.Module):
     def __init__(self, w0: float = 1.0):
         """Sine activation function with w0 scaling support.

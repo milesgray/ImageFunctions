@@ -1,15 +1,12 @@
 import copy
 
-
 datasets = {}
-
 
 def register(name):
     def decorator(cls):
         datasets[name] = cls
         return cls
     return decorator
-
 
 def make(dataset_spec, args=None):
     if args is not None:
