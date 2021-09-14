@@ -310,9 +310,9 @@ class MeanShift(nn.Conv2d):
             p.requires_grad = False
 
 class SpatialSoftmax2d(nn.Module):
-    def __init__(self, temp=1.0):
+    def __init__(self, temp=1.0, learn_temp=True):
         super().__init__()
-        self.temp = temp
+        self.temp = nn.Parameter(temp, requires_grad=learn_temp)
 
     def forward(self, x):
         x = spatial_softmax2d(x, temperature=self.temp)

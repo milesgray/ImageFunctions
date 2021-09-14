@@ -67,7 +67,10 @@ class LIIF(nn.Module):
         if torch.cuda.is_available():
             feat_coord = feat_coord.cuda()
         feat_coord = feat_coord.permute(2, 0, 1) \
-                      .unsqueeze(0).expand(feat.shape[0], self.encoder.out_dim, *feat.shape[-2:])
+                      .unsqueeze(0) \
+                          .expand(feat.shape[0], 
+                                  self.encoder.out_dim, 
+                                  *feat.shape[-2:])
 
         preds = []
         areas = []
