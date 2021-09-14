@@ -312,7 +312,7 @@ class MeanShift(nn.Conv2d):
 class SpatialSoftmax2d(nn.Module):
     def __init__(self, temp=1.0, learn_temp=True):
         super().__init__()
-        temp = temp if isinstance(torch.FloatTensor, temp) else torch.FloatTensor(temp if temp is list else [temp])
+        temp = temp if isinstance(temp, (torch.FloatTensor, torch.Tensor)) else torch.FloatTensor(temp if temp is list else [temp])
         self.temp = nn.Parameter(temp, requires_grad=learn_temp)
 
     def forward(self, x):
