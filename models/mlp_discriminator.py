@@ -206,7 +206,6 @@ class MLPDiscriminator(nn.Module):
         return x
 
 
-
 @register('mlp_disc')
 def make_mlp_disc(in_dim=128, hidden_list=[128,128], out_dim=1, activation="scaled_leaky_relu", has_bias=True):
     args = Namespace()

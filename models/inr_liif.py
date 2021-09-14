@@ -191,3 +191,4 @@ class LIIF_INR(nn.Module):
     def forward(self, inp, coord, cell):
         self.gen_feat(inp)
         return self.query_rgb(coord, cell)
+
