@@ -14,6 +14,7 @@ from torchvision.transforms import InterpolationMode
 from torch.optim import SGD, Adam
 from tensorboardX import SummaryWriter
 import piq
+import optimizers
 
 class Averager():
     def __init__(self):
@@ -86,11 +87,7 @@ def compute_num_params(model, text=False):
 
 
 def make_optimizer(param_list, optimizer_spec, load_sd=False):
-    Optimizer = {
-        'sgd': SGD,
-        'adam': Adam
-    }[optimizer_spec['name']]
-    optimizer = Optimizer(param_list, **optimizer_spec['args'])
+    Optimizer = optimizers.make(optimizer_spec['name'], optimizer_spec)    
     if load_sd:
         optimizer.load_state_dict(optimizer_spec['sd'])
     return optimizer
