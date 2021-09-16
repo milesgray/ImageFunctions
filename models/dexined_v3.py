@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from kornia.geometry.subpix import spatial_softmax2d
-
+from models import register
 
 ###################################################
 #### START PIXEL ATTENTION ##########################
