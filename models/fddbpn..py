@@ -354,8 +354,8 @@ class FDDBPN(nn.Module):
             hessian5 = self.hessian5(x)
             hessian7 = self.hessian7(x)
             hessian = torch.cat((torch.mean(hessian3, dim=1, keepdim=True),
-                                    torch.mean(hessian5, dim=1, keepdim=True),
-                                    torch.mean(hessian7, dim=1, keepdim=True))
+                                 torch.mean(hessian5, dim=1, keepdim=True),
+                                 torch.mean(hessian7, dim=1, keepdim=True))
                                 , 1)
             hessian = self.coder(hessian)
             attention = torch.sigmoid(self.dac[0](hessian.expand(x_real.size()), x_real))

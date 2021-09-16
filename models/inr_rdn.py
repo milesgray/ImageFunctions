@@ -93,7 +93,7 @@ class PA(nn.Module):
 
 class RDB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, kSize=3):
-        super(RDB_Conv, self).__init__()
+        super().__init__()
         Cin = inChannels
         G  = growRate
         self.conv = nn.Sequential(*[
@@ -126,7 +126,7 @@ class RDB(nn.Module):
 
 class RDN(nn.Module):
     def __init__(self, args):
-        super(RDN, self).__init__()
+        super().__init__()
         self.args = args
         r = args.scale[0]
         G0 = args.G0

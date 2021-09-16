@@ -6,8 +6,11 @@ from models import register
 
 @register('mlp')
 class MLP(nn.Module):
-
-    def __init__(self, in_dim, out_dim, hidden_list, use_sine=True, has_bn=False, has_bias=False, w0=1.0):
+    def __init__(self, in_dim, out_dim, hidden_list, 
+                use_sine=True, 
+                has_bn=False, 
+                has_bias=False, 
+                w0=1.0):
         super().__init__()
         layers = []
         lastv = in_dim
@@ -19,6 +22,26 @@ class MLP(nn.Module):
                 layers.append(Sine(w0=w0))
             else:
                 layers.append(nn.ReLU())
+            lastv = hidden
+        layers.append(nn.Linear(lastv, out_dim))
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        shape = x.shape[:-1]
+        x = self.layers(x.view(-1, x.shape[-1]))
+        return x.view(*shape, -1)
+
+@register('siren')
+class SIREN(nn.Module):
+    def __init__(self, in_dim, out_dim, hidden_list, has_bn=False, has_bias=False, w0=1.0):
+        super().__init__()
+        layers = []
+        lastv = in_dim
+        for hidden in hidden_list:
+            layers.append(nn.Linear(lastv, hidden, bias=has_bias))
+            if has_bn:
+                layers.append(nn.BatchNorm1d(hidden))
+            layers.append(Sine(w0=w0))            
             lastv = hidden
         layers.append(nn.Linear(lastv, out_dim))
         self.layers = nn.Sequential(*layers)

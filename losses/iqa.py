@@ -17,7 +17,7 @@ class MultiScaleSSIMLoss(nn.Module):
 
     def forward(self, x, y):
         return self.loss_fn(x, y)
-        
+
 @register("gmsd_loss")
 class GMSDLoss(nn.Module):
     def __init__(self):
@@ -70,4 +70,24 @@ class VSILoss(nn.Module):
         self.loss_fn = piq.VSILoss()
 
     def forward(self, x, y):
+        return self.loss_fn(x, y)
+
+@register("vsi_loss")
+class DSSLoss(nn.Module):
+    def __init__(self, reduction: str = 'mean',
+                 data_range: Union[int, float] = 1.0, dct_size: int = 8,
+                 sigma_weight: float = 1.55, kernel_size: int = 3,
+                 sigma_similarity: float = 1.5, percentile: float = 0.05):
+        super().__init__()
+        self.loss_fn = piq.DSSLoss(reduction=reduction, data_range=data_range, dct_size=dct_size
+                                   sigma_weight=sigma_weight, sigma_similarity=sigma_similarity)
+
+    def forward(self, x, y):
+        """Computation of DSS as a loss function.
+        Args:
+            x: Tensor of prediction of the network.
+            y: Reference tensor.
+        Returns:
+            Value of DSS loss to be minimized. 0 <= DSS <= 1.
+        """
         return self.loss_fn(x, y)

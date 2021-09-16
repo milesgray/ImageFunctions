@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
-
+learn_temp
 import models
 from models import register
 from utils import make_coord
@@ -39,7 +39,7 @@ class FourierINR(nn.Module):
     def __init__(self, in_features, args: Namespace, num_fourier_feats=64, layer_sizes=[64,64,64], out_features=64, 
                  has_bias=True, activation="leaky_relu", 
                  learnable_basis=True,):
-        super(FourierINR, self).__init__()
+        super().__init__()
 
         layers = [
             nn.Linear(num_fourier_feats * 2, layer_sizes[0], bias=has_bias),

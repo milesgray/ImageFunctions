@@ -586,7 +586,7 @@ class FourierINR(nn.Module):
     def __init__(self, num_fourier_feats=128, layer_sizes: [64,64,128], out_features=128, 
                  has_bias=True, activation="scaled_leaky_relu", residual=True,
                  learnable_basis=True,):
-        super(FourierINR, self).__init__()
+        super().__init__()
 
         layers = [
             nn.Linear(num_fourier_feats * 2, layer_sizes[0], bias=has_bias),

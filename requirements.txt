@@ -1,0 +1,9 @@
+torch==1.8.1
+tqdm
+numpy
+pandas
+plotlys
+tensorboardX
+ninja
+piq
+kornia
