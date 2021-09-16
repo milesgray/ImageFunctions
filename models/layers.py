@@ -583,7 +583,7 @@ class FourierINR(nn.Module):
     """
     INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
     """
-    def __init__(self, num_fourier_feats=128, layer_sizes: [64,64,128], out_features=128, 
+    def __init__(self, num_fourier_feats=128, layer_sizes=[64,64,128], out_features=128, 
                  has_bias=True, activation="scaled_leaky_relu", residual=True,
                  learnable_basis=True,):
         super().__init__()
