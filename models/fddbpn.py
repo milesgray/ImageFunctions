@@ -34,7 +34,7 @@ def calc_mean_std(feat, eps=1e-5):
 
 class MSHF(nn.Module):
     def __init__(self, n_channels, kernel=3):
-        super(MSHF, self).__init__()
+        super().__init__()
 
         pad = int((kernel - 1) / 2)
 
@@ -72,7 +72,7 @@ class MSHF(nn.Module):
 
 class DiEnDec(nn.Module):
     def __init__(self, n_channels, act=nn.ReLU(inplace=True), body=None):
-        super(DiEnDec, self).__init__()
+        super().__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(n_channels, n_channels * 2, kernel_size=3, padding=1, dilation=1, bias=True),
             act,
@@ -153,7 +153,7 @@ class PA(nn.Module):
         super().__init__()
         if f_out is None:
             f_out = f_in
-        
+
         self.sigmoid = nn.Sigmoid()
         if resize == "up":
             self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
@@ -235,7 +235,7 @@ class DenseProjection(nn.Module):
         if self.use_pa:
             layers_1.append(PA(nr, learn_scale=use_pa_learn_scale))
             layers_2.append(PA(inter_channels, learn_scale=use_pa_learn_scale))
-        
+
         self.conv_1 = nn.Sequential(*layers_1)
         self.conv_2 = nn.Sequential(*layers_2)
         self.conv_3 = nn.Sequential(*layers_3)
@@ -294,10 +294,10 @@ class FDDBPN(nn.Module):
         self.downmodules = nn.ModuleList()
         if self.use_pa:
             self.attnmodules = nn.ModuleList()
-        
+
         for i in range(self.depth):
             self.upmodules.append(
-                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1, 
+                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1,
                                 use_pa=args.use_pa, use_shuffle=i%2==1,
                                 use_pa_learn_scale=self.use_pa_learn_scale)
             )
@@ -308,13 +308,13 @@ class FDDBPN(nn.Module):
             self.total_depth = self.depth
         else:
             self.total_depth = self.depth - 1
-        
+
         self.out_dim = args.n_feats_out
 
         channels = args.n_feats
         for i in range(self.total_depth):
             self.downmodules.append(
-                DenseProjection(channels, args.n_feats, scale, up=False, bottleneck=i != 0, 
+                DenseProjection(channels, args.n_feats, scale, up=False, bottleneck=i != 0,
                                 use_pa=args.use_pa, use_pa_learn_scale=self.use_pa_learn_scale)
             )
             channels += args.n_feats
@@ -328,7 +328,7 @@ class FDDBPN(nn.Module):
                 channels += args.n_feats
 
         reconstruction = [
-            nn.Conv2d(self.depth * args.n_feats, self.out_dim, 3, padding=1) 
+            nn.Conv2d(self.depth * args.n_feats, self.out_dim, 3, padding=1)
         ]
         self.reconstruction = nn.Sequential(*reconstruction)
 
@@ -383,12 +383,12 @@ class FDDBPN(nn.Module):
             l_r_list.append(self.downmodules[i](h_r))
             l_i_list.append(self.downmodules[i](h_i))
         if self.no_upsampling:
-            if self.use_pa_bridge:                
+            if self.use_pa_bridge:
                 h_r = self.attnmodules[-1](torch.cat(h_r_list, dim=1))
                 h_i = self.attnmodules[-1](torch.cat(h_i_list, dim=1))
             else:
                 h_r = torch.cat(h_r_list, dim=1)
-                h_i = torch.cat(h_i_list, dim=1)            
+                h_i = torch.cat(h_i_list, dim=1)
             l_r_list.append(self.downmodules[-1](h_r))
             l_i_list.append(self.downmodules[-1](h_i))
         h_r_list.append(self.upmodules[-1](torch.cat(l_r_list, dim=1)))
@@ -412,19 +412,19 @@ class FDDBPN(nn.Module):
         return out
 
 @register('fddbpn')
-def make_fddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5, 
+def make_fddbpn(n_feats_in=64, n_feats=32, n_feats_out=64, depth=5,
                use_pa=True, use_pa_learn_scale=False, use_pa_bridge=False,
-               use_hessian_attn=True, use_hessian_out_attn=True, 
-               scale=2, no_upsampling=False, 
-               rgb_range=1, use_mean_shift=False, 
-               rgb_mean=(0.39884, 0.42088, 0.45812), 
+               use_hessian_attn=True, use_hessian_out_attn=True,
+               scale=2, no_upsampling=False,
+               rgb_range=1, use_mean_shift=False,
+               rgb_mean=(0.39884, 0.42088, 0.45812),
                rgb_std=(0.28514, 0.31383, 0.28289)):
     args = Namespace()
     args.n_feats_in = n_feats_in
     args.n_feats = n_feats
     args.n_feats_out = n_feats_out
     args.depth = depth
-    
+
     args.scale = [scale]
     args.use_pa = use_pa
     args.use_pa_learn_scale = use_pa_learn_scale

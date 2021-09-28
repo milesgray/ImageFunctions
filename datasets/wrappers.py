@@ -199,25 +199,100 @@ class SRImplicitUniformVaried(Dataset):
             'gt': hr_rgb
         }
 
-
 class RandCropDataset(Dataset):
+    def __init__(self, dataset, num_crop=2, inp_size=None, augment=False, 
+                 color_augment=False, color_augment_strength=0.8):
+        self.dataset = dataset
+        self.num_crop = num_crop
+        self.inp_size = inp_size
+        self.augment = augment
+        self.color_augment = color_augment
+        self.color_augment_strength = color_augment_strength
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        img = self.dataset[idx]
+        if self.color_augment:
+            img = self.apply_color_aug(img)
+        
+        crops = self.make_crop(img)
+
+        if self.augment:
+            crops = self.apply_augs(crops)
+
+        result = {
+            'crops': crops,
+        }
+
+        return result
+
+    def make_crops(self, img):
+        if img.shape[0] == 3:
+            w_index = 1
+            h_index = 2
+        else:
+            w_index = 0
+            h_index = 1
+
+        results = []
+
+        for i in range(self.num_crop):
+            x0 = random.randint(0, img.shape[h_index] - self.inp_size)
+            y0 = random.randint(0, img.shape[w_index] - self.inp_size)
+            crop = img[:, x0: x0 + self.inp_size, y0: y0 + self.inp_size]
+            results.append(crop)
+
+        return results
+
+    def apply_color_aug(self, img):
+        s = self.color_augment_strength
+        color_aug_kwarg = {
+            "bright": (random.random() * 2.0) * s,
+            "saturation": (random.random() * 2.0)* s,
+            "hue": (random.random() - 0.5) * s,
+            "gamma": (random.random() * 2.0) * s,
+        }
+        img = augments.apply_color_distortion(img, **color_aug_kwarg)
+
+        return img
+
+    def apply_augs(self, crops):
+        hflip = random.random() < 0.5
+        vflip = random.random() < 0.5
+        dflip = random.random() < 0.5
+
+        def augment(x):
+            if hflip:
+                x = x.flip(-2)
+            if vflip:
+                x = x.flip(-1)
+            if dflip:
+                x = x.transpose(-2, -1)
+            return x
+
+        results = [augment(c) for c in crops]
+
+        return results
+    
+    def shuffle_mapping(self):
+        self.dataset.shuffle_mapping()
+
+
+class SRRandCropDataset(RandCropDataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8,
                  return_hr=False):
-        self.dataset = dataset
-        self.inp_size = inp_size
+        super().__init__(dataset, inp_size=inp_size, augment=augment, 
+                         color_augment=color_augment, 
+                         color_augment_strength=color_augment_strength)
         self.scale_min = scale_min
         if scale_max is None:
             scale_max = scale_min
         self.scale_max = scale_max
-        self.augment = augment
         self.sample_q = sample_q
-        self.color_augment = color_augment
-        self.color_augment_strength = color_augment_strength
         self.return_hr = return_hr
-
-    def __len__(self):
-        return len(self.dataset)
 
     def __getitem__(self, idx):
         img = self.dataset[idx]
@@ -316,7 +391,7 @@ class RandCropDataset(Dataset):
         self.dataset.shuffle_mapping()
 
 @register('sr-explicit-downsampled-randcrop')
-class SRExplicitDownsampledRandCrop(RandCropDataset):
+class SRExplicitDownsampledRandCrop(SRRandCropDataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8,
                  return_hr=False):
@@ -326,7 +401,7 @@ class SRExplicitDownsampledRandCrop(RandCropDataset):
 
 
 @register('sr-randrange-downsampled-randcrop')
-class SRRandRangeDownsampledRandCrop(RandCropDataset):
+class SRRandRangeDownsampledRandCrop(SRRandCropDataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, vary_q=False, color_augment=False, color_augment_strength=0.8,
                  return_hr=False):
@@ -384,7 +459,7 @@ class SRRandRangeDownsampledRandCrop(RandCropDataset):
 
 
 @register('sr-setrange-downsampled-randcrop')
-class SRSetRangeDownsampledRandCrop(RandCropDataset):
+class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
     def __init__(self, dataset, 
                  inp_size=None, inp_size_min=None, inp_size_max=None, min_size=16,
                  scale_min=1, scale_max=None,
@@ -608,7 +683,7 @@ class ZRSetRangeDownsampledRandCrop(SRSetRangeDownsampledRandCrop):
 
 
 @register('ed-setrange-downsampled-randcrop')
-class EDSetRangeDownsampledRandCrop(RandCropDataset):
+class EDSetRangeDownsampledRandCrop(SRRandCropDataset):
     def __init__(self, dataset, 
                  inp_size=None, inp_size_min=None, inp_size_max=None, crop_size=32,
                  augment=False, color_augment=False, color_augment_strength=0.8, 
@@ -817,6 +892,214 @@ class EDSetRangeDownsampledRandCrop(RandCropDataset):
         return hr_coord, hr_rgb, cell, hr_freq
 
 
+@register('contrastive-randcrop')
+class ContrastiveRandCrop(RandCropDataset):
+    def __init__(self, dataset, 
+                 inp_size=None, inp_size_min=None, inp_size_max=None, crop_size=32,
+                 augment=False, color_augment=False, color_augment_strength=0.8, 
+                 sample_q=None, vary_q=False,
+                 use_subgrid_coords=False, use_rgb_grayscale=False,
+                 return_hr=False, resize_hr=False, return_freq=False):
+        super().__init__(dataset, inp_size=inp_size,
+                 augment=augment, sample_q=sample_q, color_augment=color_augment, 
+                 color_augment_strength=color_augment_strength,
+                 return_hr=return_hr)
+        self.inp_size_min = inp_size_min
+        self.inp_size_max = inp_size_max
+        self.crop_size = crop_size
+        self.resize_hr = resize_hr
+        self.return_freq = return_freq
+        self.vary_q = vary_q
+        self.use_subgrid_coords = use_subgrid_coords
+        self.use_rgb_grayscale = use_rgb_grayscale
+        self.out_channels = 3 if use_rgb_grayscale else 1
+        self.rand_scale = None
+
+
+    def __getitem__(self, idx):
+        img, edge_img = self.dataset[idx]
+        if self.color_augment:
+            img = self.apply_color_aug(img)
+        
+        crop_lr, crop_hr, f_crop_hr, grid_crop_hr = self.make_crops(img, edge_img)        
+
+        if self.augment:
+            crop_lr, crop_hr, f_crop_hr, grid_crop_hr = self.apply_augs(crop_lr, crop_hr, f_crop_hr, grid_crop_hr)
+
+        self.rand_scale = random.uniform(0.7, 1.3)
+        if self.use_rgb_grayscale: 
+            if len(crop_hr.size()) == 2 or crop_hr.shape[0] == 1:
+                crop_hr = torch.stack([crop_hr, crop_hr, crop_hr], dim=0)
+        hr_coord, hr_rgb, cell, hr_freq = self.create_targets(crop_hr, f_crop_hr, grid_crop_hr)
+
+        result = {
+            'inp': crop_lr,
+            'coord': hr_coord,
+            'cell': cell,
+            'gt': hr_rgb
+        }
+        if self.return_freq:
+            result['f_gt'] = hr_freq
+        if self.return_hr:
+            result["hr"] = crop_hr
+        return result
+
+    def make_crops(self, img, edge_img, set_scale=None, set_range=None, return_rand_vals=False):
+        grid = kornia.utils.create_meshgrid(img.shape[1], img.shape[2]).squeeze()
+        
+        if img.shape[0] == 3:
+            h_index = 1
+            w_index = 2
+        else:
+            h_index = 0
+            w_index = 1
+
+        if len(edge_img.size()) == 2:
+            h_index_ed = 0
+            w_index_ed = 1
+        else:
+            if edge_img.shape[0] == 1 or edge_img.shape[0] == 3:
+                h_index_ed = 1
+                w_index_ed = 2
+            else:
+                h_index_ed = 0
+                w_index_ed = 1
+
+        img_width = img.shape[w_index]
+        img_height = img.shape[h_index]
+        
+        w_gt = self.crop_size
+        w_gt = max(self.inp_size_min, w_gt)
+        w_ed = max(self.inp_size_min, w_gt)
+        if img_height - w_ed < self.inp_size_min or img_width - w_ed < self.inp_size_min:
+            w_gt = self.inp_size_min
+            w_ed = w_gt
+        x0_val = random.randint(0, max(img_height - w_ed, 0))
+        y0_val = random.randint(0, max(img_width - w_ed, 0))
+        x0 = min(img_height - w_ed, x0_val)
+        y0 = min(img_width - w_ed, y0_val)
+        
+        if img.shape[0] == 3:
+            crop_ed = edge_img[:, x0: x0 + w_ed, y0: y0 + w_ed]
+        else:
+            crop_ed = edge_img[x0: x0 + w_ed, y0: y0 + w_ed, :]
+        
+        grid_crop_ed = grid[x0: x0 + w_ed, y0: y0 + w_ed, :]
+        
+        if self.return_freq:
+            f_edge_img = tfft.hfft(edge_img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
+            f_crop_ed = f_edge_img[:, x0: x0 + w_ed, y0: y0 + w_ed]            
+        else:
+            f_crop_ed = None
+        
+        if self.inp_size is None:
+            try:
+                #if crop_ed.shape[h_index_ed] <= w_gt or crop_ed.shape[w_index_ed] <= w_gt:
+                #    print(f"0 Bad shape: {crop_ed.shape}, low res size: {w_gt}, img size: {img.shape}, width: {img_width} height: {img_height}, x0: {x0}, y0: {y0}")
+                if img.shape[0] == 3:
+                    crop_gt = img[:, x0: x0 + w_gt, y0: y0 + w_gt]
+                else:
+                    crop_gt = img[x0: x0 + w_gt, y0: y0 + w_gt, :]
+            except Exception as e:
+                print(f"1 Bad shape: {crop_ed.shape}, low res size: {w_gt}, img size: {img.shape}, width: {img_width} height: {img_height}, x0: {x0}, y0: {y0}")
+                if all([d > 0 for d in crop_ed.shape]):
+                    if self.inp_size_min > img_width or self.inp_size_min > img_height:
+                        if w_ed <= 0:
+                            w_ed = self.inp_size_min
+                        if x0 <= 0:
+                            x0 = 0
+                        if y0 <= 0:
+                            y0 = 0
+                        if len(edge_img.shape) == 2:
+                            crop_ed = edge_img[x0: x0 + w_ed, y0: y0 + w_ed]
+                        else:
+                            if edge_img.shape[0] == 1:
+                                crop_ed = edge_img[:, x0: x0 + w_ed, y0: y0 + w_ed]
+                            else:
+                                crop_ed = edge_img[x0: x0 + w_ed, y0: y0 + w_ed, :]
+                    if img.shape[0] == 3:
+                        crop_gt = img[:, x0: x0 + w_gt, y0: y0 + w_gt]
+                    else:
+                        crop_gt = img[x0: x0 + w_gt, y0: y0 + w_gt, :]
+                else:
+                    if w_ed <= 0:
+                        w_ed = self.inp_size_min
+                    if x0 <= 0:
+                        x0 = 0
+                    if y0 <= 0:
+                        y0 = 0
+                    if len(edge_img.shape) == 2:
+                        crop_ed = edge_img[x0: x0 + w_ed, y0: y0 + w_ed]
+                    else:
+                        if edge_img.shape[0] == 1:
+                            crop_ed = edge_img[:, x0: x0 + w_ed, y0: y0 + w_ed]
+                        else:
+                            crop_ed = edge_img[x0: x0 + w_ed, y0: y0 + w_ed, :]
+                    if img.shape[0] == 3:
+                        crop_gt = img[:, x0: x0 + w_gt, y0: y0 + w_gt]
+                    else:
+                        crop_gt = img[x0: x0 + w_gt, y0: y0 + w_gt, :]
+        else:
+            if crop_ed.shape[h_index] < self.inp_size or crop_ed.shape[w_index] < self.inp_size:
+                print(f"2 Bad shape: {crop_ed.shape}, ground truth size: {w_gt}, edge_img size: {edge_img.shape}, width: {img_width} height: {img_height}, x0: {x0}, y0: {y0}")
+            if img.shape[0] == 3:
+                crop_gt = img[:, x0: x0 + w_gt, y0: y0 + w_gt]
+            else:
+                crop_gt = img[x0: x0 + w_gt, y0: y0 + w_gt, :]
+
+        return crop_gt, crop_ed, f_crop_ed, grid_crop_ed
+
+    def apply_augs(self, crop_lr, crop_hr, f_crop_hr, grid_crop_hr):
+        hflip = random.random() < 0.5
+        vflip = random.random() < 0.5
+        dflip = random.random() < 0.5
+
+        def augment(x):
+            if hflip:
+                x = x.flip(-2)
+            if vflip:
+                x = x.flip(-1)
+            if dflip:
+                x = x.transpose(-2, -1)
+            return x
+
+        crop_lr = augment(crop_lr)
+        crop_hr = augment(crop_hr)
+        grid_crop_hr = augment(grid_crop_hr)
+        if self.return_freq:
+            f_crop_hr = augment(f_crop_hr)
+
+        return crop_lr, crop_hr, f_crop_hr, grid_crop_hr
+
+    def create_targets(self, crop_hr, f_crop_hr, grid_crop_hr):
+        hr_coord, hr_rgb = to_pixel_samples(crop_hr.contiguous(), channels=self.out_channels)
+        if self.return_freq:
+            hr_freq = to_frequency_samples(f_crop_hr.contiguous())
+        else:
+            hr_freq = None
+
+        if self.sample_q is not None:
+            if self.vary_q:
+                sample_lst = np.random.choice(len(hr_coord), 
+                                              min(round(self.sample_q * self.rand_scale), len(hr_coord)), 
+                                              replace=False)
+            else:
+                sample_lst = np.random.choice(len(hr_coord), 
+                                              min(self.sample_q, len(hr_coord)), 
+                                              replace=False)
+            if self.use_subgrid_coords:
+                hr_coord = grid_crop_hr.view(-1, 2)[sample_lst]
+            else:
+                hr_coord = hr_coord[sample_lst]
+            hr_rgb = hr_rgb[sample_lst]
+            if self.return_freq:
+                hr_freq = hr_freq[sample_lst]
+
+        cell = torch.ones_like(hr_coord)
+        cell[:, 0] *= 2 / crop_hr.shape[-2]
+        cell[:, 1] *= 2 / crop_hr.shape[-1]
+
+        return hr_coord, hr_rgb, cell, hr_freq
 
 #################################################################################################################3
 ######### O   L   D    0000  V  E  R  S  I  O  N  S  ##################################

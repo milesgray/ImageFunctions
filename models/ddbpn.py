@@ -8,9 +8,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from kornia.geometry.subpix import spatial_softmax2d
 
 from models import register
+from .layers.pixel_attn import PixelAttention
+from .layers.hessian_attn import HessianAttention
+from .layers.mean_shift import MeanShift
 #from layers import FourierINR
 
 ##################################################################################################
@@ -83,7 +85,6 @@ class SimpleBlock2d(nn.Module):
 
         return x
 
-
 class Net2d(nn.Module):
     def __init__(self, modes, width):
         """
@@ -134,7 +135,7 @@ class FourierINR(nn.Module):
     def __init__(self, in_features, args: Namespace, num_fourier_feats=64, layer_sizes=[64,64,64], out_features=64,
                  has_bias=True, activation="leaky_relu",
                  learnable_basis=True,):
-        super(FourierINR, self).__init__()
+        super().__init__()
 
         layers = [
             nn.Linear(num_fourier_feats * 2, layer_sizes[0], bias=has_bias),
@@ -169,226 +170,7 @@ class FourierINR(nn.Module):
     def forward(self, coords: Tensor) -> Tensor:
         return self.model(self.compute_fourier_feats(coords))
 
-def calc_mean_std(feat, eps=1e-5):
-    # eps is a small value added to the variance to avoid divide-by-zero.
-    size = feat.size()
-    assert (len(size) == 4)
-    N, C = size[:2]
-    feat_var = feat.view(N, C, -1).var(dim=2) + eps
-    feat_std = feat_var.sqrt().view(N, C, 1, 1)
-    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
-    return feat_mean, feat_std
 
-class MSHF(nn.Module):
-    def __init__(self, n_channels, kernel=3):
-        super(MSHF, self).__init__()
-
-        pad = int((kernel - 1) / 2)
-
-        self.grad_xx = nn.Conv2d(in_channels=n_channels, out_channels=n_channels, kernel_size=3, stride=1, padding=pad,
-                                 dilation=pad, groups=n_channels, bias=True)
-        self.grad_yy = nn.Conv2d(in_channels=n_channels, out_channels=n_channels, kernel_size=3, stride=1, padding=pad,
-                                 dilation=pad, groups=n_channels, bias=True)
-        self.grad_xy = nn.Conv2d(in_channels=n_channels, out_channels=n_channels, kernel_size=3, stride=1, padding=pad,
-                                 dilation=pad, groups=n_channels, bias=True)
-
-        for m in self.modules():
-            if m == self.grad_xx:
-                m.weight.data.zero_()
-                m.weight.data[:, :, 1, 0] = 1
-                m.weight.data[:, :, 1, 1] = -2
-                m.weight.data[:, :, 1, -1] = 1
-            elif m == self.grad_yy:
-                m.weight.data.zero_()
-                m.weight.data[:, :, 0, 1] = 1
-                m.weight.data[:, :, 1, 1] = -2
-                m.weight.data[:, :, -1, 1] = 1
-            elif m == self.grad_xy:
-                m.weight.data.zero_()
-                m.weight.data[:, :, 0, 0] = 1
-                m.weight.data[:, :, 0, -1] = -1
-                m.weight.data[:, :, -1, 0] = -1
-                m.weight.data[:, :, -1, -1] = 1
-
-    def forward(self, x):
-        fxx = self.grad_xx(x)
-        fyy = self.grad_yy(x)
-        fxy = self.grad_xy(x)
-        hessian = ((fxx + fyy) + ((fxx - fyy) ** 2 + 4 * (fxy ** 2)) ** 0.5) / 2
-        return hessian
-
-class DiEnDec(nn.Module):
-    def __init__(self, n_channels, act=nn.ReLU(inplace=True)):
-        super(DiEnDec, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(n_channels, n_channels * 2, kernel_size=3, padding=1, dilation=1, bias=True),
-            act,
-            nn.Conv2d(n_channels * 2, n_channels * 4, kernel_size=3, padding=2, dilation=2, bias=True),
-            act,
-            nn.Conv2d(n_channels * 4, n_channels * 8, kernel_size=3, padding=4, dilation=4, bias=True),
-            act,
-        )
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(n_channels * 8, n_channels * 4, kernel_size=3, padding=4, dilation=4, bias=True),
-            act,
-            nn.ConvTranspose2d(n_channels * 4, n_channels * 2, kernel_size=3, padding=2, dilation=2, bias=True),
-            act,
-            nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=3, padding=1, dilation=1, bias=True),
-            act,
-        )
-        self.gate = nn.Conv2d(in_channels=n_channels, out_channels=1, kernel_size=1)
-
-    def forward(self, x):
-        output = self.gate(self.decoder(self.encoder(x)))
-        return output
-
-class DAC(nn.Module):
-    def __init__(self, n_channels):
-        super(DAC, self).__init__()
-
-        self.mean = nn.Sequential(
-            nn.Conv2d(n_channels, n_channels // 16, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(n_channels // 16, n_channels, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-        )
-        self.std = nn.Sequential(
-            nn.Conv2d(n_channels, n_channels // 16, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(n_channels // 16, n_channels, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-        )
-
-    def forward(self, observed_feat, referred_feat):
-        assert (observed_feat.size()[:2] == referred_feat.size()[:2])
-        size = observed_feat.size()
-        referred_mean, referred_std = calc_mean_std(referred_feat)
-        observed_mean, observed_std = calc_mean_std(observed_feat)
-
-        normalized_feat = (observed_feat - observed_mean.expand(
-            size)) / observed_std.expand(size)
-        referred_mean = self.mean(referred_mean)
-        referred_std = self.std(referred_std)
-        output = normalized_feat * referred_std.expand(size) + referred_mean.expand(size)
-        return output
-
-class HessianAttention(nn.Module):
-    def __init__(self, channels):
-        super().__init__()
-        self.coder = nn.Sequential(DiEnDec(3, nn.ReLU(True)))
-        self.dac = nn.Sequential(DAC(channels))
-        self.hessian3 = nn.Sequential(MSHF(channels, kernel=3))
-        self.hessian5 = nn.Sequential(MSHF(channels, kernel=5))
-        self.hessian7 = nn.Sequential(MSHF(channels, kernel=7))
-
-    def forward(self, x):
-        hessian3 = self.hessian3(x)
-        hessian5 = self.hessian5(x)
-        hessian7 = self.hessian7(x)
-        hessian = torch.cat((torch.mean(hessian3, dim=1, keepdim=True),
-                             torch.mean(hessian5, dim=1, keepdim=True),
-                             torch.mean(hessian7, dim=1, keepdim=True))
-                            , 1)
-        hessian = self.coder(hessian)
-        attention = torch.sigmoid(self.dac[0](hessian.expand(x.size()), x))
-        x = x * attention
-        return x
-
-
-class MeanShift(nn.Conv2d):
-    def __init__(
-        self, rgb_range,
-        rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289), sign=-1):
-
-        super(MeanShift, self).__init__(3, 3, kernel_size=1)
-        std = torch.Tensor(rgb_std)
-        self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
-        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std
-        for p in self.parameters():
-            p.requires_grad = False
-
-class SpatialSoftmax2d(nn.Module):
-    def __init__(self, temp=1.0, learn_temp=True):
-        super().__init__()
-        temp = temp if isinstance(temp, (torch.FloatTensor, torch.Tensor)) else torch.FloatTensor(temp if temp is list else [temp])
-        self.temp = nn.Parameter(temp, requires_grad=learn_temp)
-
-    def forward(self, x):
-        x = spatial_softmax2d(x, temperature=self.temp)
-        return x
-
-class Scale(nn.Module):
-    def __init__(self, init_value=1e-3):
-        super().__init__()
-        self.scale = nn.Parameter(torch.FloatTensor([init_value]))
-
-    def forward(self, input):
-        return input * self.scale
-
-class PA(nn.Module):
-    '''Pixel Attention Layer'''
-    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_weight=True, channel_wise=True, spatial_wise=True):
-        super().__init__()
-        if f_out is None:
-            f_out = f_in
-
-        self.sigmoid = nn.Sigmoid()
-        if resize == "up":
-            self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
-        elif resize == "down":
-            self.resize = nn.AvgPool2d(scale, stride=scale)
-        else:
-            self.resize = nn.Identity()
-        if f_in != f_out:
-            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
-        self.channel_wise = channel_wise
-        self.spatial_wise = spatial_wise
-        if channel_wise:
-            self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out)
-        if spatial_wise:
-            self.spatial_conv = nn.Conv2d(f_out, f_out, 1)
-        if not channel_wise and not spatial_wise:
-            self.conv = nn.Conv2d(f_out, f_out, 1)
-
-        self.use_softmax = softmax
-        if self.use_softmax:
-            self.spatial_softmax = SpatialSoftmax2d()
-            self.channel_softmax = nn.Softmax2d()
-        self.learn_weight = learn_weight
-        if self.learn_weight:
-            self.weight_scale = Scale(1.0)
-
-    def forward(self, x):
-        x = self.resize(x)
-        if self.spatial_wise:
-            spatial_y = self.spatial_conv(x)
-            spatial_y = self.sigmoid(spatial_y)
-            if self.use_softmax:
-                spatial_y = self.spatial_softmax(spatial_y)
-            spatial_out = torch.mul(x, spatial_y)
-        if self.channel_wise:
-            channel_y = self.channel_conv(x)
-            channel_y = self.sigmoid(channel_y)
-            if self.use_softmax:
-                channel_y = self.channel_softmax(channel_y)
-            channel_out = torch.mul(x, channel_y)
-        if self.channel_wise and self.spatial_wise:
-            out = spatial_out + channel_out
-        elif self.channel_wise:
-            out = channel_wise
-        elif self.spatial_wise:
-            out = spatial_wise
-        else:
-            y = self.conv(x)
-            y = self.sigmoid(y)
-            if self.use_softmax:
-                y = self.spatial_softmax(y)
-            out = torch.mul(x, y)
-        if self.learn_weight:
-            out = self.weight_scale(out)
-        return out
 
 def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
     kernel_size, stride, padding = {
@@ -441,16 +223,16 @@ class DenseProjection(nn.Module):
         ]
         self.use_pa = use_pa
         if self.use_pa:
-            layers_1.append(PA(nr, learn_weight=use_pa_learn_scale))
-            layers_2.append(PA(inter_channels, learn_weight=use_pa_learn_scale))
+            layers_1.append(PixelAttention(nr, learn_weight=use_pa_learn_scale))
+            layers_2.append(PixelAttention(inter_channels, learn_weight=use_pa_learn_scale))
 
         self.conv_1 = nn.Sequential(*layers_1)
         self.conv_2 = nn.Sequential(*layers_2)
         self.conv_3 = nn.Sequential(*layers_3)
 
         if self.use_pa:
-            self.pa_x = PA(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale, learn_weight=use_pa_learn_scale)
-            self.pa_out = PA(nr, learn_weight=use_pa_learn_scale)
+            self.pa_x = PixelAttention(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale, learn_weight=use_pa_learn_scale)
+            self.pa_out = PixelAttention(nr, learn_weight=use_pa_learn_scale)
 
     def forward(self, x):
         if self.bottleneck is not None:
@@ -537,7 +319,7 @@ class DDBPN(nn.Module):
             channels = args.n_feats
             for i in range(self.total_depth):
                 self.attnmodules.append(
-                    PA(channels, learn_weight=self.use_pa_learn_scale)
+                    PixelAttention(channels, learn_weight=self.use_pa_learn_scale)
                 )
                 channels += args.n_feats
 

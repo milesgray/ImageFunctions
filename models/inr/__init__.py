@@ -1,4 +1,4 @@
-from .layers import (
+from ..inr_layers import (
     INRs,
     FourierINRs,
     HierarchicalFourierINRs,

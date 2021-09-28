@@ -28,7 +28,6 @@ def weight_init(m):
         if m.bias is not None:
             torch.nn.init.zeros_(m.bias)
 
-
 class _DenseLayer(nn.Sequential):
     def __init__(self, input_features, out_features):
         super(_DenseLayer, self).__init__()
@@ -51,8 +50,6 @@ class _DenseLayer(nn.Sequential):
         #     new_features =F.interpolate(new_features,size=(x2.shape[2],x2.shape[-1]), mode='bicubic',
         #                                 align_corners=False)
         return 0.5 * (new_features + x2), x2
-
-
 class _DenseBlock(nn.Sequential):
     def __init__(self, num_layers, input_features, out_features):
         super(_DenseBlock, self).__init__()
@@ -60,8 +57,6 @@ class _DenseBlock(nn.Sequential):
             layer = _DenseLayer(input_features, out_features)
             self.add_module('denselayer%d' % (i + 1), layer)
             input_features = out_features
-
-
 class UpConvBlock(nn.Module):
     def __init__(self, in_features, up_scale, up_factor = 2):
         super(UpConvBlock, self).__init__()
@@ -94,13 +89,12 @@ class UpConvBlock(nn.Module):
     def forward(self, x):
         return self.features(x)
 
-
 class SingleConvBlock(nn.Module):
     def __init__(self, in_features, out_features, stride,
-                 use_bs=True
+                 use_bn=True
                  ):
-        super(SingleConvBlock, self).__init__()
-        self.use_bn = use_bs
+        super().__init__()
+        self.use_bn = use_bn
         self.conv = nn.Conv2d(in_features, out_features, 1, stride=stride,
                               bias=True)
         self.bn = nn.BatchNorm2d(out_features)
@@ -111,13 +105,12 @@ class SingleConvBlock(nn.Module):
             x = self.bn(x)
         return x
 
-
 class DoubleConvBlock(nn.Module):
     def __init__(self, in_features, mid_features,
                  out_features=None,
                  stride=1,
                  use_act=True):
-        super(DoubleConvBlock, self).__init__()
+        super().__init__()
 
         self.use_act = use_act
         if out_features is None:
@@ -138,7 +131,6 @@ class DoubleConvBlock(nn.Module):
         if self.use_act:
             x = self.relu(x)
         return x
-
 
 class DexiNed_v2(nn.Module):
     """ Definition of the DXtrem network. """
@@ -161,10 +153,10 @@ class DexiNed_v2(nn.Module):
         self.side_5 = SingleConvBlock(512, 256, 1)
 
         # right skip connections, figure in Journal
-        self.pre_dense_2 = SingleConvBlock(128, 256, 2, use_bs=False)
+        self.pre_dense_2 = SingleConvBlock(128, 256, 2, use_bn=False)
         self.pre_dense_3 = SingleConvBlock(128, 256, 1)
         self.pre_dense_4 = SingleConvBlock(256, 512, 1)
-        self.pre_dense_5_0 = SingleConvBlock(256, 512, 2,use_bs=False)
+        self.pre_dense_5_0 = SingleConvBlock(256, 512, 2,use_bn=False)
         self.pre_dense_5 = SingleConvBlock(512, 512, 1)
         self.pre_dense_6 = SingleConvBlock(512, 256, 1)
 
@@ -175,7 +167,7 @@ class DexiNed_v2(nn.Module):
         self.up_block_4 = UpConvBlock(512, 3)
         self.up_block_5 = UpConvBlock(512, 4)
         self.up_block_6 = UpConvBlock(256, 4)
-        self.block_cat = SingleConvBlock(6, 1, stride=1, use_bs=False)
+        self.block_cat = SingleConvBlock(6, 1, stride=1, use_bn=False)
 
         self.apply(weight_init)
 
