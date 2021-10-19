@@ -6,6 +6,7 @@ from argparse import Namespace
 import torch
 import torch.nn as nn
 
+from .layers import PixelAttention, MeanShift, 
 from models import register
 
 class FreqSplit(nn.Module):
@@ -130,57 +131,17 @@ class DAC(nn.Module):
 class MeanShift(nn.Conv2d):
     def __init__(
         self, rgb_range,
-        rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289), sign=-1):
+        rgb_mean=(0.40005, 0.42270, 0.45802), 
+        rgb_std=(0.28514, 0.31383, 0.28289), 
+        sign=-1):
 
-        super(MeanShift, self).__init__(3, 3, kernel_size=1)
+        super().__init__(3, 3, kernel_size=1)
         std = torch.Tensor(rgb_std)
         self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
         self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std
         for p in self.parameters():
             p.requires_grad = False
 
-class Scale(nn.Module):
-    def __init__(self, init_value=1e-3):
-        super().__init__()
-        self.scale = nn.Parameter(torch.FloatTensor([init_value]))
-
-    def forward(self, input):
-        return input * self.scale
-
-class PA(nn.Module):
-    '''Pixel Attention Layer'''
-    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_scale=True):
-        super().__init__()
-        if f_out is None:
-            f_out = f_in
-
-        self.sigmoid = nn.Sigmoid()
-        if resize == "up":
-            self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
-        elif resize == "down":
-            self.resize = nn.AvgPool2d(scale, stride=scale)
-        else:
-            self.resize = nn.Identity()
-        if f_in != f_out:
-            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
-        self.conv = nn.Conv2d(f_out, f_out, 1)
-        self.use_softmax = softmax
-        if self.use_softmax:
-            self.softmax = nn.Softmax2d()
-        self.learn_scale = learn_scale
-        if self.learn_scale:
-            self.scale = Scale(1.0)
-
-    def forward(self, x):
-        x = self.resize(x)
-        y = self.conv(x)
-        y = self.sigmoid(y)
-        if self.use_softmax:
-            y = self.softmax(y)
-        out = torch.mul(x, y)
-        if self.learn_scale:
-            out = self.scale(out)
-        return out
 
 def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
     kernel_size, stride, padding = {
@@ -233,16 +194,16 @@ class DenseProjection(nn.Module):
         ]
         self.use_pa = use_pa
         if self.use_pa:
-            layers_1.append(PA(nr, learn_scale=use_pa_learn_scale))
-            layers_2.append(PA(inter_channels, learn_scale=use_pa_learn_scale))
+            layers_1.append(PixelAttention(nr, learn_scale=use_pa_learn_scale))
+            layers_2.append(PixelAttention(inter_channels, learn_scale=use_pa_learn_scale))
 
         self.conv_1 = nn.Sequential(*layers_1)
         self.conv_2 = nn.Sequential(*layers_2)
         self.conv_3 = nn.Sequential(*layers_3)
 
         if self.use_pa:
-            self.pa_x = PA(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale, learn_scale=use_pa_learn_scale)
-            self.pa_out = PA(nr, learn_scale=use_pa_learn_scale)
+            self.pa_x = PixelAttention(inter_channels, f_out=nr, resize="up" if up else "down", scale=scale, learn_scale=use_pa_learn_scale)
+            self.pa_out = PixelAttention(nr, learn_scale=use_pa_learn_scale)
 
     def forward(self, x):
         if self.bottleneck is not None:
@@ -323,7 +284,7 @@ class FDDBPN(nn.Module):
             channels = args.n_feats
             for i in range(self.total_depth):
                 self.attnmodules.append(
-                    PA(channels, learn_scale=self.use_pa_learn_scale)
+                    PixelAttention(channels, learn_scale=self.use_pa_learn_scale)
                 )
                 channels += args.n_feats
 
