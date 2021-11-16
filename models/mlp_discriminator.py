@@ -10,7 +10,7 @@ import numpy as np
 
 import models
 from models import register
-from utils import make_coord
+from utility import make_coord
 
 def sn_wrapper(module: nn.Module, use_sn: bool, *sn_args, **sn_kwargs) -> nn.Module:
     """

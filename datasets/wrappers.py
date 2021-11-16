@@ -11,7 +11,7 @@ from torchvision import transforms
 import kornia
 
 from datasets import register
-from utils import to_pixel_samples, to_frequency_samples, resize_fn
+from utility import to_pixel_samples, to_frequency_samples, resize_fn
 from datasets import augments
 
 @register('sr-implicit-paired')

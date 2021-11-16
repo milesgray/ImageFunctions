@@ -9,7 +9,7 @@ import numpy as np
 
 import models
 from models import register
-from utils import make_coord
+from utility import make_coord
 
 @register('liif')
 class LIIF(nn.Module):

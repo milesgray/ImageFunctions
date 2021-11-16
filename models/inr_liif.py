@@ -8,7 +8,7 @@ from torch import Tensor
 import numpy as np
 import models
 from models import register
-from utils import make_coord
+from utility import make_coord
 
 class LinearResidual(nn.Module):
     def __init__(self, args: Namespace, transform: Callable):

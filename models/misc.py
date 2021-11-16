@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 import models
 from models import register
-from utils import make_coord
+from utility import make_coord
 
 def get_same_padding(size, kernel, dilation, stride):
     return ((size - 1) * (stride - 1) + dilation * (kernel - 1)) // 2

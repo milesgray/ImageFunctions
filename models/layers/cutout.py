@@ -116,7 +116,7 @@ class WarpRandomPerspective(K.RandomPerspective):
              x, transform, (height, width),
              mode=self.resample.name.lower(),
              align_corners=self.align_corners,
-             padding_mode=padding_mode
+             padding_mode=padding_mode)
 
 
 cached_spot_indexes = {}

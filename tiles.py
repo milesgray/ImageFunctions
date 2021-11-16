@@ -3,7 +3,7 @@ import math, pathlib
 import numpy as np
 import torch
 
-import utils
+import utility
 
 __all__ = ['SuperResManager']
 
@@ -126,7 +126,7 @@ class SuperResManager:
     def load_model(path, log=print):
         sv_file = torch.load(path)
         model = models.make(sv_file['model'], load_sd=True).cuda()
-        log('model: #params={}'.format(utils.compute_num_params(model, text=True)))
+        log('model: #params={}'.format(utility.compute_num_params(model, text=True)))
         return model
 
     @staticmethod

@@ -34,7 +34,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 import datasets
 import models
 import losses
-import utils
+import utility
 from test import eval_psnr
 
 
@@ -81,7 +81,7 @@ def prepare_training():
             d_model = models.make(sv_file['d_model'], load_sd=True)
             if torch.cuda.is_available():            
                 d_model = d_model.cuda()
-            d_optimizer = utils.make_optimizer(list(model.parameters()) + list(d_model.parameters()), sv_file['d_optimizer'], load_sd=True)
+            d_optimizer = utility.make_optimizer(list(model.parameters()) + list(d_model.parameters()), sv_file['d_optimizer'], load_sd=True)
         # Set previous max value of PSNR metric tracker
         if "max_val_v" in sv_file:
             max_val_v = sv_file["max_val_v"]
@@ -91,7 +91,7 @@ def prepare_training():
         # Resume at previous epoch
         epoch_start = sv_file['epoch'] + 1
         # Set LR to previous value
-        optimizer = utils.make_optimizer(model.parameters(), sv_file['optimizer'], load_sd=True)
+        optimizer = utility.make_optimizer(model.parameters(), sv_file['optimizer'], load_sd=True)
         if config.get('multi_step_lr') is None:
             lr_scheduler = None
         else:
@@ -103,7 +103,7 @@ def prepare_training():
         if torch.cuda.is_available():
             model = model.cuda()
         optimizer = optimizers.make(model.parameters(), config['optimizer'])
-        log('model: #params={}'.format(utils.compute_num_params(model, text=True)))
+        log('model: #params={}'.format(utility.compute_num_params(model, text=True)))
 
         epoch_start = 1
         if config.get('multi_step_lr') is None:
@@ -120,9 +120,9 @@ def prepare_training():
             max_val_v = config["max_val_v"]
 
     log(f"epoch start: {epoch_start}")
-    log('LIIF model: #params={}'.format(utils.compute_num_params(model, text=True)))
+    log('LIIF model: #params={}'.format(utility.compute_num_params(model, text=True)))
     if d_model is not None:
-        log('Discriminator model: #params={}'.format(utils.compute_num_params(d_model, text=True)))
+        log('Discriminator model: #params={}'.format(utility.compute_num_params(d_model, text=True)))
 
     return model, optimizer, epoch_start, lr_scheduler, max_val_v, d_model, d_optimizer
 
@@ -131,7 +131,7 @@ def manual_make_discriminator(config):
     if torch.cuda.is_available():            
         d_model = d_model.cuda()
     d_optimizer = optimizers.make(list(model.parameters()) + list(d_model.parameters()), config['d_optimizer'])
-    log('model: #params={}'.format(utils.compute_num_params(d_model, text=True)))
+    log('model: #params={}'.format(utility.compute_num_params(d_model, text=True)))
     return d_model, d_optimizer
 
 
@@ -148,11 +148,11 @@ def train(train_loader, model, optimizer, d_model=None, d_opt=None):
 
     grad_penalty_wgan_fn = losses.make('wgan_grad_penalty') # GradLoss('wgan')
     grad_penalty_r1_fn = losses.make('r1_grad_penalty') # GradLoss('r1')
-    train_loss = utils.Averager()
-    pix_loss = utils.Averager()
-    bce_loss = utils.Averager()
-    adv_loss = utils.Averager()
-    iqa_loss = utils.Averager()
+    train_loss = utility.Averager()
+    pix_loss = utility.Averager()
+    bce_loss = utility.Averager()
+    adv_loss = utility.Averager()
+    iqa_loss = utility.Averager()
 
     data_norm = config['data_norm']
     t = data_norm['inp']
@@ -266,7 +266,7 @@ def train(train_loader, model, optimizer, d_model=None, d_opt=None):
 def main(config_, save_path):
     global config, log, writer
     config = config_
-    log, writer = utils.set_save_path(save_path)
+    log, writer = utility.set_save_path(save_path)
     with open(os.path.join(save_path, 'config.yaml'), 'w') as f:
         yaml.dump(config, f, sort_keys=False)
 
@@ -288,7 +288,7 @@ def main(config_, save_path):
     epoch_save = config.get('epoch_save')
     max_val_v = -1e18
 
-    timer = utils.Timer()
+    timer = utility.Timer()
 
     for epoch in range(epoch_start, epoch_max + 1):
         t_epoch_start = timer.t()
@@ -341,8 +341,8 @@ def main(config_, save_path):
 
         t = timer.t()
         prog = (epoch - epoch_start + 1) / (epoch_max - epoch_start + 1)
-        t_epoch = utils.time_text(t - t_epoch_start)
-        t_elapsed, t_all = utils.time_text(t), utils.time_text(t / prog)
+        t_epoch = utility.time_text(t - t_epoch_start)
+        t_elapsed, t_all = utility.time_text(t), utility.time_text(t / prog)
         log_info.append('{} {}/{}'.format(t_epoch, t_elapsed, t_all))
 
         log(', '.join(log_info))

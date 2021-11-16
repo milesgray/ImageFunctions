@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 import datasets
 import models
-import utils
+import utility
 
 def plot_preds(model, loader, epoch, 
                save_dir="/content", 
@@ -134,17 +134,17 @@ def eval_psnr(loader, model, epoch, data_norm=None, eval_type=None, eval_bsize=N
     gt_div = torch.FloatTensor(t['div']).view(1, 1, -1).cuda()
 
     if eval_type is None:
-        metric_fn = utils.calc_psnr
+        metric_fn = utility.calc_psnr
     elif eval_type.startswith('div2k'):
         scale = int(eval_type.split('-')[1])
-        metric_fn = partial(utils.calc_psnr, dataset='div2k', scale=scale)
+        metric_fn = partial(utility.calc_psnr, dataset='div2k', scale=scale)
     elif eval_type.startswith('benchmark'):
         scale = int(eval_type.split('-')[1])
-        metric_fn = partial(utils.calc_psnr, dataset='benchmark', scale=scale)
+        metric_fn = partial(utility.calc_psnr, dataset='benchmark', scale=scale)
     else:
         raise NotImplementedError
 
-    val_res = utils.Averager()
+    val_res = utility.Averager()
 
     pbar = tqdm(loader, leave=False, desc='val')
     for batch in pbar:

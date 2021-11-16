@@ -152,6 +152,7 @@ class LossTracker:
             self.std = self.value_history[:self.count].std()
             self.cov = self.std / self.mean
         except Exception as e:
+            print(f"[ERROR]\tFailed to set metric stats\n{e}")
 
     def log(self, comet=True, console=False):
         if comet and self.exp:
