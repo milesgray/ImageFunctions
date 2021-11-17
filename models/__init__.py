@@ -5,4 +5,3 @@ from . import mlp
 from . import liif, inr_liif
 from . import misc
 from . import dexined_v2, dexined_v2
-from .layers import Sine

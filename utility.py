@@ -9,6 +9,7 @@ import torch
 from torch import Tensor
 import numpy as np
 from PIL import Image
+from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 from torch.optim import SGD, Adam
@@ -70,7 +71,7 @@ def ensure_path(path, remove=True):
 def set_save_path(save_path, remove=True):
     ensure_path(save_path, remove=remove)
     set_log_path(save_path)
-    #writer = SummaryWriter(os.path.join(save_path, 'tensorboard'))
+    writer = SummaryWriter(os.path.join(save_path, 'tensorboard'))
     return log, writer
 
 
