@@ -3,8 +3,6 @@ from argparse import Namespace
 import torch
 import torch.nn as nn
 
-from .layers import Fouri
-
 from models import register
 
 class FourierINR(nn.Module):
