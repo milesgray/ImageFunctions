@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models import register
-from .layers.pixel_attn import PixelAttention
+from .layers.hessian_attn import HessianAttention
 
 def weight_init(m):
     if isinstance(m, (nn.Conv2d,)):
@@ -87,7 +87,7 @@ class UpConvBlock(nn.Module):
                 layers.append(nn.PixelShuffle(self.up_factor))
                 layers.append(nn.Conv2d(out_features, out_features, 1))
             else:
-                layers.append(PixelAttention(int(out_features * (self.up_factor ** 2)), out_features, resize="up"))
+                layers.append(HessianAttention(int(out_features * (self.up_factor ** 2)))
                 layers.append(nn.Conv2d(out_features, out_features, 3, stride=2, padding=1))
                 layers.append(nn.ConvTranspose2d(
                     out_features, out_features, kernel_size, stride=self.up_factor, padding=pad))
