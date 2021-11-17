@@ -87,7 +87,8 @@ class UpConvBlock(nn.Module):
                 layers.append(nn.PixelShuffle(self.up_factor))
                 layers.append(nn.Conv2d(out_features, out_features, 1))
             else:
-                layers.append(HessianAttention(int(out_features * (self.up_factor ** 2))))
+                if int(out_features * (self.up_factor ** 2)) > 64:
+                    layers.append(HessianAttention(int(out_features * (self.up_factor ** 2))))
                 layers.append(nn.Conv2d(out_features, out_features, 3, stride=2, padding=1))
                 layers.append(nn.ConvTranspose2d(
                     out_features, out_features, kernel_size, stride=self.up_factor, padding=pad))
