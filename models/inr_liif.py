@@ -195,12 +195,12 @@ class LIIF_INR(nn.Module):
 def make_liif_inr(encoder_spec, imnet_spec=None,
                  local_ensemble=True, feat_unfold=True, cell_decode=True,
                  fourier_features=64):
-    args = Namespace()
-    args.encoder_spec = encoder_spec
-    args.imnet_spec = imnet_spec
-    args.local_ensemble=local_ensemble
-    args.feat_unfold = feat_unfold
-    args.cell_decode = cell_decode
-    args.fourier_features = fourier_features
+    args = {}
+    args["encoder_spec"] = encoder_spec
+    args["imnet_spec"] = imnet_spec
+    args["local_ensemble"]=local_ensemble
+    args["feat_unfold"] = feat_unfold
+    args["cell_decode"] = cell_decode
+    args["fourier_features"] = fourier_features
     
     return LIIF_INR(args)
