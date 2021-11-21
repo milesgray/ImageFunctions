@@ -13,7 +13,7 @@ from models import register
 class SpatialSoftmax2d(nn.Module):
     def __init__(self, temp=1.0):
         super().__init__()
-        self.temp = temp
+        self.temp = nn.Parameter(torch.FloatTensor([temp]), requires_grad=True)
 
     def forward(self, x):
         x = spatial_softmax2d(x, temperature=self.temp)
@@ -22,7 +22,7 @@ class SpatialSoftmax2d(nn.Module):
 class Scale(nn.Module):
     def __init__(self, init_value=1e-3):
         super().__init__()
-        self.scale = nn.Parameter(torch.FloatTensor([init_value]))
+        self.scale = nn.Parameter(torch.FloatTensor([init_value]), requires_grad=True)
 
     def forward(self, input):
         return input * self.scale
