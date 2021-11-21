@@ -1,10 +1,13 @@
 import copy
 
-from torch.optim import SGD, Adam
+from torch.optim import SGD, Adam, AdamW, NAdam, RAdam
 
 lookup = {
     'sgd': SGD,
-    'adam': Adam
+    'adam': Adam,
+    'adamw': AdamW,
+    'nadam': NAdam,
+    'radam': RAdam
 }
 
 def register(name):

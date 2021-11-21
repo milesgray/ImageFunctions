@@ -3,7 +3,7 @@ from argparse import Namespace
 
 import torch
 import torch.nn as nn
-from kornia.geometry.subpix import spatial_softmax2d
+from .layers import ChannelAttention, PixelAttention, LocalMultiHeadChannelAttention
 
 from models import register
 
@@ -106,86 +106,6 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
         padding=(kernel_size//2), bias=bias)
 
 
-class SpatialSoftmax2d(nn.Module):
-    def __init__(self, temp=1.0):
-        super().__init__()
-        self.temp = temp
-
-    def forward(self, x):
-        x = spatial_softmax2d(x, temperature=self.temp)
-        return x
-
-class Scale(nn.Module):
-    def __init__(self, init_value=1e-3):
-        super().__init__()
-        self.scale = nn.Parameter(torch.FloatTensor([init_value]))
-
-    def forward(self, input):
-        return input * self.scale
-
-class PA(nn.Module):
-    '''Pixel Attention Layer'''
-    def __init__(self, f_in, f_out=None, resize="same", scale=2, softmax=True, learn_weight=True, channel_wise=True, spatial_wise=True):
-        super().__init__()
-        if f_out is None:
-            f_out = f_in
-        
-        self.sigmoid = nn.Sigmoid()
-        if resize == "up":
-            self.resize = nn.Upsample(scale_factor=scale, mode="bilinear", align_corners=True)
-        elif resize == "down":
-            self.resize = nn.AvgPool2d(scale, stride=scale)
-        else:
-            self.resize = nn.Identity()
-        if f_in != f_out:
-            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
-        self.channel_wise = channel_wise
-        self.spatial_wise = spatial_wise
-        if channel_wise:
-            self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out)
-        if spatial_wise:
-            self.spatial_conv = nn.Conv2d(f_out, f_out, 1)
-        if not channel_wise and not spatial_wise:
-            self.conv = nn.Conv2d(f_out, f_out, 1)
-        
-        self.use_softmax = softmax
-        if self.use_softmax:
-            self.spatial_softmax = SpatialSoftmax2d()
-            self.channel_softmax = nn.Softmax2d()
-        self.learn_weight = learn_weight
-        if self.learn_weight:
-            self.weight_scale = Scale(1.0)
-
-    def forward(self, x):
-        x = self.resize(x)
-        if self.spatial_wise:
-            spatial_y = self.spatial_conv(x)
-            spatial_y = self.sigmoid(spatial_y)
-            if self.use_softmax:
-                spatial_y = self.spatial_softmax(spatial_y)
-            spatial_out = torch.mul(x, spatial_y)
-        if self.channel_wise:
-            channel_y = self.channel_conv(x)
-            channel_y = self.sigmoid(channel_y)
-            if self.use_softmax:
-                channel_y = self.channel_softmax(channel_y)
-            channel_out = torch.mul(x, channel_y)
-        if self.channel_wise and self.spatial_wise:
-            out = spatial_out + channel_out
-        elif self.channel_wise:
-            out = channel_wise
-        elif self.spatial_wise:
-            out = spatial_wise
-        else:
-            y = self.conv(x)
-            y = self.sigmoid(y)
-            if self.use_softmax:
-                y = self.spatial_softmax(y)
-            out = torch.mul(x, y)
-        if self.learn_weight:
-            out = self.weight_scale(out)
-        return out
-
 class MeanShift(nn.Conv2d):
     def __init__(self, rgb_range, rgb_mean, rgb_std, sign=-1):
         super(MeanShift, self).__init__(3, 3, kernel_size=1)
@@ -215,38 +135,19 @@ class Upsampler(nn.Sequential):
 
         super(Upsampler, self).__init__(*m)
 
-## Channel Attention (CA) Layer
-class CALayer(nn.Module):
-    def __init__(self, channel, reduction=16):
-        super(CALayer, self).__init__()
-        # global average pooling: feature --> point
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        # feature channel downscale and upscale --> channel weight
-        self.conv_du = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-                nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        y = self.avg_pool(x)
-        y = self.conv_du(y)
-        return torch.mul(x, y)
-
 ## Residual Channel Attention Block (RCAB)
 class RCAB(nn.Module):
     def __init__(
         self, conv, n_feat, kernel_size, reduction,
         bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
 
-        super(RCAB, self).__init__()
+        super().__init__()
         modules_body = []
         for i in range(2):
             modules_body.append(conv(n_feat, n_feat, kernel_size, bias=bias))
             if bn: modules_body.append(nn.BatchNorm2d(n_feat))
             if i == 0: modules_body.append(act)
-        modules_body.append(CALayer(n_feat, reduction))
+        modules_body.append(ChannelAttention(n_feat, reduction))
         self.body = nn.Sequential(*modules_body)
         self.res_scale = res_scale
         self.pa = PA(n_feat)
@@ -260,7 +161,7 @@ class RCAB(nn.Module):
 ## Residual Group (RG)
 class ResidualGroup(nn.Module):
     def __init__(self, conv, n_feat, kernel_size, reduction, act, res_scale, n_resblocks):
-        super(ResidualGroup, self).__init__()
+        super().__init__()
         modules_body = []
         modules_body = [
             RCAB(
@@ -270,7 +171,7 @@ class ResidualGroup(nn.Module):
         
         self.body = nn.Sequential(*modules_body)
 
-        self.pa = PA(n_feat)
+        self.pa = PixelAttention(f_in)(n_feat)
 
     def forward(self, x):
         res = self.body(x)
@@ -281,7 +182,7 @@ class ResidualGroup(nn.Module):
 ## Residual Channel Attention Network (RCAN)
 class RCAN(nn.Module):
     def __init__(self, args, conv=default_conv):
-        super(RCAN, self).__init__()
+        super().__init__()
         self.args = args
 
         n_resgroups = args.n_resgroups

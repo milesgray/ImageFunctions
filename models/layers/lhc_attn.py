@@ -1,3 +1,6 @@
+# https://arxiv.org/abs/2111.07224
+# https://github.com/Bodhis4ttva/LHC_Net
+
 import torch
 from torch import nn
 
