@@ -3,6 +3,7 @@
 # modified from: https://github.com/thstkdgus35/EDSR-PyTorch
 
 from argparse import Namespace
+from functools import partial
 
 import torch
 import torch.nn as nn
@@ -24,7 +25,7 @@ class RDB_Conv(nn.Module):
 
     def forward(self, x):
         out = self.conv(x)
-        return torch.cat((x, self.pa(out)), 1)
+        return torch.cat((x, self.attn(out)), 1)
 
 class RDB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers, kSize=3,
@@ -56,7 +57,9 @@ class RDN(nn.Module):
         attn_fn = eval(attn_fn) if isinstance(attn_fn, str) else attn_fn
 
         # number of RDB blocks, conv layers, out channels
-        self.D, C, G = args.D. args.C. args.G
+        self.D = args.D
+        C = args.C
+        G = args.G
         
         # Shallow feature extraction net
         self.SFENet1 = nn.Conv2d(args.n_colors, G0, kSize, padding=(kSize-1)//2, stride=1)

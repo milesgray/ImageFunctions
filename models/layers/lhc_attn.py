@@ -3,12 +3,13 @@
 
 import torch
 from torch import nn
+import numpy as np
 
 class LocalMultiHeadChannelAttention(nn.Module):
     def __init__(self, out_channels, 
                  pool_size=3, 
-                 head_dim=8, 
-                 head_num=8, 
+                 head_dim=128, 
+                 head_num=16, 
                  kernel_size=1, 
                  norm_c=0.1):
         super().__init__()
@@ -16,21 +17,21 @@ class LocalMultiHeadChannelAttention(nn.Module):
         self.head_dim = head_dim
         self.head_num = head_num
         self.out_channels = out_channels
-        #self.res = res
+        self.res = int(np.sqrt(head_num * head_dim))
         self.kernel_size = kernel_size
         self.norm_c = norm_c
         
-        self.pool_q = nn.AvgPool2d(kernel_size=self.pool_size)
-        self.pool_k = nn.MaxPool2d(kernel_size=self.pool_size)
+        self.pool_q = nn.AdaptiveAvgPool2d((self.res, self.res))
+        self.pool_k = nn.AdaptiveMaxPool2d((self.res, self.res))
         self.w_q_k = [nn.Linear(self.head_dim, self.head_dim) for _ in range(self.head_num)]
-        self.w_p = nn.Sequential([
-            nn.Linear(self.out_channels, self.out_channels),
+        self.w_p = nn.Sequential(*[
+            nn.Linear(self.head_dim, self.out_channels),
             nn.Sigmoid()
         ])
         self.w_v = nn.Conv2d(self.out_channels, self.out_channels, self.kernel_size)
-        self.pool_v = nn.AvgPool2d(3)
+        self.pool_v = nn.AdaptiveAvgPool2d((self.res, self.res))
         
-        self.weight = torch.Parameter(torch.FloatTensor(0.0), requires_grad=True)
+        self.weight = nn.Parameter(torch.FloatTensor((0.0,)), requires_grad=True)
     
     def vector_scaled_dot_product_attention(self, q, k, v):
         scores = torch.matmul(q, k.T)       # [Batch, Heads, Channels, Channels]
@@ -48,14 +49,11 @@ class LocalMultiHeadChannelAttention(nn.Module):
     def forward(self, x):
         B = x.shape[0]
         C = self.out_channels
-        R = x.shape[1]
+        R = self.res
         head_res_dim = (R*R)//self.head_num
         
         query = self.pool_q(x) \
-            .view(B, R*R, C)\
-                .permute((0, 2, 1)) \
-                    .view(B, C, self.num_heads, head_res_dim) \
-                        .permute((0, 2, 1, 3)) # [Batch, Heads, Channels, Head Res Dim]
+                    .view(B, self.head_num, C, head_res_dim) # [Batch, Heads, Channels, Head Res Dim]
         q = [None] * self.head_num
         for i in range(self.head_num):
             q[i] = self.w_q_k(query[:, i, :, :]) \
@@ -63,10 +61,7 @@ class LocalMultiHeadChannelAttention(nn.Module):
         query = torch.cat(q, dim=1) # [Batch, Heads, Channels, Head Res Dim]
         
         key = self.pool_k(x) \
-            .view(B, R*R, C) \
-                .permute((0,2,1)) \
-                    .view(B, C, self.head_num, head_res_dim) \
-                        .permute(0,2,1,3) # [Batch, Heads, Channels, Head Res Dim]
+            .view(B, self.head_num, C, head_res_dim) # [Batch, Heads, Channels, Head Res Dim]
         k = [None] * self.head_num
         for i in range(self.head_num):
             k[i] = self.w_q_k(key[:, i, :, :]) \
@@ -75,15 +70,9 @@ class LocalMultiHeadChannelAttention(nn.Module):
         
         value = self.w_v(x)
         value = self.pool_v(value) \
-            .view(B, R*R, C) \
-                .permute((0,2,1)) \
-                    .view(B, C, self.head_num, head_res_dim) \
-                        .permute((0,2,1,3)) # [Batch, Heads, Channels, Head Res Dim]
+            .view(B, self.head_num, C, head_res_dim) # [Batch, Heads, Channels, Head Res Dim]
         
         attention = self.vector_scaled_dot_product_attention(query, key, value)
-        attention = attention.permute((0,2,1,3)) \
-            .view(B, C, R*R) \
-                .permute((0,2,1)) \
-                    .view(B, R, R, C)   # [Batch, Resolution, Resolution, Channels]
+        attention = attention.view(B, C, R, R)   # [Batch, Resolution, Resolution, Channels]
         
         return x + (attention * (1 + self.weight)) # [Batch, Resolution, Resolution, Channels]

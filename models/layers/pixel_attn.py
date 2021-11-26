@@ -19,23 +19,32 @@ class Scale(nn.Module):
         super().__init__()
         self.scale = nn.Parameter(torch.FloatTensor([init_value]), requires_grad=True)
 
-    def forward(self, input):
-        return input * self.scale
+    def forward(self, x):
+        return x * self.scale
+
+class Balance(nn.Module):
+    def __init__(self, init_value=0.5):
+        super().__init__()
+        self.beta = nn.Parameter(torch.FloatTensor([init_value]), requires_grad=True)
+
+    def forward(self, x, y):
+        return (x * self.beta) + (y * (1 - self.beta))
 
 class SpatialSoftmax2d(nn.Module):
     def __init__(self, temp=1.0, requires_grad=True):
         super().__init__()
         self.temp = nn.Parameter(torch.FloatTensor((temp,)), requires_grad=requires_grad)
+        self.softmax = nn.Softmax2d()
 
     def forward(self, x):
-        x = spatial_softmax2d(x, temperature=self.temp)
-        return x
+        x = self.softmax(x)
+        return x * self.temp
 
 class ChannelSoftmax2d(nn.Module):
     def __init__(self, temp=1.0, requires_grad=True):
         super().__init__()
         self.temp = nn.Parameter(torch.FloatTensor((temp,)), requires_grad=requires_grad)
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.softmax(x)
@@ -89,6 +98,7 @@ class PixelAttention(nn.Module):
             self.global_scale = Scale(1.0)
             self.channel_scale = Scale(1.0)
             self.spatial_scale = Scale(1.0)
+            self.global_balance = Balance()
 
     def forward(self, x):
         """Creates an attention mask in the same shape as input.
@@ -105,22 +115,26 @@ class PixelAttention(nn.Module):
         x = self.resize(x)
         if self.spatial_wise:
             spatial_y = self.spatial_conv(x)
+            if self.learn_weight:
+                spatial_y = self.spatial_scale(spatial_y)
             spatial_y = self.sigmoid(spatial_y)
             if self.use_softmax:
                 spatial_y = self.spatial_softmax(spatial_y)
             spatial_out = torch.mul(x, spatial_y)
         if self.channel_wise:
             channel_y = self.channel_conv(x)
+            if self.learn_weight:
+                channel_y = self.channel_scale(channel_y)
             channel_y = self.sigmoid(channel_y)
             if self.use_softmax:
                 channel_y = self.channel_softmax(channel_y)
             channel_out = torch.mul(x, channel_y)
         if self.channel_wise and self.spatial_wise:
-            out = spatial_out + channel_out
+            out = self.global_balance(spatial_out, channel_out)
         elif self.channel_wise:
-            out = channel_wise
+            out = channel_out
         elif self.spatial_wise:
-            out = spatial_wise
+            out = spatial_out
         else:
             y = self.conv(x)
             y = self.sigmoid(y)
