@@ -11,9 +11,9 @@ train_dataset:
     name: sr-setrange-downsampled-randcrop
     args:
       inp_size_min: 32
-      inp_size_max: 64
+      inp_size_max: 128
       scale_min: 2
-      scale_max: 6
+      scale_max: 4
       augment: true
       sample_q: 4096
       vary_q: true
@@ -50,7 +50,9 @@ model:
     encoder_spec:
       name: rdn
       args:
-        RDNconfig: 'A'
+        D: 30
+        C: 4
+        G: 64
         no_upsampling: true
     imnet_spec:
       name: mlp
@@ -61,7 +63,7 @@ model:
         use_sine: true
 
 optimizer:
-  name: adam
+  name: adamw
   args:
     lr: 1.e-4
 

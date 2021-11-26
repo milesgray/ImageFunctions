@@ -11,7 +11,8 @@ from .layers import PixelAttention, LocalMultiHeadChannelAttention
 from models import register
 
 class RDB_Conv(nn.Module):
-    def __init__(self, inChannels, growRate, kSize=3):
+    def __init__(self, inChannels, growRate, kSize=3,
+                 attn_fn=PixelAttention):
         super(RDB_Conv, self).__init__()
         Cin = inChannels
         G  = growRate
@@ -19,14 +20,15 @@ class RDB_Conv(nn.Module):
             nn.Conv2d(Cin, G, kSize, padding=(kSize-1)//2, stride=1),
             nn.ReLU()
         ])
-        self.pa = PixelAttention(G)
+        self.attn = attn_fn(G)
 
     def forward(self, x):
         out = self.conv(x)
         return torch.cat((x, self.pa(out)), 1)
 
 class RDB(nn.Module):
-    def __init__(self, growRate0, growRate, nConvLayers, kSize=3):
+    def __init__(self, growRate0, growRate, nConvLayers, kSize=3,
+                attn_fn=PixelAttention):
         super().__init__()
         G0 = growRate0
         G  = growRate
@@ -34,7 +36,7 @@ class RDB(nn.Module):
 
         convs = []
         for c in range(C):
-            convs.append(RDB_Conv(G0 + c*G, G))
+            convs.append(RDB_Conv(G0 + c*G, G, attn_fn=attn_fn))
         self.convs = nn.Sequential(*convs)
 
         # Local Feature Fusion
@@ -50,13 +52,12 @@ class RDN(nn.Module):
         r = args.scale[0]
         G0 = args.G0
         kSize = args.RDNkSize
+        attn_fn = args.attn_fn  if hasattr(args, "attn_fn") else PixelAttention        
+        attn_fn = eval(attn_fn) if isinstance(attn_fn, str) else attn_fn
 
         # number of RDB blocks, conv layers, out channels
-        self.D, C, G = {
-            'A': (20, 6, 32),
-            'B': (16, 8, 64),
-        }[args.RDNconfig]
-
+        self.D, C, G = args.D. args.C. args.G
+        
         # Shallow feature extraction net
         self.SFENet1 = nn.Conv2d(args.n_colors, G0, kSize, padding=(kSize-1)//2, stride=1)
         self.SFENet2 = nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
@@ -65,7 +66,10 @@ class RDN(nn.Module):
         self.RDBs = nn.ModuleList()
         for i in range(self.D):
             self.RDBs.append(
-                RDB(growRate0 = G0, growRate = G, nConvLayers = C)
+                RDB(growRate0 = G0, 
+                    growRate = G, 
+                    nConvLayers = C,
+                    attn_fn = attn_fn)
             )
 
         # Global Feature Fusion
@@ -115,12 +119,22 @@ class RDN(nn.Module):
 
 
 @register('rdn')
-def make_rdn(G0=64, RDNkSize=3, RDNconfig='B',
+def make_rdn(D=20, C=6, G=32, attn_fn='PixelAttention',
+             G0=64, RDNkSize=3, RDNconfig=None,
              scale=2, no_upsampling=False):
     args = Namespace()
+    args.D = D
+    args.C = C
+    args.G = G
+    args.attn_fn = attn_fn
     args.G0 = G0
     args.RDNkSize = RDNkSize
-    args.RDNconfig = RDNconfig
+    RDNstaticConfig = {
+        'A': (20, 6, 32),
+        'B': (16, 8, 64),
+    }
+    if RDNconfig in RDNstaticConfig:
+        args.D, args.C, args.G = RDNstaticConfig[RDNconfig]
 
     args.scale = [scale]
     args.no_upsampling = no_upsampling

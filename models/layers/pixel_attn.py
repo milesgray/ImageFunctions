@@ -12,14 +12,7 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
         padding=(kernel_size//2), 
         bias=bias)
 
-class SpatialSoftmax2d(nn.Module):
-    def __init__(self, temp=1.0):
-        super().__init__()
-        self.temp = nn.Parameter(torch.FloatTensor((temp,)), requires_grad=True)
 
-    def forward(self, x):
-        x = spatial_softmax2d(x, temperature=self.temp)
-        return x
 
 class Scale(nn.Module):
     def __init__(self, init_value=1e-3):
@@ -28,6 +21,25 @@ class Scale(nn.Module):
 
     def forward(self, input):
         return input * self.scale
+
+class SpatialSoftmax2d(nn.Module):
+    def __init__(self, temp=1.0, requires_grad=True):
+        super().__init__()
+        self.temp = nn.Parameter(torch.FloatTensor((temp,)), requires_grad=requires_grad)
+
+    def forward(self, x):
+        x = spatial_softmax2d(x, temperature=self.temp)
+        return x
+
+class ChannelSoftmax2d(nn.Module):
+    def __init__(self, temp=1.0, requires_grad=True):
+        super().__init__()
+        self.temp = nn.Parameter(torch.FloatTensor((temp,)), requires_grad=requires_grad)
+        self.softmax = nn.Softmax()
+
+    def forward(self, x):
+        x = self.softmax(x)
+        return x * self.temp
 
 class PixelAttention(nn.Module):
     '''Pixel Attention Layer'''
@@ -68,13 +80,15 @@ class PixelAttention(nn.Module):
         # optional softmax operations for channel-wise and spatial attention layers
         self.use_softmax = softmax
         if self.use_softmax:
-            self.spatial_softmax = SpatialSoftmax2d()
-            self.channel_softmax = nn.Softmax2d()
+            self.spatial_softmax = SpatialSoftmax2d(temp=1.0, requires_grad=learn_weight)
+            self.channel_softmax = ChannelSoftmax2d(temp=1.0, requires_grad=learn_weight)
 
         # optional learnable scaling layer that is applied after attention
         self.learn_weight = learn_weight
         if self.learn_weight:
-            self.weight_scale = Scale(1.0)
+            self.global_scale = Scale(1.0)
+            self.channel_scale = Scale(1.0)
+            self.spatial_scale = Scale(1.0)
 
     def forward(self, x):
         """Creates an attention mask in the same shape as input.
@@ -114,5 +128,5 @@ class PixelAttention(nn.Module):
                 y = self.spatial_softmax(y)
             out = torch.mul(x, y)
         if self.learn_weight:
-            out = self.weight_scale(out)
+            out = self.global_scale(out)
         return out
