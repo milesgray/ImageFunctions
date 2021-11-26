@@ -5,14 +5,18 @@ import torch
 from torch import nn
 
 class LocalMultiHeadChannelAttention(nn.Module):
-    def __init__(self, out_channels, pool_size, head_dim, 
-                 head_num, res, kernel_size, norm_c):
+    def __init__(self, out_channels, 
+                 pool_size=3, 
+                 head_dim=8, 
+                 head_num=8, 
+                 kernel_size=1, 
+                 norm_c=0.1):
         super().__init__()
         self.pool_size = pool_size
         self.head_dim = head_dim
         self.head_num = head_num
         self.out_channels = out_channels
-        self.res = res
+        #self.res = res
         self.kernel_size = kernel_size
         self.norm_c = norm_c
         
@@ -25,6 +29,8 @@ class LocalMultiHeadChannelAttention(nn.Module):
         ])
         self.w_v = nn.Conv2d(self.out_channels, self.out_channels, self.kernel_size)
         self.pool_v = nn.AvgPool2d(3)
+        
+        self.weight = torch.Parameter(torch.FloatTensor(0.0), requires_grad=True)
     
     def vector_scaled_dot_product_attention(self, q, k, v):
         scores = torch.matmul(q, k.T)       # [Batch, Heads, Channels, Channels]
@@ -39,10 +45,10 @@ class LocalMultiHeadChannelAttention(nn.Module):
         attentions = torch.matmul(weights, v)
         return attentions
     
-    def forward(self, x, weight=0):
+    def forward(self, x):
         B = x.shape[0]
         C = self.out_channels
-        R = self.res
+        R = x.shape[1]
         head_res_dim = (R*R)//self.head_num
         
         query = self.pool_q(x) \
@@ -72,7 +78,7 @@ class LocalMultiHeadChannelAttention(nn.Module):
             .view(B, R*R, C) \
                 .permute((0,2,1)) \
                     .view(B, C, self.head_num, head_res_dim) \
-                        .permute(0,2,1,3) # [Batch, Heads, Channels, Head Res Dim]
+                        .permute((0,2,1,3)) # [Batch, Heads, Channels, Head Res Dim]
         
         attention = self.vector_scaled_dot_product_attention(query, key, value)
         attention = attention.permute((0,2,1,3)) \
@@ -80,4 +86,4 @@ class LocalMultiHeadChannelAttention(nn.Module):
                 .permute((0,2,1)) \
                     .view(B, R, R, C)   # [Batch, Resolution, Resolution, Channels]
         
-        return x + (attention * (1 + weight)) # [Batch, Resolution, Resolution, Channels]
+        return x + (attention * (1 + self.weight)) # [Batch, Resolution, Resolution, Channels]
