@@ -56,7 +56,7 @@ class LocalMultiHeadChannelAttention(nn.Module):
                     .view(B, self.head_num, C, head_res_dim) # [Batch, Heads, Channels, Head Res Dim]
         q = [None] * self.head_num
         for i in range(self.head_num):
-            q[i] = self.w_q_k(query[:, i, :, :]) \
+            q[i] = self.w_q_k[i](query[:, i, :, :]) \
                 .unsqueeze(1)       # [Batch, 1, Channels, Head Res Dim]
         query = torch.cat(q, dim=1) # [Batch, Heads, Channels, Head Res Dim]
         
@@ -64,7 +64,7 @@ class LocalMultiHeadChannelAttention(nn.Module):
             .view(B, self.head_num, C, head_res_dim) # [Batch, Heads, Channels, Head Res Dim]
         k = [None] * self.head_num
         for i in range(self.head_num):
-            k[i] = self.w_q_k(key[:, i, :, :]) \
+            k[i] = self.w_q_k[i](key[:, i, :, :]) \
                 .unsqueeze(1)       # [Batch, 1, Channels, Head Res Dim]
         key = torch.cat(k, dim=1)   # [Batch, Heads, Channels, Head Res Dim]
         
@@ -73,6 +73,6 @@ class LocalMultiHeadChannelAttention(nn.Module):
             .view(B, self.head_num, C, head_res_dim) # [Batch, Heads, Channels, Head Res Dim]
         
         attention = self.vector_scaled_dot_product_attention(query, key, value)
-        attention = attention.view(B, C, R, R)   # [Batch, Resolution, Resolution, Channels]
+        attention = attention.view(B, C, R, R)   # [Batch, Channels, Resolution, Resolution]
         
-        return x + (attention * (1 + self.weight)) # [Batch, Resolution, Resolution, Channels]
+        return x + (attention * (1 + self.weight)) # [Batch, Channels, Resolution, Resolution]
