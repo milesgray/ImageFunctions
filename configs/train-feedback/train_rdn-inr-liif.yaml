@@ -52,13 +52,13 @@ model:
       args:
         D: 30
         C: 4
-        G: 64
+        G: 32
         no_upsampling: true
     imnet_spec:
       name: mlp
       args:
         out_dim: 3
-        hidden_list: [256, 256, 256, 256]
+        hidden_list: [256, 256, 256]
         has_bn: true
         use_sine: true
 
