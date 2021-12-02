@@ -23,23 +23,23 @@ class LocalMultiHeadChannelAttention(nn.Module):
         
         self.pool_q = nn.AdaptiveAvgPool2d((self.res, self.res))
         self.pool_k = nn.AdaptiveMaxPool2d((self.res, self.res))
-        self.w_q_k = [nn.Linear(self.head_dim, self.head_dim) for _ in range(self.head_num)]
+        self.w_q_k = [nn.Linear(self.head_dim, self.head_dim).cuda() for _ in range(self.head_num)]
         self.w_p = nn.Sequential(*[
-            nn.Linear(self.head_dim, self.out_channels),
+            nn.Linear(self.head_num, self.out_channels),
             nn.Sigmoid()
         ])
         self.w_v = nn.Conv2d(self.out_channels, self.out_channels, self.kernel_size)
         self.pool_v = nn.AdaptiveAvgPool2d((self.res, self.res))
-        
+
         self.weight = nn.Parameter(torch.FloatTensor((0.0,)), requires_grad=True)
     
     def vector_scaled_dot_product_attention(self, q, k, v):
-        scores = torch.matmul(q, k.T)       # [Batch, Heads, Channels, Channels]
-        scores_p = scores.mean(3)           # [Batch, Heads, Channels]
-        scores_p = self.w_p(scores_p)       # [Batch, Heads, Channels]
-        scores_p = scores_p.unsqueeze(-1)   # [Batch, Heads, Channels, 1]
+        scores = torch.matmul(q, k.permute((0,1,3,2)))       # [Batch, Heads, Channels, Channels]
+        scores_p = scores.mean(2)           # [Batch, Heads, Channels]
+        scores_p = self.w_p(scores_p.permute((0,2,1)))       # [Batch, Heads, Channels]
+        scores_p = scores_p.unsqueeze(1)   # [Batch, Heads, Channels, 1]
         norm_scores = torch.div(scores, 
-                                torch.pow(k.shape[3].float(),
+                                torch.pow(float(k.shape[3]),
                                           self.norm_c + scores_p))
                                             # [Batch, Heads, Channels, Channels]
         weights = nn.Softmax(dim=3)(norm_scores)

@@ -6,12 +6,12 @@ train_dataset:
       repeat: 1
       cache: in_memory
       first_k: 60000
-      skip_every: 10
+      skip_every: 14
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
       inp_size_min: 32
-      inp_size_max: 128
+      inp_size_max: 64
       scale_min: 2
       scale_max: 4
       augment: true
@@ -26,7 +26,7 @@ val_dataset:
     args:
       root_path: /content/full/
       last_k: 10000
-      skip_every: 10
+      skip_every: 22
       repeat: 1
       cache: in_memory
   wrapper:
