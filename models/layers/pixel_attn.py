@@ -1,54 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from kornia.geometry.subpix import spatial_softmax2d
-
-
-###################################################
-#### START PIXEL ATTENTION ##########################
-
-def default_conv(in_channels, out_channels, kernel_size, bias=True):
-    return nn.Conv2d(in_channels, out_channels, kernel_size,
-        padding=(kernel_size//2), 
-        bias=bias)
-
-
-
-class Scale(nn.Module):
-    def __init__(self, init_value=1e-3):
-        super().__init__()
-        self.scale = nn.Parameter(torch.FloatTensor([init_value]), requires_grad=True)
-
-    def forward(self, x):
-        return x * self.scale
-
-class Balance(nn.Module):
-    def __init__(self, init_value=0.5):
-        super().__init__()
-        self.beta = nn.Parameter(torch.FloatTensor([init_value]), requires_grad=True)
-
-    def forward(self, x, y):
-        return (x * self.beta) + (y * (1 - self.beta))
-
-class SpatialSoftmax2d(nn.Module):
-    def __init__(self, temp=1.0, requires_grad=True):
-        super().__init__()
-        self.temp = nn.Parameter(torch.FloatTensor((temp,)), requires_grad=requires_grad)
-        self.softmax = nn.Softmax2d()
-
-    def forward(self, x):
-        x = self.softmax(x)
-        return x * self.temp
-
-class ChannelSoftmax2d(nn.Module):
-    def __init__(self, temp=1.0, requires_grad=True):
-        super().__init__()
-        self.temp = nn.Parameter(torch.FloatTensor((temp,)), requires_grad=requires_grad)
-        self.softmax = nn.Softmax(dim=1)
-
-    def forward(self, x):
-        x = self.softmax(x)
-        return x * self.temp
+from .learnable import Scale, Balance
+from .softmax import SpatialSoftmax2d, ChannelSoftmax2d
 
 class PixelAttention(nn.Module):
     '''Pixel Attention Layer'''

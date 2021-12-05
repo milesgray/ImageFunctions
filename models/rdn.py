@@ -21,11 +21,12 @@ class RDB_Conv(nn.Module):
             nn.Conv2d(Cin, G, kSize, padding=(kSize-1)//2, stride=1),
             nn.ReLU()
         ])
-        self.attn = attn_fn(G)
+        self.out_attn = attn_fn(G)
+        self.in_attn = attn_fn(G)
 
     def forward(self, x):
         out = self.conv(x)
-        return torch.cat((x, self.attn(out)), 1)
+        return torch.cat((self.in_attn(x), self.out_attn(out)), 1)
 
 class RDB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers, kSize=3,

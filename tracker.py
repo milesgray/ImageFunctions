@@ -37,12 +37,7 @@ import numpy as np
 class LossTracker:
     def __init__(self, name, 
                  experiment=None, 
-                 weight=1.0, 
-                 warmup=np.inf,
-                 loss_limit=[-np.inf, np.inf], 
-                 block_size=100, 
-                 use_scaling=False,
-                 scale_range=[0.2, 5.0]):
+                  ):
         """Wrapper around a call to a PyTorch Loss result that
         tracks the historical loss values and calculates statistics
         that can be used to automatically scale the applied loss
@@ -58,7 +53,7 @@ class LossTracker:
                 `warmup` value set.
                 Defaults to 1.0.
             warmup (int, optional): Number of updates to wait before applying dynamic
-                scaling value instead of the static `weight` scaling value. 
+                scaling value instead of the static `weight` scaling value.
                 Defaults to np.inf.
             loss_limit (list, optional): The minimum and maximum values to restrict
                 final loss values to. Defaults to [-np.inf, np.inf].
