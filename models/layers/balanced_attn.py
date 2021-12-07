@@ -45,19 +45,6 @@ class SpatialAttention(nn.Module):
         x = self.conv1(max_out)
         return self.sigmoid(x)
 
-class BlancedAttention(nn.Module):
-    def __init__(self, in_planes, reduction=16):
-        super().__init__()
-
-        self.ca = ChannelAttention(in_planes, reduction)
-        self.sa = SpatialAttention()
-
-    def forward(self, x):
-        ca_ch = self.ca(x)
-        sa_ch = self.sa(x)
-        out=ca_ch.mul(sa_ch).mul(x)
-        return out
-
 class ChannelAttention_maxpool(nn.Module):
     def __init__(self, in_planes, ratio=16):
         super().__init__()
@@ -94,14 +81,18 @@ class SpatialAttention_averagepool(nn.Module):
         return self.sigmoid(x)
 
 class BlancedAttention(nn.Module):
-    def __init__(self, in_planes, reduction=16):
+    def __init__(self, in_planes, reduction=16, use_pool=True):
         super().__init__()
 
-        self.ca = ChannelAttention_maxpool(in_planes, reduction)
-        self.sa = SpatialAttention_averagepool()
+        if use_pool:
+            self.ca = ChannelAttention_maxpool(in_planes, reduction)
+            self.sa = SpatialAttention_averagepool()
+        else:
+            self.ca = ChannelAttention(in_planes, reduction)
+            self.sa = SpatialAttention()
 
     def forward(self, x):
         ca_ch = self.ca(x)
         sa_ch = self.sa(x)
-        out=ca_ch.mul(sa_ch)*x
+        out=ca_ch.mul(sa_ch).mul(x)
         return out
