@@ -8,6 +8,7 @@ from .pixel_attn import PixelAttention
 from .channel_attn import ChannelAttention
 from .lhc_attn import LocalMultiHeadChannelAttention
 from .triplet_attn import TripletAttention
+from .balanced_attn import BalancedAttention
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 
