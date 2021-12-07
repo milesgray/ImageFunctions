@@ -80,7 +80,7 @@ class SpatialAttention_averagepool(nn.Module):
         x = self.conv1(x)
         return self.sigmoid(x)
 
-class BlancedAttention(nn.Module):
+class BalancedAttention(nn.Module):
     def __init__(self, in_planes, reduction=16, use_pool=True):
         super().__init__()
 
