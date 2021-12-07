@@ -67,10 +67,10 @@ class RDAN(nn.Module):
         self.SFENet2 = nn.Conv2d(G0, G0, k, padding=(k-1)//2, stride=1)
 
         # Redidual dense blocks and dense feature fusion
-        self.RDBs = nn.ModuleList()
+        self.RDABs = nn.ModuleList()
         for i in range(self.D):
-            self.RDBs.append(
-                RDB(growRate0 = G0,
+            self.RDABs.append(
+                RDAB(growRate0 = G0,
                     growRate = G,
                     nConvLayers = C,
                     attn_fn = attn_fn)
@@ -108,12 +108,12 @@ class RDAN(nn.Module):
         f__1 = self.SFENet1(x)
         x  = self.SFENet2(f__1)
 
-        RDBs_out = []
+        RDABs_out = []
         for i in range(self.D):
-            x = self.RDBs[i](x)
-            RDBs_out.append(x)
+            x = self.RDABs[i](x)
+            RDABs_out.append(x)
 
-        x = self.GFF(torch.cat(RDBs_out, 1))
+        x = self.GFF(torch.cat(RDABs_out, 1))
         x += f__1
 
         if self.args.no_upsampling:
