@@ -28,17 +28,17 @@ class PixelAttention(nn.Module):
             self.resize = nn.Identity()
         # automatic resizing to ensure input and output sizes match for attention/residual layer
         if f_in != f_out:
-            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1)])
+            self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1, bias=False)])
 
         # layers for optional channel-wise and/or spacial attention
         self.channel_wise = channel_wise
         self.spatial_wise = spatial_wise
         if self.channel_wise:
-            self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out)
+            self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out, bias=False)
         if self.spatial_wise:
-            self.spatial_conv = nn.Conv2d(f_out, f_out, 1)
+            self.spatial_conv = nn.Conv2d(f_out, f_out, 1, bias=False)
         if not self.channel_wise and not self.spatial_wise:
-            self.conv = nn.Conv2d(f_out, f_out, 1)
+            self.conv = nn.Conv2d(f_out, f_out, 1, bias=False)
 
         # optional softmax operations for channel-wise and spatial attention layers
         self.use_softmax = softmax
