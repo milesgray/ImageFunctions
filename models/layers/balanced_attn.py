@@ -43,7 +43,7 @@ class SpatialAttention(nn.Module):
         x = self.conv1(max_out)
         return self.sigmoid(x)
 
-class ChannelAttention_maxpool(nn.Module):
+class MixPoolChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
         super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
@@ -61,7 +61,7 @@ class ChannelAttention_maxpool(nn.Module):
         out = avg_out+max_out
         return self.sigmoid(out)
 
-class SpatialAttention_averagepool(nn.Module):
+class CatPoolSpatialAttention(nn.Module):
     def __init__(self, kernel_size=7):
         super().__init__()
 
@@ -83,8 +83,8 @@ class BalancedAttention(nn.Module):
         super().__init__()
 
         if use_pool:
-            self.ca = ChannelAttention_maxpool(in_planes, reduction)
-            self.sa = SpatialAttention_averagepool()
+            self.ca = MixPoolChannelAttention(in_planes, reduction)
+            self.sa = CatPoolSpatialAttention()
         else:
             self.ca = ChannelAttention(in_planes, reduction)
             self.sa = SpatialAttention()
