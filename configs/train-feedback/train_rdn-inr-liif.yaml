@@ -17,6 +17,7 @@ train_dataset:
       augment: true
       sample_q: 4096
       vary_q: true
+      max_q: 8192
       return_hr: true
   batch_size: 1
 
