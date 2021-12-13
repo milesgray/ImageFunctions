@@ -621,7 +621,7 @@ class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
                 max_q = len(hr_coord) if self.max_q is None else self.max_q
                 sample_q = round(self.sample_q * self.rand_scale)
                 sample_lst = np.random.choice(len(hr_coord), 
-                                              min(max_q, sample_q), 
+                                              min(min(max_q, sample_q), len(hr_coord)),
                                               replace=False)
             else:
                 sample_lst = np.random.choice(len(hr_coord), 
