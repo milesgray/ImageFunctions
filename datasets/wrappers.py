@@ -16,7 +16,6 @@ from datasets import augments
 
 @register('sr-implicit-paired')
 class SRImplicitPaired(Dataset):
-
     def __init__(self, dataset, inp_size=None, augment=False, sample_q=None):
         self.dataset = dataset
         self.inp_size = inp_size
@@ -279,7 +278,6 @@ class RandCropDataset(Dataset):
     def shuffle_mapping(self):
         self.dataset.shuffle_mapping()
 
-
 class SRRandCropDataset(RandCropDataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8,
@@ -399,7 +397,6 @@ class SRExplicitDownsampledRandCrop(SRRandCropDataset):
                  augment=augment, sample_q=sample_q, color_augment=color_augment, color_augment_strength=color_augment_strength,
                  return_hr=return_hr)
 
-
 @register('sr-randrange-downsampled-randcrop')
 class SRRandRangeDownsampledRandCrop(SRRandCropDataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
@@ -457,14 +454,13 @@ class SRRandRangeDownsampledRandCrop(SRRandCropDataset):
 
         return hr_coord, hr_rgb, cell
 
-
 @register('sr-setrange-downsampled-randcrop')
 class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
     def __init__(self, dataset, 
                  inp_size=None, inp_size_min=None, inp_size_max=None, min_size=16,
                  scale_min=1, scale_max=None,
                  augment=False, color_augment=False, color_augment_strength=0.8, 
-                 sample_q=None, vary_q=False, use_subgrid_coords=False,
+                 sample_q=None, vary_q=False, q_max=None, use_subgrid_coords=False,
                  return_hr=False, resize_hr=False, return_freq=False):
         super().__init__(dataset, inp_size=inp_size, scale_min=scale_min, scale_max=scale_max,
                  augment=augment, sample_q=sample_q, color_augment=color_augment, 
@@ -476,9 +472,9 @@ class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
         self.resize_hr = resize_hr
         self.return_freq = return_freq
         self.vary_q = vary_q
+        self.q_max = q_max
         self.use_subgrid_coords = use_subgrid_coords
         self.rand_scale = None
-
 
     def __getitem__(self, idx):
         img = self.dataset[idx]
@@ -622,8 +618,10 @@ class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
 
         if self.sample_q is not None:
             if self.vary_q:
+                max_q = len(hr_coord) if self.max_q is None else self.max_q
+                sample_q = round(self.sample_q * self.rand_scale)
                 sample_lst = np.random.choice(len(hr_coord), 
-                                              min(round(self.sample_q * self.rand_scale), len(hr_coord)), 
+                                              min(max_q, sample_q), 
                                               replace=False)
             else:
                 sample_lst = np.random.choice(len(hr_coord), 
@@ -678,9 +676,6 @@ class ZRSetRangeDownsampledRandCrop(SRSetRangeDownsampledRandCrop):
             else:
                 crop_hr = resize_fn(crop_hr, round(self.inp_size * s))
         return crop_lr, crop_hr, f_crop_hr
-
-
-
 
 @register('ed-setrange-downsampled-randcrop')
 class EDSetRangeDownsampledRandCrop(SRRandCropDataset):
@@ -890,7 +885,6 @@ class EDSetRangeDownsampledRandCrop(SRRandCropDataset):
         cell[:, 1] *= 2 / crop_hr.shape[-1]
 
         return hr_coord, hr_rgb, cell, hr_freq
-
 
 @register('contrastive-randcrop')
 class ContrastiveRandCrop(RandCropDataset):

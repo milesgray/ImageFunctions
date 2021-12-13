@@ -1,5 +1,6 @@
 from torch import nn
 from .learnable import Balance
+
 class ChannelAttention(nn.Module):
     def __init__(self, channel, reduction=16, bias=False):
         super().__init__()

@@ -1,11 +1,12 @@
 from .learnable import *
 from .softmax import *
+from .gate import *
 from .mean_shift import MeanShift
 from .pool import ZPool
 
 from .hessian_attn import HessianAttention, MSHF, DiEnDec, DAC
 from .pixel_attn import PixelAttention
-from .channel_attn import ChannelAttention
+from .channel_attn import ChannelAttention, MixPoolChannelAttention
 from .lhc_attn import LocalMultiHeadChannelAttention
 from .triplet_attn import TripletAttention
 from .balanced_attn import BalancedAttention
