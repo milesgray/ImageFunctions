@@ -5,7 +5,7 @@ train_dataset:
       root_path: /content/full/
       repeat: 1
       cache: in_memory
-      first_k: 120000
+      last_k: 120000
       skip_every: 30
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -26,8 +26,8 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      last_k: 42000
-      skip_every: 84
+      first_k: 42000
+      skip_every: 168
       repeat: 1
       cache: in_memory
   wrapper:
