@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 
+from .registry import register
+
+@register("charbonnier")
 class CharbonnierLoss(nn.Module):
     """Charbonnier Loss (L1)"""
 

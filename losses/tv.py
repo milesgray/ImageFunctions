@@ -1,5 +1,8 @@
 import torch.nn as nn
 
+from argparse import Namespace
+from .registry import register
+
 class TVLoss(nn.Module):
     def __init__(self, weight=1.0):
         super().__init__()

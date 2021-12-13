@@ -188,13 +188,12 @@ def nll_loss(input, target):
 class TaylorSoftmax(nn.Module):
 
     def __init__(self, dim=1, n=2):
-        super(TaylorSoftmax, self).__init__()
+        super().__init__()
         assert n % 2 == 0
         self.dim = dim
         self.n = n
 
     def forward(self, x):
-        
         fn = torch.ones_like(x)
         denor = 1.
         for i in range(1, self.n+1):
@@ -202,15 +201,15 @@ class TaylorSoftmax(nn.Module):
             fn = fn + x.pow(i) / denor
         out = fn / fn.sum(dim=self.dim, keepdims=True)
         return out
-
+@register("label_smoothing")
 class LabelSmoothingLoss(nn.Module):
-
     def __init__(self, classes, smoothing=0.0, dim=-1): 
-        super(LabelSmoothingLoss, self).__init__() 
+        super().__init__() 
         self.confidence = 1.0 - smoothing 
         self.smoothing = smoothing 
         self.cls = classes 
         self.dim = dim 
+        
     def forward(self, pred, target): 
         """Taylor Softmax and log are already applied on the logits"""
         #pred = pred.log_softmax(dim=self.dim) 
@@ -220,7 +219,7 @@ class LabelSmoothingLoss(nn.Module):
             true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence) 
         return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
     
-
+@register("taylor_ce")
 class TaylorCrossEntropyLoss(nn.Module):
 
     def __init__(self, n=2, ignore_index=-1, reduction='mean', smoothing=0.2):
@@ -319,7 +318,6 @@ def compute_normalization_binary_search(activations, t, num_iters):
 
     logt_partition = (upper + lower)/2.0
     return logt_partition + mu
-
 class ComputeNormalization(torch.autograd.Function):
     """
     Class implementing custom backward pass for compute_normalization. See compute_normalization.
@@ -372,7 +370,6 @@ def tempered_sigmoid(activations, t, num_iters = 5):
         dim=-1)
     internal_probabilities = tempered_softmax(internal_activations, t, num_iters)
     return internal_probabilities[..., 0]
-
 
 def tempered_softmax(activations, t, num_iters=5):
     """Tempered softmax function.
@@ -475,8 +472,6 @@ def bi_tempered_logistic_loss(activations,
     if reduction == 'mean':
         return loss_values.mean()
 
-
-
 def _squeeze_binary_labels(label):
     if label.size(1) == 1:
         squeeze_label = label.view(len(label), -1)
@@ -500,7 +495,6 @@ def cross_entropy(pred, label, weight=None, reduction='mean', avg_factor=None):
 
     return loss
 
-
 def _expand_binary_labels(labels, label_weights, label_channels):
     bin_labels = labels.new_full((labels.size(0), label_channels), 0)
     inds = torch.nonzero(labels >= 1).squeeze()
@@ -512,7 +506,6 @@ def _expand_binary_labels(labels, label_weights, label_channels):
         bin_label_weights = label_weights.view(-1, 1).expand(
             label_weights.size(0), label_channels)
     return bin_labels, bin_label_weights
-
 
 def binary_cross_entropy(pred,
                          label,
@@ -531,7 +524,6 @@ def binary_cross_entropy(pred,
     loss = weight_reduce_loss(loss, reduction=reduction, avg_factor=avg_factor)
 
     return loss
-
 
 def partial_cross_entropy(pred,
                           label,
@@ -643,8 +635,6 @@ def inverse_sigmoid(Y):
         X.append(x)
 
     return X
-
-
 
 class ResampleLoss(nn.Module):
 
