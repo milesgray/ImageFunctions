@@ -460,7 +460,7 @@ class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
                  inp_size=None, inp_size_min=None, inp_size_max=None, min_size=16,
                  scale_min=1, scale_max=None,
                  augment=False, color_augment=False, color_augment_strength=0.8, 
-                 sample_q=None, vary_q=False, q_max=None, use_subgrid_coords=False,
+                 sample_q=None, vary_q=False, max_q=None, use_subgrid_coords=False,
                  return_hr=False, resize_hr=False, return_freq=False):
         super().__init__(dataset, inp_size=inp_size, scale_min=scale_min, scale_max=scale_max,
                  augment=augment, sample_q=sample_q, color_augment=color_augment, 
@@ -472,7 +472,7 @@ class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
         self.resize_hr = resize_hr
         self.return_freq = return_freq
         self.vary_q = vary_q
-        self.q_max = q_max
+        self.max_q = max_q
         self.use_subgrid_coords = use_subgrid_coords
         self.rand_scale = None
 
