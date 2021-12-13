@@ -6,7 +6,7 @@ train_dataset:
       repeat: 1
       cache: in_memory
       first_k: 120000
-      skip_every: 120
+      skip_every: 60
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
