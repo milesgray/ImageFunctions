@@ -13,6 +13,8 @@ from PIL import Image
 import torch
 import torch.nn as nn
 
+from .registry import register
+
 gamma_range = np.arange(0.2, 10, 0.001)
 a = scipy.special.gamma(2.0/gamma_range)
 a *= a
@@ -190,24 +192,32 @@ def _get_patches_generic(img, patch_size, is_train, stride):
 
     return feats
 
-
-class NIQE(nn.Module):
+@register("niqe")
+class NIQEMetric(nn.Module):
     def __init__(self, patch_size=96, param_path="weights/niqe_image_params.mat"):
         super().__init__()
         self.patch_size = patch_size
         self.param_path = pathlib.Path(dirname(__file__)) / param_path
+        self.params = params = np.load(self.param_path)
         self.params = scipy.io.loadmat(str(self.param_path))
         self.pop_mu = np.ravel(self.params["pop_mu"])
         self.pop_cov = self.params["pop_cov"]
-    
-    def forward(self, x):
-        if x.shape[1] == 3:
-            x = cv2.cvtColor(x, cv2.COLOR_BGR2GRAY)
+        
+    def forward(self, x, patch_size=None):
+        if patch_size is None:
+            patch_size = self.patch_size
+        min_res = patch_size*2+1
+        if len(x.shape) == 4:
+            # detach prevents backprop - needed to switch to numpy
+            x = x.detach().cpu().permute(0,2,3,1).numpy().squeeze()
+            if x.shape[-1] == 3:
+                x = cv2.cvtColor(x, cv2.COLOR_BGR2GRAY).squeeze()
         M, N = x.shape
+        err_msg = f"NIQE called with {M}x{N} frame size, requires > {min_res}x{min_res} resolution image using current training parameters"
 
-        assert M > (self.patch_size*2+1), "niqe called with small frame size, requires > 192x192 resolution video using current training parameters"
-        assert N > (self.patch_size*2+1), "niqe called with small frame size, requires > 192x192 resolution video using current training parameters"
-
+        assert M > min_res, err_msg
+        assert N > min_res, err_msg
+        
         feats = get_patches_test_features(x, self.patch_size)
         sample_mu = np.mean(feats, axis=0)
         sample_cov = np.cov(feats.T)
