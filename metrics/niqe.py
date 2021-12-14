@@ -198,7 +198,6 @@ class NIQEMetric(nn.Module):
         super().__init__()
         self.patch_size = patch_size
         self.param_path = pathlib.Path(dirname(__file__)) / param_path
-        self.params = params = np.load(self.param_path)
         self.params = scipy.io.loadmat(str(self.param_path))
         self.pop_mu = np.ravel(self.params["pop_mu"])
         self.pop_cov = self.params["pop_cov"]
