@@ -8,7 +8,6 @@ import torch.nn.functional as F
 
 from .pool import ZPool
 
-
 class GateConv(nn.Module):
     def __init__(self, in_channel, out_channel, kernel,
                  conv_fn=nn.Conv2d, 

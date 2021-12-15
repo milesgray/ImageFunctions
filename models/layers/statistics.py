@@ -1,5 +1,16 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+def mean_channels(x):
+    assert(x.dim() == 4)
+    spatial_sum = x.sum(3, keepdim=True).sum(2, keepdim=True)
+    return spatial_sum / (x.size(2) * x.size(3))
+def stdv_channels(x):
+    assert(x.dim() == 4)
+    mean = mean_channels(x)
+    variance = (x - mean).sum(3, keepdim=True).sum(2, keepdim=True) / (x.size(2) * x.size(3))
+    return variance
 
 class MeanShift(nn.Conv2d):
     def __init__(self, rgb_range,

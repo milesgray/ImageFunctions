@@ -1,22 +1,33 @@
+from functools import partial
+import typing
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .learnable import Scale, Balance
 from .softmax import SpatialSoftmax2d, ChannelSoftmax2d
+from .pool import ZPool
+from .gate import GateConv, PoolGate
+from .statistics import stdv_channels
 
 class PixelAttention(nn.Module):
-    '''Pixel Attention Layer'''
     def __init__(self, f_in, 
                  f_out=None, 
                  resize="same", 
                  scale=2, 
                  softmax=True, 
+                 gate=False,
+                 gate_params=None,
+                 add_contrast=False,
                  learn_weight=True, 
                  channel_wise=True, 
                  spatial_wise=True):
         super().__init__()
         if f_out is None:
             f_out = f_in
+        
+        self.add_contrast = add_contrast
+        self.contrast = stdv_channels
 
         self.sigmoid = nn.Sigmoid()
         # layers for defined resizing of input so that it matches output
@@ -30,15 +41,27 @@ class PixelAttention(nn.Module):
         if f_in != f_out:
             self.resize = nn.Sequential(*[self.resize, nn.Conv2d(f_in, f_out, 1, bias=False)])
 
+        if gate_params is not None:
+            self.gate = partial(PoolGate, **gate_params)
+        else:
+            self.gate = nn.Identity()
         # layers for optional channel-wise and/or spacial attention
         self.channel_wise = channel_wise
         self.spatial_wise = spatial_wise
         if self.channel_wise:
             self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out, bias=False)
+            if self.gate:
+                self.channel_gate = GateConv(f_out, f_out, 1, conv_args={"bias":False})
         if self.spatial_wise:
             self.spatial_conv = nn.Conv2d(f_out, f_out, 1, bias=False)
+            if self.gate:
+                self.spatial_gate_conv = nn.Conv2d(2, f_out, 7, 
+                                                    padding=3,
+                                                    bias=False)
+                self.spatial_gate_act = nn.Hardsigmoid()           
+                self.spatial_gate_pool = ZPool()
         if not self.channel_wise and not self.spatial_wise:
-            self.conv = nn.Conv2d(f_out, f_out, 1, bias=False)
+            self.conv = GateConv(f_out, f_out, 1, conv_args={"bias":False})
 
         # optional softmax operations for channel-wise and spatial attention layers
         self.use_softmax = softmax
@@ -67,21 +90,33 @@ class PixelAttention(nn.Module):
         """        
         # make x same shape as y
         x = self.resize(x)
+        if self.add_contrast:
+            x = x + self.contrast(x)
         if self.spatial_wise:
             spatial_y = self.spatial_conv(x)
+            if self.gate:
+                spatial_gate = self.spatial_gate_pool(spatial_y)
+                spatial_gate = self.spatial_gate_conv(spatial_gate)                
+                spatial_gate = self.spatial_gate_act(spatial_gate)
+            spatial_y = self.sigmoid(spatial_y)
             if self.learn_weight:
                 spatial_y = self.spatial_scale(spatial_y)
-            spatial_y = self.sigmoid(spatial_y)
             if self.use_softmax:
                 spatial_y = self.spatial_softmax(spatial_y)
+            if self.gate:
+                spatial_y = spatial_y * spatial_gate
             spatial_out = torch.mul(x, spatial_y)
         if self.channel_wise:
             channel_y = self.channel_conv(x)
+            if self.gate:
+                channel_gate = self.channel_gate(channel_y)
+            channel_y = self.sigmoid(channel_y)
             if self.learn_weight:
                 channel_y = self.channel_scale(channel_y)
-            channel_y = self.sigmoid(channel_y)
             if self.use_softmax:
                 channel_y = self.channel_softmax(channel_y)
+            if self.gate:
+                channel_y = channel_y * channel_gate
             channel_out = torch.mul(x, channel_y)
         if self.channel_wise and self.spatial_wise:
             out = self.global_balance(spatial_out, channel_out)
