@@ -15,19 +15,21 @@ class RDAB_Conv(nn.Module):
                  attn_fn=PixelAttention):
         super().__init__()
         Cin = inChannels
-        G  = growRate
+        self.G  = growRate
         self.conv = nn.Sequential(*[
-            nn.Conv2d(Cin, G, k, padding=(k-1)//2, stride=1),
+            nn.Conv2d(Cin, self.G, k, padding=(k-1)//2, stride=1),
             nn.ELU()
         ])
-        self.out_attn = attn_fn(G)
-        self.in_attn = attn_fn(Cin)
+        self.out_attn = attn_fn(self.G)
+        self.in_attn = attn_fn(self.G)
 
     def forward(self, x):
         out = self.conv(x)
-        in_attn = self.in_attn(x)
+        n = x.shape[1] // self.G
+        splits = torch.split(x, [self.G] * n, dim=1)
+        x = torch.cat([self.in_attn(s) for s in splits], dim=1)
         out_attn = self.out_attn(out)
-        return torch.cat((self.in_attn(x), self.out_attn(out_attn)), 1)
+        return torch.cat((x, self.out_attn(out_attn)), 1)
 
 class RDAB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers,
