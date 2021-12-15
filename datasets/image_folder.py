@@ -19,9 +19,11 @@ class ImageFolder(Dataset):
 
     def __init__(self, root_path, split_file=None, split_key=None, first_k=None,
                  last_k=None, skip_every=1, repeat=1, cache='none', 
-                 shuffle_mapping=False, forced_mapping=None):
+                 shuffle_mapping=False, forced_mapping=None,
+                 mean_color_threshold=90):
         self.repeat = repeat
         self.cache = cache
+        self.mean_color_threshold = mean_color_threshold
 
         if split_file is None:
             filenames = sorted(os.listdir(root_path))
@@ -48,10 +50,15 @@ class ImageFolder(Dataset):
                 filename = filenames[file_idx]
                 file = os.path.join(root_path, filename)
                 
-                self.filenames.append(file)
+                use_file = True
 
                 if cache == 'none':
-                    self.files.append(file)
+                    img = transforms.ToTensor()(
+                        Image.open(file).convert('RGB'))
+                    if img.mean() > self.mean_color_threshold:
+                        self.files.append(file)
+                    else:
+                        use_file = False
 
                 elif cache == 'bin':
                     bin_root = os.path.join(os.path.dirname(root_path),
@@ -68,8 +75,14 @@ class ImageFolder(Dataset):
                     self.files.append(bin_file)
 
                 elif cache == 'in_memory':
-                    self.files.append(transforms.ToTensor()(
-                        Image.open(file).convert('RGB')))
+                    img = transforms.ToTensor()(
+                        Image.open(file).convert('RGB'))
+                    if img.mean() > self.mean_color_threshold:
+                        self.files.append(img)
+                    else:
+                        use_file = False
+                
+                if use_file: self.filenames.append(file)
             except Exception as e:
                 print(f"Failed to load image {filename}: {e}")
 
