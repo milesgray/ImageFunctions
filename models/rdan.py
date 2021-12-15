@@ -18,14 +18,16 @@ class RDAB_Conv(nn.Module):
         G  = growRate
         self.conv = nn.Sequential(*[
             nn.Conv2d(Cin, G, k, padding=(k-1)//2, stride=1),
-            nn.ReLU()
+            nn.GLU()
         ])
         self.out_attn = attn_fn(G)
         self.in_attn = attn_fn(Cin)
 
     def forward(self, x):
         out = self.conv(x)
-        return torch.cat((self.in_attn(x), self.out_attn(out)), 1)
+        in_attn = self.in_attn(x)
+        out_attn = self.out_attn(out)
+        return torch.cat((x + in_attn, out + out_attn), 1)
 
 class RDAB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers,
@@ -63,8 +65,9 @@ class RDAN(nn.Module):
         G = args.G
 
         # Shallow feature extraction net
-        self.SFENet1 = nn.Conv2d(args.n_colors, G0, k, padding=(k-1)//2, stride=1)
-        self.SFENet2 = nn.Conv2d(G0, G0, k, padding=(k-1)//2, stride=1)
+        self.SFE1 = nn.Conv2d(args.n_colors, G0, k, padding=(k-1)//2, stride=1)        
+        self.SFE2 = nn.Conv2d(G0, G0, k, padding=(k-1)//2, stride=1)
+        self.SFE_attn = attn_fn(G0)
 
         # Redidual dense blocks and dense feature fusion
         self.RDABs = nn.ModuleList()
@@ -105,8 +108,8 @@ class RDAN(nn.Module):
                 raise ValueError("scale must be 2 or 3 or 4.")
 
     def forward(self, x):
-        f__1 = self.SFENet1(x)
-        x  = self.SFENet2(f__1)
+        f__1 = self.SFE1(x)
+        x  = self.SFE2(f__1)
 
         RDABs_out = []
         for i in range(self.D):
@@ -114,7 +117,7 @@ class RDAN(nn.Module):
             RDABs_out.append(x)
 
         x = self.GFF(torch.cat(RDABs_out, 1))
-        x += f__1
+        x += f__1 - self.SFE_attn(f__1)
 
         if self.args.no_upsampling:
             return x
