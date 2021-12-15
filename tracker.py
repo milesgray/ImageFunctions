@@ -38,6 +38,11 @@ class LossTracker:
     def __init__(self, name, 
                  fn=lambda x, y: x,
                  experiment=None, 
+                 weight=1.0,
+                 warmup=np.inf,
+                 loss_limit=[-np.inf, np.inf],
+                 block_size=100,
+                 scale_range=[0.2, 5]
                   ):
         """Wrapper around a call to a PyTorch Loss result that
         tracks the historical loss values and calculates statistics
@@ -47,6 +52,7 @@ class LossTracker:
 
         Args:
             name (str): Identifier for this particular loss function.
+            fn (callable): Metric function to use as loss.
             experiment (comet.Experiment, optional): A comet.ml experiment for logging.
                 Defaults to None.
             weight (float, optional): Static value to multiply each loss result by.

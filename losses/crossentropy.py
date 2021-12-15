@@ -11,7 +11,7 @@ from argparse import Namespace
 from .registry import register
 from . import weight_reduce_loss
 
-@register("ndce_loss")
+@register("ndce")
 class CrossentropyND(torch.nn.CrossEntropyLoss):
     """
     Network has to have NO NONLINEARITY!
@@ -33,11 +33,11 @@ class CrossentropyND(torch.nn.CrossEntropyLoss):
 
         target = target.view(-1,)
 
-        return super(CrossentropyND, self).forward(inp, target)
+        return super().forward(inp, target)
 
-@register("topk_ce_loss")
+@register("topk_ce")
 class TopKLoss(CrossentropyND):
-    """
+    """self.metric_fn
     Network has to have NO LINEARITY!
     """
     def __init__(self, weight=None, ignore_index=-100, k=10):
@@ -51,7 +51,7 @@ class TopKLoss(CrossentropyND):
         res, _ = torch.topk(res.view((-1, )), int(num_voxels * self.k / 100), sorted=False)
         return res.mean()
 
-@register("weighted_ce_loss")
+@register("weighted_ce")
 class WeightedCrossEntropyLoss(torch.nn.CrossEntropyLoss):
     """
     Network has to have NO NONLINEARITY!
@@ -80,7 +80,7 @@ class WeightedCrossEntropyLoss(torch.nn.CrossEntropyLoss):
 
         return wce_loss(inp, target)
 
-@register("weighted_ce_2_loss")
+@register("weighted_ce_2")
 class WeightedCrossEntropyLossV2(torch.nn.Module):
     """
     WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf
@@ -184,6 +184,7 @@ def nll_loss(input, target):
 
 # implementations reference - https://github.com/CoinCheung/pytorch-loss/blob/master/pytorch_loss/taylor_softmax.py
 # paper - https://www.ijcai.org/Proceedings/2020/0305.pdf
+@register("taylor_softmax")
 
 class TaylorSoftmax(nn.Module):
 
@@ -574,7 +575,7 @@ class CrossEntropyLoss(nn.Module):
                  reduction='mean',
                  loss_weight=1.0,
                  thrds=None):
-        super(CrossEntropyLoss, self).__init__()
+        super().__init__()
         assert (use_sigmoid is True) or (partial is False)
         self.use_sigmoid = use_sigmoid
         self.use_kpos = use_kpos
