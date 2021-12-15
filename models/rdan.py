@@ -21,7 +21,7 @@ class RDAB_Conv(nn.Module):
             nn.ReLU()
         ])
         self.out_attn = attn_fn(G)
-        self.in_attn = attn_fn(G)
+        self.in_attn = attn_fn(Cin)
 
     def forward(self, x):
         out = self.conv(x)
