@@ -68,7 +68,8 @@ class ImageFolder(Dataset):
                     self.files.append(bin_file)
 
                 elif cache == 'in_memory':
-                    self.files.append(Image.open(file).convert('RGB'))
+                    self.files.append(transforms.ToTensor()(
+                        Image.open(file).convert('RGB')))
             except Exception as e:
                 print(f"Failed to load image {filename}: {e}")
 
@@ -92,7 +93,7 @@ class ImageFolder(Dataset):
             return x
 
         elif self.cache == 'in_memory':
-            return transforms.ToTensor()(x)
+            return x
 
     def shuffle_mapping(self):
         random.shuffle(self.mapping)
@@ -100,6 +101,7 @@ class ImageFolder(Dataset):
 
 @register('paired-image-folders')
 class PairedImageFolders(Dataset):
+
     def __init__(self, root_path_1, root_path_2, **kwargs):
         self.dataset_1 = ImageFolder(root_path_1, shuffle_mapping=True, **kwargs)
         self.dataset_2 = ImageFolder(root_path_2, forced_mapping=self.dataset_1.init_mapping, **kwargs)
