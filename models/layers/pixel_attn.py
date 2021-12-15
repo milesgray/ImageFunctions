@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .learnable import Scale, Balance
 from .softmax import SpatialSoftmax2d, ChannelSoftmax2d
-from .pool import ZPool
+from .pool import ZPool, SpatialMaxPool, SpatialMeanPool
 from .gate import GateConv, PoolGate
 from .statistics import stdv_channels
 
@@ -16,6 +16,7 @@ class PixelAttention(nn.Module):
                  resize="same", 
                  scale=2, 
                  softmax=True, 
+                 use_pool=False,
                  use_gate=False,
                  gate_params=None,
                  add_contrast=False,
@@ -46,15 +47,22 @@ class PixelAttention(nn.Module):
         else:
             self.gate = nn.Identity()
         self.use_gate = use_gate
+        self.use_pool = use_pool
         # layers for optional channel-wise and/or spacial attention
         self.channel_wise = channel_wise
         self.spatial_wise = spatial_wise
         if self.channel_wise:
             self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out, bias=False)
+            if self.use_pool:
+                self.channel_avg_pool = nn.AdaptiveAvgPool2d(1)
+                self.channel_max_pool = nn.AdaptiveMaxPool2d(1)
             if self.use_gate:
                 self.channel_gate = GateConv(f_out, f_out, 1, conv_args={"bias":False})
         if self.spatial_wise:
             self.spatial_conv = nn.Conv2d(f_out, f_out, 1, bias=False)
+            if self.use_pool:
+                self.spatial_avg_pool = SpatialMeanPool()
+                self.spatial_max_pool = SpatialMaxPool()
             if self.use_gate:
                 self.spatial_gate_conv = nn.Conv2d(2, f_out, 7, 
                                                     padding=3,

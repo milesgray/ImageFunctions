@@ -1,5 +1,9 @@
-from torch import nn
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 from .learnable import Balance
+from .registry import register
 
 class ChannelAttention(nn.Module):
     def __init__(self, channel, reduction=16, bias=False):
@@ -17,7 +21,7 @@ class ChannelAttention(nn.Module):
     def forward(self, x):
         y = self.avg_pool(x)
         y = self.attn(y)
-        return x * y
+        return y
 
 class MixPoolChannelAttention(nn.Module):
     def __init__(self, channel, reduction=16, bias=False):
@@ -26,9 +30,13 @@ class MixPoolChannelAttention(nn.Module):
         self.max_pool = nn.AdaptiveMaxPool2d(1)
         
         self.net = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=bias),
+                nn.Conv2d(channel, channel // reduction, 1, 
+                          padding=0, 
+                          bias=bias),
                 nn.PReLU(channel // reduction),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=bias)
+                nn.Conv2d(channel // reduction, channel, 1, 
+                          padding=0, 
+                          bias=bias)
         )
         self.balance = Balance(0.5)
         self.sigmoid = nn.Sigmoid()
