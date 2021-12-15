@@ -27,9 +27,8 @@ class RDAB_Conv(nn.Module):
         out = self.conv(x)
         n = x.shape[1] // self.G
         splits = torch.split(x, [self.G] * n, dim=1)
-        x = torch.cat([self.in_attn(s) for s in splits], dim=1)
-        out_attn = self.out_attn(out)
-        return torch.cat((x, self.out_attn(out_attn)), 1)
+        y = torch.cat([self.in_attn(s) for s in splits] + [self.out_attn(out)], dim=1)
+        return y
 
 class RDAB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers,
