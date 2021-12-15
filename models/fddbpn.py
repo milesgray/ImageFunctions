@@ -6,7 +6,7 @@ from argparse import Namespace
 import torch
 import torch.nn as nn
 
-from .layers import PixelAttention, MeanShift, 
+from .layers import PixelAttention, MeanShift, HessianAttention
 from models import register
 
 class FreqSplit(nn.Module):
