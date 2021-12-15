@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 
+from .registry import register
+
+@register("zpool")
 class ZPool(nn.Module):
     def __init__(self, dim=1):
         super().__init__()

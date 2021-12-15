@@ -1,5 +1,9 @@
-class SAGAN_Attention(nn.Module):
-    def __init__(self, channels, which_conv=nn.Conv2d):
+import torch
+import torch.nn as nn
+from torch.nn import functional as F
+
+class NonLocalAttention(nn.Module):
+    def __init__(self, channels, conv=nn.Conv2d):
         """A non-local block as used in SA-GAN.
 
         Args:
@@ -9,14 +13,14 @@ class SAGAN_Attention(nn.Module):
         super().__init__()
         # Channel multiplier
         self.channels = channels
-        self.which_conv = which_conv
-        self.theta = self.which_conv(
+        self.conv = conv
+        self.theta = self.conv(
             self.ch, self.ch // 8, kernel_size=1, padding=0, bias=False)
-        self.phi = self.which_conv(
+        self.phi = self.conv(
             self.ch, self.ch // 8, kernel_size=1, padding=0, bias=False)
-        self.g = self.which_conv(
+        self.g = self.conv(
             self.ch, self.ch // 2, kernel_size=1, padding=0, bias=False)
-        self.o = self.which_conv(
+        self.o = self.conv(
             self.ch // 2, self.ch, kernel_size=1, padding=0, bias=False)
         # Learnable gain parameter
         self.gamma = nn.Parameter(torch.tensor(0.), requires_grad=True)

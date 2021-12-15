@@ -2,16 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def mean_channels(F):
-    assert(F.dim() == 4)
-    spatial_sum = F.sum(3, keepdim=True).sum(2, keepdim=True)
-    return spatial_sum / (F.size(2) * F.size(3))
-def stdv_channels(F):
-    assert(F.dim() == 4)
-    F_mean = mean_channels(F)
-    F_variance = (F - F_mean).sum(3, keepdim=True).sum(2, keepdim=True) / (F.size(2) * F.size(3))
-    return F_variance
-
 class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
         super().__init__()
@@ -92,5 +82,5 @@ class BalancedAttention(nn.Module):
     def forward(self, x):
         ca_ch = self.ca(x)
         sa_ch = self.sa(x)
-        out=ca_ch.mul(sa_ch).mul(x)
+        out = ca_ch.mul(sa_ch).mul(x)
         return out

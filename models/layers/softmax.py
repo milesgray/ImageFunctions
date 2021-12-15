@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from .learnable import Scale
 
 class SpatialSoftmax2d(nn.Module):
     def __init__(self, temp=1.0, requires_grad=True):

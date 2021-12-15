@@ -4,12 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(
         in_channels, out_channels, kernel_size,
         padding=(kernel_size // 2), bias=bias)
-
 
 def fill(x):
     b, c, h, w = x.size()
@@ -17,6 +15,15 @@ def fill(x):
     pad_w = 8 - w % 8
     y = F.pad(x, [0, pad_w, 0, pad_h])
     return y
+
+def get_mean_std(data):
+    r = data[:, 0, :, :]
+    g = data[:, 1, :, :]
+    b = data[:, 2, :, :]
+    r_std, r_mean = torch.std_mean(r)
+    g_std, g_mean = torch.std_mean(g)
+    b_std, b_mean = torch.std_mean(b)
+    return (r_mean, g_mean, b_mean), (r_std, g_std, b_std)
 
 
 class SpaceToDepth(nn.Module):
@@ -31,10 +38,9 @@ class SpaceToDepth(nn.Module):
         x = x.view(N, C * (self.bs ** 2), H // self.bs, W // self.bs)
         return x
 
-
 class Denoiser(nn.Module):
     def __init__(self, conv, channel, n_feat, act=nn.ReLU(True), bn=False):
-        super(Denoiser, self).__init__()
+        super().__init__()
         self.down2 = SpaceToDepth(2)
         self.down4 = SpaceToDepth(4)
 
@@ -83,48 +89,6 @@ class Denoiser(nn.Module):
         return x
 
 
-class MeanShift(nn.Conv2d):
-    def __init__(
-            self, rgb_range,
-            rgb_mean=(0.4488, 0.4371, 0.4040), rgb_std=(1.0, 1.0, 1.0), sign=-1):
-        super(MeanShift, self).__init__(3, 3, kernel_size=1)
-        std = torch.Tensor(rgb_std)
-        self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
-        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std
-        for p in self.parameters():
-            p.requires_grad = False
-
-
-class SubMeanStd(nn.Conv2d):
-    def __init__(self, rgb_mean, rgb_std, sign=-1):
-        super(SubMeanStd, self).__init__(3, 3, kernel_size=1)
-        std = torch.Tensor(rgb_std)
-        self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
-        self.bias.data = sign * torch.Tensor(rgb_mean) / std
-        for p in self.parameters():
-            p.requires_grad = False
-
-
-class AddMeanStd(nn.Conv2d):
-    def __init__(self, rgb_mean, rgb_std, sign=1):
-        super(AddMeanStd, self).__init__(3, 3, kernel_size=1)
-        std = torch.Tensor(rgb_std)
-        self.weight.data = torch.eye(3).view(3, 3, 1, 1) * std.view(3, 1, 1, 1)
-        self.bias.data = sign * torch.Tensor(rgb_mean)
-        for p in self.parameters():
-            p.requires_grad = False
-
-
-def get_mean_std(data):
-    r = data[:, 0, :, :]
-    g = data[:, 1, :, :]
-    b = data[:, 2, :, :]
-    r_std, r_mean = torch.std_mean(r)
-    g_std, g_mean = torch.std_mean(g)
-    b_std, b_mean = torch.std_mean(b)
-    return (r_mean, g_mean, b_mean), (r_std, g_std, b_std)
-
-
 class BasicBlock(nn.Module):
     def __init__(
             self, conv, in_channels, out_channels, kernel_size, stride=1, bias=False,
@@ -140,13 +104,11 @@ class BasicBlock(nn.Module):
     def forward(self, x):
         return self.body(x)
 
-
 class ResBlock(nn.Module):
     def __init__(
             self, conv, n_feats, kernel_size,
             bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
-
-        super(ResBlock, self).__init__()
+        super().__init__()
         m = []
         for i in range(2):
             m.append(conv(n_feats, n_feats, kernel_size, bias=bias))
@@ -164,10 +126,8 @@ class ResBlock(nn.Module):
 
         return res
 
-
 class Upsampler(nn.Sequential):
     def __init__(self, conv, scale, n_feats, bn=False, act=False, bias=True):
-
         m = []
         if (scale & (scale - 1)) == 0:  # Is scale = 2^n?
             for _ in range(int(math.log(scale, 2))):
@@ -192,4 +152,4 @@ class Upsampler(nn.Sequential):
         else:
             raise NotImplementedError
 
-        super(Upsampler, self).__init__(*m)
+        super().__init__(*m)
