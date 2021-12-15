@@ -16,7 +16,7 @@ class PixelAttention(nn.Module):
                  resize="same", 
                  scale=2, 
                  softmax=True, 
-                 gate=False,
+                 use_gate=False,
                  gate_params=None,
                  add_contrast=False,
                  learn_weight=True, 
@@ -45,16 +45,17 @@ class PixelAttention(nn.Module):
             self.gate = partial(PoolGate, **gate_params)
         else:
             self.gate = nn.Identity()
+        self.use_gate = use_gate
         # layers for optional channel-wise and/or spacial attention
         self.channel_wise = channel_wise
         self.spatial_wise = spatial_wise
         if self.channel_wise:
             self.channel_conv = nn.Conv2d(f_out, f_out, 1, groups=f_out, bias=False)
-            if self.gate:
+            if self.use_gate:
                 self.channel_gate = GateConv(f_out, f_out, 1, conv_args={"bias":False})
         if self.spatial_wise:
             self.spatial_conv = nn.Conv2d(f_out, f_out, 1, bias=False)
-            if self.gate:
+            if self.use_gate:
                 self.spatial_gate_conv = nn.Conv2d(2, f_out, 7, 
                                                     padding=3,
                                                     bias=False)
@@ -94,7 +95,7 @@ class PixelAttention(nn.Module):
             x = x + self.contrast(x)
         if self.spatial_wise:
             spatial_y = self.spatial_conv(x)
-            if self.gate:
+            if self.use_gate:
                 spatial_gate = self.spatial_gate_pool(spatial_y)
                 spatial_gate = self.spatial_gate_conv(spatial_gate)                
                 spatial_gate = self.spatial_gate_act(spatial_gate)
@@ -103,19 +104,19 @@ class PixelAttention(nn.Module):
                 spatial_y = self.spatial_scale(spatial_y)
             if self.use_softmax:
                 spatial_y = self.spatial_softmax(spatial_y)
-            if self.gate:
+            if self.use_gate:
                 spatial_y = spatial_y * spatial_gate
             spatial_out = torch.mul(x, spatial_y)
         if self.channel_wise:
             channel_y = self.channel_conv(x)
-            if self.gate:
+            if self.use_gate:
                 channel_gate = self.channel_gate(channel_y)
             channel_y = self.sigmoid(channel_y)
             if self.learn_weight:
                 channel_y = self.channel_scale(channel_y)
             if self.use_softmax:
                 channel_y = self.channel_softmax(channel_y)
-            if self.gate:
+            if self.use_gate:
                 channel_y = channel_y * channel_gate
             channel_out = torch.mul(x, channel_y)
         if self.channel_wise and self.spatial_wise:
