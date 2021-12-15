@@ -24,10 +24,19 @@ class RDAB_Conv(nn.Module):
         self.in_attn = attn_fn(self.G)
 
     def forward(self, x):
-        out = self.conv(x)
         n = x.shape[1] // self.G
         splits = torch.split(x, [self.G] * n, dim=1)
-        y = torch.cat([self.in_attn(s) for s in splits] + [self.out_attn(out)], dim=1)
+        out = self.conv(x)
+        
+        results = [None] * len(splits)
+        for i in range(len(splits)):
+            if i % 2 == 0:
+                results[i] = splits[i]
+            else:
+                results[i-1] = results[i-1] - splits[i]
+                results[i] = self.in_attn(splits[i]) 
+                results[i-1] = results[i-1] + results[i]
+        y = torch.cat([self.in_attn(s) for s in splits] + [out, self.out_attn(out)], dim=1)
         return y
 
 class RDAB(nn.Module):
