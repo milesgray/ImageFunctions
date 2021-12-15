@@ -18,7 +18,7 @@ class RDAB_Conv(nn.Module):
         G  = growRate
         self.conv = nn.Sequential(*[
             nn.Conv2d(Cin, G, k, padding=(k-1)//2, stride=1),
-            nn.GLU()
+            nn.ELU()
         ])
         self.out_attn = attn_fn(G)
         self.in_attn = attn_fn(Cin)
