@@ -13,7 +13,9 @@ torch.backends.cudnn.benchmark = False
 import kornia
 import kornia.augmentation as K
 
+from .registry import register
 
+@register("cutouts")
 class MakeCutouts(nn.Module):
     def __init__(self, cut_size, cutn, cut_pow=1., aspect_width=1):
         super().__init__()

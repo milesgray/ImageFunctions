@@ -91,3 +91,22 @@ class DSSLoss(nn.Module):
             Value of DSS loss to be minimized. 0 <= DSS <= 1.
         """
         return self.loss_fn(x, y)
+
+@register("pieapp_loss")
+class PieAPPLoss(nn.Module):
+    def __init__(self, enable_grad=False):
+        super().__init__()
+        self.loss_fn = piq.PieAPP(data_range=1.0, stride=10,
+                                  enable_grad=enable_grad)
+
+    def forward(self, x, y):
+        return self.loss_fn(x, y)
+
+@register("dists_loss")
+class DISTSLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.loss_fn = piq.DISTS(mean=[0,0,0], std=[1,1,1])
+
+    def forward(self, x, y):
+        return self.loss_fn(x, y)

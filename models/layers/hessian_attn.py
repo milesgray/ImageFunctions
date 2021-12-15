@@ -1,16 +1,10 @@
 import torch
 from torch import nn
 
-def calc_mean_std(feat, eps=1e-5):
-    # eps is a small value added to the variance to avoid divide-by-zero.
-    size = feat.size()
-    assert (len(size) == 4)
-    N, C = size[:2]
-    feat_var = feat.view(N, C, -1).var(dim=2) + eps
-    feat_std = feat_var.sqrt().view(N, C, 1, 1)
-    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
-    return feat_mean, feat_std
+from .statistics import calc_mean_std
+from .registry import register
 
+@register("mshf")
 class MSHF(nn.Module):
     def __init__(self, n_channels, kernel=3):
         super().__init__()
@@ -49,6 +43,8 @@ class MSHF(nn.Module):
         hessian = ((fxx + fyy) + ((fxx - fyy) ** 2 + 4 * (fxy ** 2)) ** 0.5) / 2
         return hessian
 
+
+@register("di_enc_dec")
 class DiEnDec(nn.Module):
     def __init__(self, n_channels, act=nn.ReLU(inplace=True)):
         super().__init__()
@@ -74,23 +70,20 @@ class DiEnDec(nn.Module):
         output = self.gate(self.decoder(self.encoder(x)))
         return output
 
+@register("dac")
 class DAC(nn.Module):
     def __init__(self, n_channels, act=nn.ReLU(inplace=True)):
         super().__init__()
 
         self.mean = nn.Sequential(
             nn.Conv2d(n_channels, n_channels // 16, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
             act,
             nn.Conv2d(n_channels // 16, n_channels, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
         )
         self.std = nn.Sequential(
             nn.Conv2d(n_channels, n_channels // 16, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
             act,
             nn.Conv2d(n_channels // 16, n_channels, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
         )
 
     def forward(self, observed_feat, referred_feat):
@@ -106,6 +99,7 @@ class DAC(nn.Module):
         output = normalized_feat * referred_std.expand(size) + referred_mean.expand(size)
         return output
 
+@register("hessian_attn")
 class HessianAttention(nn.Module):
     def __init__(self, channels):
         super().__init__()

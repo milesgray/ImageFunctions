@@ -36,6 +36,7 @@ import numpy as np
 
 class LossTracker:
     def __init__(self, name, 
+                 fn=lambda x, y: x,
                  experiment=None, 
                   ):
         """Wrapper around a call to a PyTorch Loss result that
@@ -66,6 +67,7 @@ class LossTracker:
                 Defaults to [0.2, 5].
         """
         self.name = name
+        self.fn = fn
         self.exp = experiment
         self.weight = weight
         self.loss_low_limit = loss_limits[0]
@@ -78,6 +80,7 @@ class LossTracker:
         self.reset()
 
     def reset(self):
+        self.last_value = None
         self.max = -np.inf
         self.min = np.inf
         self.mean = 1
@@ -102,6 +105,16 @@ class LossTracker:
         self.ratio_history = np.concatenate((self.ratio_history, np.empty(self.block_size)))
         self.max_history_size += self.block_size
 
+    def __call__(self, x, y, 
+               do_backwards=True,
+               do_comet=True,
+               do_console=False):
+        self.last_value = self.fn(x, y)
+        self.update(self.last_value, 
+               do_backwards=do_backwards,
+               do_comet=do_comet,
+               do_console=do_console)
+        
     def update(self, value, 
                do_backwards=True,
                do_comet=True,

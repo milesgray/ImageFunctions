@@ -5,6 +5,8 @@ import torch.fft as tfft
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .registry import register
+
 #########################################################################################
 # SFTT LOSS - https://github.com/rishikksh20/TFGAN/blob/main/utils/stft_loss.py #######
 ####################################################################################
@@ -27,8 +29,8 @@ def stft(x, fft_size, hop_size, win_length, window):
     # NOTE(kan-bayashi): clamp is needed to avoid nan or inf
     return torch.sqrt(torch.clamp(real ** 2 + imag ** 2, min=1e-7)).transpose(2, 1)
 
-
-class SpectralConvergengeLoss(torch.nn.Module):
+@register("spectral_convergence")
+class SpectralConvergenceLoss(torch.nn.Module):
     """Spectral convergence loss module."""
 
     def __init__(self):
@@ -45,7 +47,7 @@ class SpectralConvergengeLoss(torch.nn.Module):
         """
         return torch.norm(y_mag - x_mag, p="fro") / torch.norm(y_mag, p="fro")
 
-
+@register("log_stft_magnitude")
 class LogSTFTMagnitudeLoss(torch.nn.Module):
     """Log STFT magnitude loss module."""
 
@@ -63,7 +65,7 @@ class LogSTFTMagnitudeLoss(torch.nn.Module):
         """
         return F.l1_loss(torch.log(y_mag), torch.log(x_mag))
 
-
+@register("stft")
 class STFTLoss(torch.nn.Module):
     """STFT loss module."""
 
@@ -93,7 +95,7 @@ class STFTLoss(torch.nn.Module):
 
         return sc_loss, mag_loss
 
-
+@register("multi_resolution_stft")
 class MultiResolutionSTFTLoss(torch.nn.Module):
     """Multi resolution STFT loss module."""
 
@@ -221,3 +223,17 @@ class Dct2d(nn.Module):
         x = x.permute(0,2,3,1).view(-1, self.blocksize**2, k)
         x = F.fold(x, output_size=(output_shape[-2], output_shape[-1]), kernel_size=self.blocksize, padding=0, stride=self.blocksize)
         return x
+
+@register("dct")
+class DCTLoss(nn.Module):
+    def __init__(self, metric_fn=lambda x,y: nn.L1Loss(x,y), 
+                 blocksize=8, 
+                 interleaving=False):
+        super().__init_()
+        self.metric_fn = metric_fn
+        self.dct_x = Dct2d(blocksize=blocksize, interleaving=interleaving)
+        self.dct_y = Dct2d(blocksize=blocksize, interleaving=interleaving)
+        
+    def forward(self, x, y):
+        loss = self.metric_fn(self.dct(x), self.dct(y))
+        return loss.mean(0)

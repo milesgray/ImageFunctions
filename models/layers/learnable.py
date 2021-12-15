@@ -1,6 +1,9 @@
 import torch
 from torch import nn
 
+from .registry import register
+
+@register("scale")
 class Scale(nn.Module):
     def __init__(self, init_value=1e-3):
         super().__init__()
@@ -9,6 +12,7 @@ class Scale(nn.Module):
     def forward(self, x):
         return x * self.scale
 
+@register("balance")
 class Balance(nn.Module):
     def __init__(self, init_value=0.5):
         super().__init__()
@@ -17,6 +21,7 @@ class Balance(nn.Module):
     def forward(self, x, y):
         return (x * self.beta) + (y * (1 - self.beta))
 
+@register("learnable_gaussian_0d")
 class LearnableGaussianTransform0d(nn.Module):
     def __init__(self, scale=512):
         """ scale matches input and does not change shape, only values
@@ -31,6 +36,7 @@ class LearnableGaussianTransform0d(nn.Module):
         x = self.bias.exp() * x
         z = z + (x - 1)
         return z
+@register("learnable_gaussian_1d")
 class LearnableGaussianTransform1d(nn.Module):
     def __init__(self, scale=512):
         """ scale matches input and does not change shape, only values
@@ -48,6 +54,7 @@ class LearnableGaussianTransform1d(nn.Module):
 
         z = z + (x - 1)
         return z
+@register("learnable_gaussian_2d")
 class LearnableGaussianTransform2d(nn.Module):
     def __init__(self, scale=(4,4)):
         super().__init__()

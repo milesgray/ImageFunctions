@@ -7,7 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .pool import ZPool
+from .registry import register
 
+@register("gate_conv")
 class GateConv(nn.Module):
     def __init__(self, in_channel, out_channel, kernel,
                  conv_fn=nn.Conv2d, 
@@ -28,6 +30,7 @@ class GateConv(nn.Module):
         x = x * gate
         return nn.Hardsigmoid()(x)
 
+@register("pool_gate")
 class PoolGate(nn.Module):
     def __init__(self, pool_channels, 
                        out_channels,
