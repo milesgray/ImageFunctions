@@ -6,9 +6,11 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-from .layers import PixelAttention, LocalMultiHeadChannelAttention
 
 from models import register
+
+from .layers import LocalMultiHeadChannelAttention, PixelAttention
+
 
 class RDAB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, k=3,
@@ -50,11 +52,11 @@ class RDAB(nn.Module):
 
         convs = []
         for c in range(C):
-            convs.append(RDAB_Conv(G0 + c*G, G, attn_fn=attn_fn))
+            convs.append(RDAB_Conv(G0 + c*G*2, G, attn_fn=attn_fn))
         self.convs = nn.Sequential(*convs)
 
         # Local Feature Fusion
-        self.LFF = nn.Conv2d(G0 + C*G, G0, 1, padding=0, stride=1)
+        self.LFF = nn.Conv2d(G0 + C*G*2, G0, 1, padding=0, stride=1)
 
     def forward(self, x):
         return self.LFF(self.convs(x)) + x
@@ -91,7 +93,7 @@ class RDAN(nn.Module):
 
         # Global Feature Fusion
         self.GFF = nn.Sequential(*[
-            nn.Conv2d(self.D * G0, G0, 1, padding=0, stride=1),
+            nn.Conv2d(self.D * G0*2, G0, 1, padding=0, stride=1),
             nn.Conv2d(G0, G0, k, padding=(k-1)//2, stride=1)
         ])
 
