@@ -5,8 +5,8 @@ train_dataset:
       root_path: /content/full/
       repeat: 1
       cache: in_memory
-      first_k: 60000
-      skip_every: 14
+      last_k: 120000
+      skip_every: 30
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
@@ -17,6 +17,7 @@ train_dataset:
       augment: true
       sample_q: 4096
       vary_q: true
+      max_q: 8192
       return_hr: true
   batch_size: 1
 
@@ -25,8 +26,8 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      last_k: 10000
-      skip_every: 22
+      first_k: 42000
+      skip_every: 168
       repeat: 1
       cache: in_memory
   wrapper:
@@ -50,7 +51,7 @@ model:
     encoder_spec:
       name: rdan
       args:
-        D: 30
+        D: 10
         C: 4
         G: 32
         no_upsampling: true
@@ -67,10 +68,10 @@ optimizer:
   args:
     lr: 1.e-4
 
-epoch_max: 500
+epoch_max: 100
 multi_step_lr:
-  milestones: [100, 200, 300, 400]
+  milestones: [10, 20, 30, 40]
   gamma: 0.5
 
 epoch_val: 1
-epoch_save: 100
+epoch_save: 1

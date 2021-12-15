@@ -27,7 +27,7 @@ class RDAB_Conv(nn.Module):
         out = self.conv(x)
         in_attn = self.in_attn(x)
         out_attn = self.out_attn(out)
-        return torch.cat((x + in_attn, out + out_attn), 1)
+        return torch.cat((in_attn(x), out_attn(out_attn)), 1)
 
 class RDAB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers,
