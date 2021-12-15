@@ -94,9 +94,9 @@ class DSSLoss(nn.Module):
 
 @register("pieapp_loss")
 class PieAPPLoss(nn.Module):
-    def __init__(self, enable_grad=False):
+    def __init__(self, data_range=1.0, stride=27, enable_grad=False):
         super().__init__()
-        self.loss_fn = piq.PieAPP(data_range=1.0, stride=10,
+        self.loss_fn = piq.PieAPP(data_range=data_range, stride=stride,
                                   enable_grad=enable_grad)
 
     def forward(self, x, y):
