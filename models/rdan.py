@@ -93,7 +93,7 @@ class RDAN(nn.Module):
 
         # Global Feature Fusion
         self.GFF = nn.Sequential(*[
-            nn.Conv2d(self.D * G0*2, G0, 1, padding=0, stride=1),
+            nn.Conv2d(self.D * G0, G0, 1, padding=0, stride=1),
             nn.Conv2d(G0, G0, k, padding=(k-1)//2, stride=1)
         ])
 
