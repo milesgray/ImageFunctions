@@ -6,7 +6,7 @@ def register(name):
     def decorator(cls):
         lookup[name] = cls
         return cls
-    return lookup
+    return decorator
 
 def make(layer_spec, args=None):
     if args is not None:
