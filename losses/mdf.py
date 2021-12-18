@@ -5,7 +5,7 @@ from .registry import register
 @register("mdf")
 class MDFLoss(nn.Module):
     def __init__(self, saved_ds_path, cuda_available = True):
-        super(f).__init__()
+        super().__init__()
 
         if cuda_available:
             self.Ds = torch.load(saved_ds_path)

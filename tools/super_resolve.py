@@ -12,6 +12,7 @@ class SuperResolver:
                  name="test.png",
                  directory="/content/",
                  amount=2.0,
+                 padding=2,
                  logger=print,
                  experiment=None):
         self.log = logger
@@ -22,47 +23,103 @@ class SuperResolver:
             self.path.mkdir(parents=True)
             self.log(f"Created {self.path.absolute()}")
         self.amount = amount
+        self.padding = padding
         self.experiment = experiment
         self.result_container = None
         self.img = None
 
-    def apply(self, img_path,
+    def load_img(self, img_path, 
+                 patch_shape=(32,32),
+                 verbose=True):
+        try:
+            if verbose: self.log(f"Using a patch size {patch_shape[0]}x{patch_shape[1]}")
+            self.target_crop_size = (round(patch_shape[0] * self.amount), 
+                                    round(patch_shape[1] * self.amount))
+            if verbose: self.log(f"Target output is a patch size {self.target_crop_size[0]}x{self.target_crop_size[1]}")
+            self.img = torchvision.io.read_image(img_path).permute(1,2,0).numpy()
+            self.img = self.img[:self.img.shape[0]-
+                                (self.img.shape[0] % patch_shape[0]),
+                                :self.img.shape[1]-
+                                (self.img.shape[1] % patch_shape[1]),
+                                :]
+            self.ratio = self.img.shape[0] / self.img.shape[1]
+            if verbose: self.log(f"Loaded image with adjusted shape {self.img.shape}")
+            self.num_x_tiles = self.img.shape[0] // patch_shape[0]
+            self.num_y_tiles = self.img.shape[1] // patch_shape[1]
+            if verbose: self.log(f"Splitting into {self.num_x_tiles} x tiles and {self.num_y_tiles} y tiles")
+            final_x = round(self.img.shape[0] * 
+                            (self.target_crop_size[0] / patch_shape[0]))
+            final_y = round(self.img.shape[1] * 
+                            (self.target_crop_size[1] / patch_shape[1]))
+            self.result_container = np.empty((final_x, final_y, 3))
+            if verbose: self.log(f"Final output to an image of size {final_x}x{final_y}")
+
+            return True
+        except Exception as e:
+            if verbose: self.log(f"Failed to load image:\n{e}")
+        
+            return False
+        
+    def apply(self, img_path=None,
               patch_shape=(32,32),
               save_intermediate=False,
               intermediate_size=(4,4),
               show=True,
               verbose=True):
+        
         start_time = time.time()
-        target_crop_size = (round(patch_shape[0] * self.amount), round(patch_shape[1] * self.amount))
-        self.img = cv2.imread(img_path)
-        self.img = self.img[:self.img.shape[0]-(self.img.shape[0] % patch_shape[0]),:self.img.shape[1]-(self.img.shape[1] % patch_shape[1]),:]
-        num_x_tiles = self.img.shape[0] // patch_shape[0]
-        num_y_tiles = self.img.shape[1] // patch_shape[1]
-        if verbose: self.log(f"Loaded image with adjusted shape {self.img.shape}, splitting into {num_x_tiles} x tiles and {num_y_tiles} y tiles")
-        final_x = round(self.img.shape[0] * (target_crop_size[0] / patch_shape[0]))
-        final_y = round(self.img.shape[1] * (target_crop_size[1] / patch_shape[1]))
-        self.result_container = np.empty((final_x, final_y, 3))
-        if verbose: self.log(f"Upsampling to an image of size {final_x}x{final_y}...")
+        if img_path is not None:
+            if not self.load_img(img_path, patch_shape=patch_shape, verbose=verbose):
+                return False
+        else:
+            if verbose: self.log(f"Using already loaded image")
+        
+        try:
+            for x in tqdm(range(self.num_x_tiles)):
+                for y in range(self.num_y_tiles):
+                    start_x = round(x * patch_shape[0])
+                    start_y = round(y * patch_shape[1])
 
-        for x in tqdm(range(num_x_tiles)):
-            for y in range(num_y_tiles):
-                start_x = round(x * patch_shape[0])
-                start_y = round(y * patch_shape[1])
+                    crop_start_x = max(0, start_x - self.padding)
+                    crop_end_x = min(self.img.shape[0], 
+                                    start_x + patch_shape[0] + self.padding)
+                    crop_start_y = max(0, start_y - self.padding)
+                    crop_end_y = min(self.img.shape[1],
+                                    start_y + patch_shape[1] + self.padding)
 
-                img_crop = self.img[start_x:start_x+patch_shape[0], start_y:start_y+patch_shape[1], :]
-                pred = self.pred(img_crop.transpose(2,1,0),
-                                 name=f"plots/temp_{x}_{y}",
-                                 figsize=(6,3),
-                                 target_shape=target_crop_size,
-                                 batch_size=1,
-                                 return_data=True,
-                                 save_fig=False,
-                                 show_fig=False)
-                pred = pred.cpu().numpy().transpose(0,2,3,1)
+                    img_crop = self.img[crop_start_x:crop_end_x, 
+                                        crop_start_y:crop_end_y, 
+                                        :]
+                    img_crop = img_crop.transpose(2,1,0)
 
-                start_x = round(x * target_crop_size[0])
-                start_y = round(y * target_crop_size[1])
-                self.result_container[start_x:start_x+target_crop_size[0], start_y:start_y+target_crop_size[1], :] = np.fliplr(np.rot90(pred.squeeze(), k=3))
+                    pred = self.pred(img_crop,
+                                     target_shape=(self.target_crop_size[0] + 
+                                                   (self.padding * 2),
+                                                   self.target_crop_size[1] + 
+                                                   (self.padding * 2)
+                                    ),
+                                    return_data=True)
+                    pred = pred.squeeze().permute(1,2,0).cpu().numpy()
+                    pred = pred[self.padding:-self.padding,
+                                self.padding:-self.padding,
+                                :]
+
+                    result_start_x = round(x * self.target_crop_size[0])
+                    result_start_y = round(y * self.target_crop_size[1])
+
+                    result_start_x = max(0, result_start_x)
+                    result_end_x = min(self.result_container.shape[0], 
+                    result_start_x + self.target_crop_size[0])
+                    result_start_y = max(0, result_start_y)
+                    result_end_y = min(self.result_container.shape[1],
+                                       result_start_y + self.target_crop_size[1])
+                    
+                    self.result_container[result_start_x:result_end_x, 
+                                          result_start_y:result_end_y, 
+                                          :] = np.fliplr(np.rot90(pred, k=3))
+        except Exception as e:
+            if verbose: self.log(f"Failed to build output:\n{e}")
+            return False
 
         if verbose: self.log(f"Finished model inference, saving result...")
         self.save_image(self.result_container, "upsampled")
@@ -70,11 +127,11 @@ class SuperResolver:
         if verbose: self.log(f"Saved upsampled image, now saving original image...")
         self.save_image(self.img, "original")
 
-        if show:
-            self.show_images()
+        if show: self.show_images()
 
         dt = time.time() - start_time
         if verbose: self.log(f"Complete! Took {dt // 60} minutes, {dt % 60} seconds")
+        return True
 
     def save_image(self, data, prefix):
         try:
@@ -87,21 +144,21 @@ class SuperResolver:
             if self.experiment: self.experiment.log_image(img_path, img_name)
         except Exception as e:
             self.log(f"Failed to save img ({data.shape})\n{e}\nDisplaying data instead!")
-            self.show(data)
+            self.show_fig(data)
 
     def show_images(self, figsize=10):
-        self.show(self.img, figsize=figsize)
-        self.show(self.result_container, figsize=figsize)
+        self.show_fig(self.img, figsize=figsize)
+        self.show_fig(self.result_container, figsize=figsize)
 
-    def show(self, data, figsize=(10,8)):
+    def show_fig(self, data, figsize=(10,8)):
         if isinstance(figsize, int):
-            figsize = (figsize, int(figsize*0.8))
+            figsize = (figsize, int(figsize*self.ratio))
         plt.figure(figsize=figsize)
         if isinstance(data, torch.Tensor):
             data = data.squeeze().cpu().to(torch.uint8).permute((2,1,0)).numpy()
         plt.imshow(data)
 
-    def save(self, pred, inp, figsize, name):
+    def save_fig(self, pred, inp, figsize, name):
         try:
             plt.figure(figsize=figsize)
             if torch.cuda.is_available():
@@ -161,9 +218,9 @@ class SuperResolver:
         pred = self.reshape(pred, target_shape)
 
         if save_fig:
-            self.save(pred, inp, figsize, name)
+            self.save_fig(pred, inp, figsize, name)
         if show_fig:
-            self.show(pred)
+            self.show_fig(pred)
         if return_data:
             return pred
         
