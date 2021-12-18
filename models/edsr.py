@@ -7,46 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .layers import PixelAttention, MeanShift, Scale, Balance
 from models import register
-
-
-def default_conv(in_channels, out_channels, kernel_size, bias=True):
-    return nn.Conv2d(
-        in_channels, out_channels, kernel_size,
-        padding=(kernel_size//2), bias=bias)
-
-class PA(nn.Module):
-    '''PA is pixel attention'''
-    def __init__(self, nf, softmax=True):
-        super().__init__()
-        self.conv = nn.Conv2d(nf, nf, 1)
-        self.sigmoid = nn.Sigmoid()
-        self.use_softmax = softmax
-        if self.use_softmax:
-            self.softmax = nn.Softmax2d()
-
-    def forward(self, x):
-        y = self.conv(x)
-        y = self.sigmoid(y)
-        if self.use_softmax:
-            y = self.softmax(y)
-        out = torch.mul(x, y)
-
-        return out
-
-class MeanShift(nn.Conv2d):
-    def __init__(
-        self, rgb_range,
-        rgb_mean=(0.40005, 0.42270, 0.45802), 
-        rgb_std=(0.28514, 0.31383, 0.28289), 
-        sign=-1):
-
-        super().__init__(3, 3, kernel_size=1)
-        std = torch.Tensor(rgb_std)
-        self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
-        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std
-        for p in self.parameters():
-            p.requires_grad = False
 
 class ResBlock(nn.Module):
     def __init__(
@@ -63,19 +25,21 @@ class ResBlock(nn.Module):
                 m.append(act)
 
         self.body = nn.Sequential(*m)
-        self.res_scale = res_scale
+        self.res_scale = Scale(init_value=res_scale)
         self.use_pa = pa
         if pa:
-            self.pa_add = PA(n_feats)
-            self.pa_sub = PA(n_feats)
+            self.pa_add = PixelAttention(f_in, n_feats)
+            self.pa_sub = PixelAttention(n_feats)
+            self.balance_add = Balance()
 
     def forward(self, x):
         res = self.body(x)
         if self.use_pa:
-            y = res.sub(self.pa_sub(x)).mul(self.res_scale)
-            res = y.add(self.pa_add(res))
+            y = res.sub(self.pa_sub(x))
+            y = self.res_scale(y)
+            res = self.self.balance_add(y, self.pa_add(res))
         else:
-            res = res.mul(self.res_scale)
+            res = self.res_scale(res)
         res += x
 
         return res
@@ -108,30 +72,16 @@ class Upsampler(nn.Sequential):
 
         super(Upsampler, self).__init__(*m)
 
-
-url = {
-    'r16f64x2': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_baseline_x2-1bc95232.pt',
-    'r16f64x3': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_baseline_x3-abf2a44e.pt',
-    'r16f64x4': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_baseline_x4-6b446fab.pt',
-    'r32f256x2': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_x2-0edfb8a3.pt',
-    'r32f256x3': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_x3-ea3ef2c6.pt',
-    'r32f256x4': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_x4-4f62e9ef.pt'
-}
-
 class EDSR(nn.Module):
     def __init__(self, args, conv=default_conv):
-        super(EDSR, self).__init__()
+        super().__init__()
         self.args = args
         n_resblocks = args.n_resblocks
         n_feats = args.n_feats
         kernel_size = 3
         scale = args.scale[0]
         act = nn.ReLU(True)
-        url_name = 'r{}f{}x{}'.format(n_resblocks, n_feats, scale)
-        if url_name in url:
-            self.url = url[url_name]
-        else:
-            self.url = None
+        self.url = None
         self.use_mean_shift = args.use_mean_shift
         if self.use_mean_shift:
             self.sub_mean = MeanShift(args.rgb_range, rgb_mean=args.rgb_mean, rgb_std=args.rgb_std)
