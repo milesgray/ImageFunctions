@@ -106,15 +106,22 @@ def ycbcr2rgb(img):
         uint8, [0, 255]
         float, [0, 1]
     '''
-    in_img_type = img.dtype
+    img_type = img.dtype
     img.astype(np.float32)
-    if in_img_type != np.uint8:
+    if img_type != np.uint8:
         img *= 255.
     # convert
     rlt = np.matmul(img, [[0.00456621, 0.00456621, 0.00456621], [0, -0.00153632, 0.00791071],
                           [0.00625893, -0.00318811, 0]]) * 255.0 + [-222.921, 135.576, -276.836]
-    if in_img_type == np.uint8:
+    if img_type == np.uint8:
         rlt = rlt.round()
     else:
         rlt /= 255.
-    return rlt.astype(in_img_type)
+    return rlt.astype(img_type)
+
+def rgb2lab(img, mean_cent=False):
+    from skimage import color
+    img_lab = color.rgb2lab(img)
+    if(mean_cent):
+        img_lab[:,:,0] = img_lab[:,:,0]-50
+    return img_lab

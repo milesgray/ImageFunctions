@@ -5,6 +5,28 @@ import torch.nn as nn
 
 from .registry import register
 
+
+def calc_SSIM(input, target, rgb_range, shave):
+    '''calculate SSIM
+    the same outputs as MATLAB's
+    img1, img2: [0, 255]
+    '''
+
+    c, h, w = input.size()
+    if c > 1:
+        input = input.mul(255).clamp(0, 255).round()
+        target = target[:, 0:h, 0:w].mul(255).clamp(0, 255).round()
+        input = rgb2ycbcrT(input)
+        target = rgb2ycbcrT(target)
+    else:
+        input = input
+        target = target[:, 0:h, 0:w]
+    input = input[shave:(h - shave), shave:(w - shave)]
+    target = target[shave:(h - shave), shave:(w - shave)]
+    return ssim(input.numpy(), target.numpy())
+
+
+
 def _ssim(img, img2):
     """Calculate SSIM (structural similarity) for one channel images.
     It is called by func:`calculate_ssim`.
@@ -34,7 +56,6 @@ def _ssim(img, img2):
 
     ssim_map = ((2 * mu1_mu2 + c1) * (2 * sigma12 + c2)) / ((mu1_sq + mu2_sq + c1) * (sigma1_sq + sigma2_sq + c2))
     return ssim_map.mean()
-
 
 def calculate_ssim(img, img2, crop_border, input_order='HWC', test_y_channel=False, **kwargs):
     """Calculate SSIM (structural similarity).
