@@ -4,7 +4,7 @@ from torch.autograd import Variable
 from torch import einsum
 import numpy as np
 
-from crossentropy import CrossentropyND, TopKLoss, WeightedCrossEntropyLoss
+from .crossentropy import CrossentropyND, TopKLoss, WeightedCrossEntropyLoss
 
 from argparse import Namespace
 from .registry import register
