@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import piq
+from typing import *
 
 from argparse import Namespace
 from .registry import register
