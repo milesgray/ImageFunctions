@@ -549,7 +549,7 @@ class FIDLoss(nn.Module):
         self.decomposed = decomposed
 
     def forward(self, mu1, sigma1, mu2, sigma2):
-
+        raise NotImplementedError()
 
 def calculate_frechet_distance_torch(mu1, sigma1, mu2, sigma2, eps=1e-6, decomposed: bool=False, num_approx_iters: int=50):
     """
