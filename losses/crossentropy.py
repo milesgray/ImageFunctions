@@ -3,6 +3,7 @@ CrossentropyND and TopKLoss are from: https://github.com/MIC-DKFZ/nnUNet/blob/ma
 """
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from scipy.ndimage import distance_transform_edt
 import numpy as np
