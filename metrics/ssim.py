@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+import torch.nn as nn
+
 from .registry import register
 
 def _ssim(img, img2):
@@ -34,7 +36,6 @@ def _ssim(img, img2):
     return ssim_map.mean()
 
 
-@register("ssim")
 def calculate_ssim(img, img2, crop_border, input_order='HWC', test_y_channel=False, **kwargs):
     """Calculate SSIM (structural similarity).
     Ref:
@@ -75,3 +76,17 @@ def calculate_ssim(img, img2, crop_border, input_order='HWC', test_y_channel=Fal
     for i in range(img.shape[2]):
         ssims.append(_ssim(img[..., i], img2[..., i]))
     return np.array(ssims).mean()
+
+@register("ssim")
+class SSIMMetric(nn.Module):
+    def __init__(self, crop_border=0, input_order='HWC', test_y_channel=False):
+        super().__init__()
+        self.input_order = input_order
+        self.test_y_channel = test_y_channel
+        self.crop_border = crop_border
+        
+    def forward(self, x, y):
+        return calculate_ssim(x, y, 
+                              crop_border=self.crop_border, 
+                              input_order=self.input_order, 
+                              test_y_channel=self.test_y_channel)
