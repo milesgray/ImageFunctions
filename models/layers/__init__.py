@@ -14,6 +14,7 @@ from .triplet_attn import TripletAttention
 from .balanced_attn import BalancedAttention
 from .nonlocal_attn import NonLocalAttention
 from .spatial_attn import SpatialAttention, CatPoolSpatialAttention
+from .sd
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 
