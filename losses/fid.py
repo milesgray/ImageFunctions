@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
+from torch import Tensor
 from torch.nn.functional import adaptive_avg_pool2d
 from torch.utils.data import DataLoader
 from torch.utils.model_zoo import load_url as load_state_dict_from_url
