@@ -7,14 +7,15 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-from .layers import PixelAttention, LocalMultiHeadChannelAttention
+from .layers import PixelAttention, NonLocalAttention
+from .layers import Balance, stdv_channels
 
 from models import register
 
 class RDB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, kSize=3,
                  attn_fn=PixelAttention):
-        super(RDB_Conv, self).__init__()
+        super().__init__()
         Cin = inChannels
         G  = growRate
         self.conv = nn.Sequential(*[
@@ -42,9 +43,10 @@ class RDB(nn.Module):
 
         # Local Feature Fusion
         self.LFF = nn.Conv2d(G0 + C*G, G0, 1, padding=0, stride=1)
+        self.res_balance = Balance()
 
     def forward(self, x):
-        return self.LFF(self.convs(x)) + x
+        return self.res_balance(self.LFF(self.convs(x)), x)
 
 class RDN(nn.Module):
     def __init__(self, args):
@@ -64,6 +66,9 @@ class RDN(nn.Module):
         # Shallow feature extraction net
         self.SFENet1 = nn.Conv2d(args.n_colors, G0, kSize, padding=(kSize-1)//2, stride=1)
         self.SFENet2 = nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
+        
+        self.SFE_attn = NonLocalAttention(G0)
+        self.SFE_balance = Balance()
 
         # Redidual dense blocks and dense feature fusion
         self.RDBs = nn.ModuleList()
@@ -80,6 +85,8 @@ class RDN(nn.Module):
             nn.Conv2d(self.D * G0, G0, 1, padding=0, stride=1),
             nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
         ])
+        
+        self.GFF_balance = Balance()
 
         if args.no_upsampling:
             self.out_dim = G0
@@ -105,7 +112,7 @@ class RDN(nn.Module):
 
     def forward(self, x):
         f__1 = self.SFENet1(x)
-        x  = self.SFENet2(f__1)
+        x = self.SFE_balance(self.SFENet2(f__1), self.SFE_attn(f__1))
 
         RDBs_out = []
         for i in range(self.D):
@@ -113,7 +120,7 @@ class RDN(nn.Module):
             RDBs_out.append(x)
 
         x = self.GFF(torch.cat(RDBs_out,1))
-        x += f__1
+        x = self.GFF_balance(x, f__1)
 
         if self.args.no_upsampling:
             return x

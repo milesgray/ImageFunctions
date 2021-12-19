@@ -12,6 +12,8 @@ from .channel_attn import ChannelAttention, MixPoolChannelAttention
 from .lhc_attn import LocalMultiHeadChannelAttention
 from .triplet_attn import TripletAttention
 from .balanced_attn import BalancedAttention
+from .nonlocal_attn import NonLocalAttention
+from .spatial_attn import SpatialAttention, CatPoolSpatialAttention
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 
@@ -46,8 +48,6 @@ def create_activation(activation_type: str, *args, **kwargs) -> nn.Module:
         return NormalClip(*args, **kwargs)
     else:
         raise NotImplementedError(f'Unknown activation type: {activation_type}')
-
-
 
 def reduce_loss(loss, reduction):
     """Reduce loss as specified.
