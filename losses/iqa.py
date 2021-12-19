@@ -79,7 +79,7 @@ class DSSLoss(nn.Module):
                  sigma_weight: float = 1.55, kernel_size: int = 3,
                  sigma_similarity: float = 1.5, percentile: float = 0.05):
         super().__init__()
-        self.loss_fn = piq.DSSLoss(reduction=reduction, data_range=data_range, dct_size=dct_size
+        self.loss_fn = piq.DSSLoss(reduction=reduction, data_range=data_range, dct_size=dct_size,
                                    sigma_weight=sigma_weight, sigma_similarity=sigma_similarity)
 
     def forward(self, x, y):
