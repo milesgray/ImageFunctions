@@ -5,8 +5,6 @@ import torch.fft as tfft
 import torch.nn as nn
 import torch.nn.functional as F
 
-import freq_np
-
 def bandpass_filter(im: torch.Tensor, band_center=0.3, band_width_lower=0.1, band_width_upper=0.1):
     '''Bandpass filter the image (assumes the image is square)
     Returns
