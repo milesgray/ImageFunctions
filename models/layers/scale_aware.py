@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class SA_adapt(nn.Module):
+class ScaleAwareAdapt(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.mask = nn.Sequential(
@@ -22,7 +22,7 @@ class SA_adapt(nn.Module):
             nn.BatchNorm2d(1),
             nn.Sigmoid()
         )
-        self.adapt = SA_conv(channels, channels, 3, 1, 1)
+        self.adapt = ScaleAwareConv2d(channels, channels, 3, 1, 1)
 
     def forward(self, x, scale, scale2):
         mask = self.mask(x)
@@ -31,7 +31,7 @@ class SA_adapt(nn.Module):
         return x + adapted * mask
 
 
-class SA_conv(nn.Module):
+class ScaleAwareConv2d(nn.Module):
     def __init__(self, channels_in, channels_out,
                  kernel_size=3,
                  stride=1,

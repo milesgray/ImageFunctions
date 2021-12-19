@@ -1,4 +1,5 @@
 import torch
+from torch import Tensor
 import numpy as np
 
 def generate_coords(batch_size: int, img_size: int) -> Tensor:
