@@ -10,6 +10,12 @@ import torch.nn.functional as F
 from .layers import PixelAttention, MeanShift, Scale, Balance
 from models import register
 
+
+def default_conv(in_channels, out_channels, kernel_size, bias=True):
+    return nn.Conv2d(
+        in_channels, out_channels, kernel_size,
+        padding=(kernel_size//2), bias=bias)
+
 class ResBlock(nn.Module):
     def __init__(
         self, conv, n_feats, kernel_size,
