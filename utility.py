@@ -12,10 +12,8 @@ from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
-from torch.optim import SGD, Adam
 import piq
 import optimizers
-
 class Averager():
     def __init__(self):
         self.n = 0.0
@@ -74,7 +72,6 @@ def set_save_path(save_path, remove=True):
     writer = SummaryWriter(os.path.join(save_path, 'tensorboard'))
     return log, writer
 
-
 def compute_num_params(model, text=False):
     tot = int(sum([np.prod(p.shape) for p in model.parameters()]))
     if text:
@@ -84,7 +81,6 @@ def compute_num_params(model, text=False):
             return '{:.1f}K'.format(tot / 1e3)
     else:
         return tot
-
 
 def make_optimizer(param_list, optimizer_spec, load_sd=False):
     Optimizer = optimizers.make(optimizer_spec['name'], optimizer_spec)    
@@ -113,7 +109,6 @@ def reorder_image(img, input_order='HWC'):
     if input_order == 'CHW':
         img = img.transpose(1, 2, 0)
     return img
-
 
 def to_y_channel(img):
     """Change to Y channel of YCbCr.
@@ -289,7 +284,6 @@ def rgb2ycbcr(img, only_y=True):
         rlt /= 255.
     return rlt.astype(in_img_type)
 
-
 def bgr2ycbcr(img, only_y=True):
     '''bgr version of rgb2ycbcr
     only_y: only return Y channel
@@ -313,7 +307,6 @@ def bgr2ycbcr(img, only_y=True):
         rlt /= 255.
     return rlt.astype(in_img_type)
 
-
 def ycbcr2rgb(img):
     '''same as matlab ycbcr2rgb
     Input:
@@ -332,8 +325,6 @@ def ycbcr2rgb(img):
     else:
         rlt /= 255.
     return rlt.astype(in_img_type)
-
-
 
 def ssim(img1, img2):
     C1 = (0.01 * 255) ** 2
@@ -356,7 +347,6 @@ def ssim(img1, img2):
     ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) *
                                                             (sigma1_sq + sigma2_sq + C2))
     return ssim_map.mean()
-
 
 def calc_SSIM(input, target, rgb_range, shave):
     '''calculate SSIM

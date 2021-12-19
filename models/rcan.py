@@ -3,8 +3,8 @@ from argparse import Namespace
 
 import torch
 import torch.nn as nn
-from .layers import ChannelAttention, PixelAttention, LocalMultiHeadChannelAttention
-from .layers import Balancer, Scale
+from .layers import ChannelAttention, PixelAttention, BalancedAttention
+from .layers import Balance, Scale
 from .layers import MeanShift
 
 from models import register
@@ -51,7 +51,7 @@ class RCAB(nn.Module):
         self.body = nn.Sequential(*modules_body)
         self.res_scale = res_scale
         self.pa = PixelAttention(n_feat)
-        self.balance = Balancer()
+        self.balance = Balance()
         self.attn_scale = Scale()
         self.body_scale = Scale()
 
@@ -75,7 +75,7 @@ class ResidualGroup(nn.Module):
         self.body = nn.Sequential(*modules_body)
 
         self.pa = PixelAttention(f_in, f_out=n_feat)
-        self.balance = Balancer()
+        self.balance = Balance()
 
     def forward(self, x):
         res = self.body(x)
@@ -115,6 +115,10 @@ class RCAN(nn.Module):
 
         self.head = nn.Sequential(*modules_head)
         self.body = nn.Sequential(*modules_body)
+        
+        self.head_attn = BalancedAttention(n_feats)
+        
+        self.body_balance = Balance()
 
         if args.no_upsampling:
             self.out_dim = n_feats
@@ -131,8 +135,7 @@ class RCAN(nn.Module):
             x = self.sub_mean(x)
         x = self.head(x)
 
-        res = self.body(x).add(x)
-        #res += x
+        res = self.body_balance(self.body(x), self.head_attn(x))
 
         if self.args.no_upsampling:
             x = res

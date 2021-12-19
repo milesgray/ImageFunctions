@@ -68,7 +68,9 @@ class RDN(nn.Module):
         self.SFENet2 = nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
         
         self.SFE_attn = NonLocalAttention(G0)
+        self.SFE_res_attn = attn_fn(G0)
         self.SFE_balance = Balance()
+        
 
         # Redidual dense blocks and dense feature fusion
         self.RDBs = nn.ModuleList()
@@ -120,7 +122,7 @@ class RDN(nn.Module):
             RDBs_out.append(x)
 
         x = self.GFF(torch.cat(RDBs_out,1))
-        x = self.GFF_balance(x, f__1)
+        x = self.GFF_balance(x,  self.SFE_res_attn(f__1))
 
         if self.args.no_upsampling:
             return x

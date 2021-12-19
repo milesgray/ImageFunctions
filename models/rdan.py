@@ -9,7 +9,8 @@ import torch.nn as nn
 
 from models import register
 
-from .layers import LocalMultiHeadChannelAttention, PixelAttention
+from .layers import NonLocalAttention, PixelAttention
+from .layers import Scale, Balance
 
 
 class RDAB_Conv(nn.Module):
