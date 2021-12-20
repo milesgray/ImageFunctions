@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 
+from .registry import register
+
+@register("scale_aware_adapt")
 class ScaleAwareAdapt(nn.Module):
     def __init__(self, channels):
         super().__init__()
@@ -30,7 +33,7 @@ class ScaleAwareAdapt(nn.Module):
 
         return x + adapted * mask
 
-
+@register("scale_aware_conv2d")
 class ScaleAwareConv2d(nn.Module):
     def __init__(self, channels_in, channels_out,
                  kernel_size=3,
