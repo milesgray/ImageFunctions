@@ -40,7 +40,7 @@ class LossTracker:
                  experiment=None, 
                  weight=1.0,
                  warmup=np.inf,
-                 loss_limit=[-np.inf, np.inf],
+                 loss_limits=[-np.inf, np.inf],
                  block_size=100,
                  scale_range=[0.2, 5]
                   ):
