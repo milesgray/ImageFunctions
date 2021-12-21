@@ -89,7 +89,7 @@ class GDiceLoss(nn.Module):
         paper: https://arxiv.org/pdf/1707.03237.pdf
         tf code: https://github.com/NifTK/NiftyNet/blob/dev/niftynet/layer/loss_segmentation.py#L279
         """
-        super(GDiceLoss, self).__init__()
+        super().__init__()
 
         self.apply_nonlin = apply_nonlin
         self.smooth = smooth
@@ -125,8 +125,6 @@ class GDiceLoss(nn.Module):
 
         return gdc
 
-
-
 def flatten(tensor):
     """Flattens a given tensor such that the channel axis is first.
     The shapes are transformed as follows:
@@ -149,7 +147,7 @@ class GDiceLossV2(nn.Module):
         paper: https://arxiv.org/pdf/1707.03237.pdf
         tf code: https://github.com/NifTK/NiftyNet/blob/dev/niftynet/layer/loss_segmentation.py#L279
         """
-        super(GDiceLossV2, self).__init__()
+        super().__init__()
 
         self.apply_nonlin = apply_nonlin
         self.smooth = smooth
@@ -191,14 +189,18 @@ class GDiceLossV2(nn.Module):
 
 @register("ss_loss")
 class SSLoss(nn.Module):
-    def __init__(self, apply_nonlin=None, batch_dice=False, do_bg=True, smooth=1.,
+    def __init__(self, 
+                 apply_nonlin=None, 
+                 batch_dice=False, 
+                 do_bg=True, 
+                 smooth=1.,
                  square=False):
         """
         Sensitivity-Specifity loss
         paper: http://www.rogertam.ca/Brosch_MICCAI_2015.pdf
         tf code: https://github.com/NifTK/NiftyNet/blob/df0f86733357fdc92bbc191c8fec0dcf49aa5499/niftynet/layer/loss_segmentation.py#L392
         """
-        super(SSLoss, self).__init__()
+        super().__init__()
 
         self.square = square
         self.do_bg = do_bg
@@ -251,7 +253,6 @@ class SSLoss(nn.Module):
 
         return ss
 
-
 @register("soft_dice_loss")
 class SoftDiceLoss(nn.Module):
     def __init__(self, apply_nonlin=None, batch_dice=False, do_bg=True, smooth=1.,
@@ -259,7 +260,7 @@ class SoftDiceLoss(nn.Module):
         """
         paper: https://arxiv.org/pdf/1606.04797.pdf
         """
-        super(SoftDiceLoss, self).__init__()
+        super().__init__()
 
         self.square = square
         self.do_bg = do_bg
@@ -299,7 +300,7 @@ class IoULoss(nn.Module):
         paper: https://link.springer.com/chapter/10.1007/978-3-319-50835-1_22
         
         """
-        super(IoULoss, self).__init__()
+        super().__init__()
 
         self.square = square
         self.do_bg = do_bg
@@ -339,7 +340,7 @@ class TverskyLoss(nn.Module):
         """
         paper: https://arxiv.org/pdf/1706.05721.pdf
         """
-        super(TverskyLoss, self).__init__()
+        super().__init__()
 
         self.square = square
         self.do_bg = do_bg
@@ -381,7 +382,7 @@ class FocalTversky_loss(nn.Module):
     author code: https://github.com/nabsabraham/focal-tversky-unet/blob/347d39117c24540400dfe80d106d2fb06d2b99e1/losses.py#L65
     """
     def __init__(self, tversky_kwargs, gamma=0.75):
-        super(FocalTversky_loss, self).__init__()
+        super().__init__()
         self.gamma = gamma
         self.tversky = TverskyLoss(**tversky_kwargs)
 
@@ -397,7 +398,7 @@ class AsymLoss(nn.Module):
         """
         paper: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8573779
         """
-        super(AsymLoss, self).__init__()
+        super().__init__()
 
         self.square = square
         self.do_bg = do_bg
@@ -433,7 +434,7 @@ class AsymLoss(nn.Module):
 @register("dice_ce_loss")
 class DC_and_CE_loss(nn.Module):
     def __init__(self, soft_dice_kwargs, ce_kwargs, aggregate="sum"):
-        super(DC_and_CE_loss, self).__init__()
+        super().__init__()
         self.aggregate = aggregate
         self.ce = CrossentropyND(**ce_kwargs)
         self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **soft_dice_kwargs)
@@ -453,7 +454,7 @@ class PenaltyGDiceLoss(nn.Module):
     paper: https://openreview.net/forum?id=H1lTh8unKN
     """
     def __init__(self, gdice_kwargs):
-        super(PenaltyGDiceLoss, self).__init__()
+        super().__init__()
         self.k = 2.5
         self.gdc = GDiceLoss(apply_nonlin=softmax_helper, **gdice_kwargs)
 
@@ -481,7 +482,6 @@ class DC_and_topk_loss(nn.Module):
             raise NotImplementedError("nah son") # reserved for other stuff (later?)
         return result
 
-
 @register("exp_log_loss")
 class ExpLog_loss(nn.Module):
     """
@@ -489,7 +489,7 @@ class ExpLog_loss(nn.Module):
     https://arxiv.org/pdf/1809.00076.pdf
     """
     def __init__(self, soft_dice_kwargs, wce_kwargs, gamma=0.3):
-        super(ExpLog_loss, self).__init__()
+        super().__init__()
         self.wce = WeightedCrossEntropyLoss(**wce_kwargs)
         self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **soft_dice_kwargs)
         self.gamma = gamma

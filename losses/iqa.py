@@ -10,7 +10,7 @@ from argparse import Namespace
 from .registry import register
 
 
-@register("ms_ssim_loss")
+@register("ms_ssim")
 class MultiScaleSSIMLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -19,7 +19,7 @@ class MultiScaleSSIMLoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("gmsd_loss")
+@register("gmsd")
 class GMSDLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -28,7 +28,7 @@ class GMSDLoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("ms_gmsd_loss")
+@register("ms_gmsd")
 class MultiScaleGMSDLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -37,7 +37,7 @@ class MultiScaleGMSDLoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("haar_psi_loss")
+@register("haar_psi")
 class HaarPSILoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -46,7 +46,7 @@ class HaarPSILoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("fsim_loss")
+@register("fsim")
 class FSIMLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -55,7 +55,7 @@ class FSIMLoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("vif_loss")
+@register("vif")
 class VIFLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -64,7 +64,7 @@ class VIFLoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("vsi_loss")
+@register("vsi")
 class VSILoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -73,7 +73,7 @@ class VSILoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("vsi_loss")
+@register("dss")
 class DSSLoss(nn.Module):
     def __init__(self, reduction: str = 'mean',
                  data_range: Union[int, float] = 1.0, dct_size: int = 8,
@@ -93,7 +93,7 @@ class DSSLoss(nn.Module):
         """
         return self.loss_fn(x, y)
 
-@register("pieapp_loss")
+@register("pieapp")
 class PieAPPLoss(nn.Module):
     def __init__(self, data_range=1.0, stride=27, enable_grad=False):
         super().__init__()
@@ -103,7 +103,7 @@ class PieAPPLoss(nn.Module):
     def forward(self, x, y):
         return self.loss_fn(x, y)
 
-@register("dists_loss")
+@register("dists")
 class DISTSLoss(nn.Module):
     def __init__(self):
         super().__init__()
