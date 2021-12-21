@@ -229,7 +229,7 @@ class DCTLoss(nn.Module):
     def __init__(self, metric_fn=lambda x,y: nn.L1Loss(x,y), 
                  blocksize=8, 
                  interleaving=False):
-        super().__init_()
+        super().__init__()
         self.metric_fn = metric_fn
         self.dct_x = Dct2d(blocksize=blocksize, interleaving=interleaving)
         self.dct_y = Dct2d(blocksize=blocksize, interleaving=interleaving)
