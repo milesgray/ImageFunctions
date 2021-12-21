@@ -20,6 +20,8 @@ train_dataset:
       max_q: 8192
       return_hr: true
   batch_size: 1
+  num_workers: 4
+  pin_memory: true
 
 val_dataset:
   dataset:
@@ -40,6 +42,8 @@ val_dataset:
       sample_q: 4096
       return_hr: true
   batch_size: 1
+  num_workers: 4
+  pin_memory: true
 
 data_norm:
   inp: {sub: [0], div: [1]}
