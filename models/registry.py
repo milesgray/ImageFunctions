@@ -16,7 +16,12 @@ def make(model_spec, args=None, load_sd=False):
         model_args = model_spec['args']
     model = models[model_spec['name']](**model_args)
     if load_sd:
-        model.load_state_dict(model_spec['sd'])
+        pretrained_dict = model_spec['sd']
+        model_dict = model.state_dict()
+  
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
     return model
 
 def summary(model, logger=print):

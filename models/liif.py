@@ -14,8 +14,11 @@ from utility import make_coord
 @register('liif')
 class LIIF(nn.Module):
 
-    def __init__(self, encoder_spec, imnet_spec=None,
-                 local_ensemble=True, feat_unfold=True, cell_decode=True,
+    def __init__(self, encoder_spec, 
+                 imnet_spec=None,
+                 local_ensemble=True, 
+                 feat_unfold=True, 
+                 cell_decode=True,
                  fourier_features=64):
         super().__init__()
         self.local_ensemble = local_ensemble

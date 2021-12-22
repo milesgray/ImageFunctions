@@ -2,33 +2,58 @@ import torch
 import torch.nn as nn
 
 from models import register
-
+from .layers import LinearResidual
 
 @register('mlp')
 class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, hidden_list, 
-                use_sine=True, 
+                act='gelu', 
                 has_bn=False, 
                 has_bias=False, 
+                use_residual=True,
                 w0=1.0):
         super().__init__()
+        if act is None:
+            self.act = None
+        elif act.lower() == 'relu':
+            self.act = nn.ReLU() 
+        elif act.lower() == 'gelu':
+            self.act = nn.GELU()
+        elif act.lower() == 'sine':
+            self.act = Sine()
+        else:
+            assert False, f'activation {act} is not supported'
+            
+        if use_residual:
+            linear = LinearResidual(weight, learnable_weight, weighting_type, transform)
         layers = []
         lastv = in_dim
         for hidden in hidden_list:
-            layers.append(nn.Linear(lastv, hidden, bias=has_bias))
-            if has_bn:
-                layers.append(nn.BatchNorm1d(hidden))
-            if use_sine:
-                layers.append(Sine(w0=w0))
+            if use_residual:
+                block = []
+                block.append(nn.Linear(lastv, hidden, bias=has_bias))
+                if has_bn:
+                    block.append(nn.BatchNorm1d(hidden))
+                if self.act:
+                    block.append(self.act)
+                transform = nn.Sequential(block)
+                layers.append(LinearResidual(1.0, True, 'residual', transform))
             else:
-                layers.append(nn.ReLU())
+                layers.append(nn.Linear(lastv, hidden, bias=has_bias))
+                if has_bn:
+                    layers.append(nn.BatchNorm1d(hidden))
+                if self.act:
+                    layers.append(self.act)
             lastv = hidden
         layers.append(nn.Linear(lastv, out_dim))
         self.layers = nn.Sequential(*layers)
+        if act is not None and act.lower() == 'sine':
+            self.layers.apply(sine_init)
+            self.layers[0].apply(first_layer_sine_init)
 
     def forward(self, x):
         shape = x.shape[:-1]
-        x = self.layers(x.view(-1, x.shape[-1]))
+        x = self.layers(x.contiguous().view(-1, x.shape[-1]))
         return x.view(*shape, -1)
 
 @register('siren')
@@ -63,7 +88,7 @@ class Sine(nn.Module):
             defaults to 1.0
         :type w0: float, optional
         """
-        super(Sine, self).__init__()
+        super().__init__()
         self.w0 = w0
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -74,3 +99,26 @@ class Sine(nn.Module):
     def _check_input(x):
         if not isinstance(x, torch.Tensor):
             raise TypeError('input to forward() must be torch.Tensor')
+
+def sine_init(m):
+    with torch.no_grad():
+        if hasattr(m, 'weight'):
+            print('sine_init for Siren...')
+            num_input = m.weight.size(-1)
+            # See supplement Sec. 1.5 for discussion of factor 30
+            m.weight.uniform_(-np.sqrt(6 / num_input) / 30, np.sqrt(6 / num_input) / 30)
+
+def first_layer_sine_init(m):
+    with torch.no_grad():
+        if hasattr(m, 'weight'):
+            print('first_layer_sine_init for Siren...')
+            num_input = m.weight.size(-1)
+            # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
+            m.weight.uniform_(-1 / num_input, 1 / num_input)
+            
+def init_weights(m):
+    # if hasattr(modules, 'weight'):
+    if isinstance(m, nn.Linear):
+        num_input = m.weight.size(-1)
+        # See supplement Sec. 1.5 for discussion of factor 30
+        m.weight.data.uniform_(-np.sqrt(6 / num_input) / 30, np.sqrt(6 / num_input) / 30)

@@ -1,3 +1,5 @@
+from .registry import register, make
+
 from .learnable import *
 from .softmax import *
 from .gate import *
@@ -14,7 +16,9 @@ from .triplet_attn import TripletAttention
 from .balanced_attn import BalancedAttention
 from .nonlocal_attn import NonLocalAttention
 from .spatial_attn import SpatialAttention, CatPoolSpatialAttention
+
 from .scale_aware import ScaleAwareConv2d, ScaleAwareAdapt
+from .linear_residual import LinearResidual
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 

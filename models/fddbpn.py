@@ -7,10 +7,16 @@ import torch
 import torch.nn as nn
 
 from .layers import PixelAttention, MeanShift, HessianAttention
+from .layers import MSHF, DiEnDec, DAC
+from .layers import calc_mean_std
+
 from models import register
 
 class FreqSplit(nn.Module):
-    def __init__(self, fft_size=32, hop_length=2, win_length=8, window="hann_window"):
+    def __init__(self, fft_size=32, 
+                 hop_length=2, 
+                 win_length=8, 
+                 window="hann_window"):
         self.fft_size = fft_size
         self.hop_length = hop_length
         self.win_length = win_length
@@ -22,125 +28,6 @@ class FreqSplit(nn.Module):
         imag = x_stft[..., 1]
 
         return real, imag
-
-def calc_mean_std(feat, eps=1e-5):
-    # eps is a small value added to the variance to avoid divide-by-zero.
-    size = feat.size()
-    assert (len(size) == 4)
-    N, C = size[:2]
-    feat_var = feat.view(N, C, -1).var(dim=2) + eps
-    feat_std = feat_var.sqrt().view(N, C, 1, 1)
-    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
-    return feat_mean, feat_std
-
-class MSHF(nn.Module):
-    def __init__(self, n_channels, kernel=3):
-        super().__init__()
-
-        pad = int((kernel - 1) / 2)
-
-        self.grad_xx = nn.Conv2d(in_channels=n_channels, out_channels=n_channels, kernel_size=3, stride=1, padding=pad,
-                                 dilation=pad, groups=n_channels, bias=True)
-        self.grad_yy = nn.Conv2d(in_channels=n_channels, out_channels=n_channels, kernel_size=3, stride=1, padding=pad,
-                                 dilation=pad, groups=n_channels, bias=True)
-        self.grad_xy = nn.Conv2d(in_channels=n_channels, out_channels=n_channels, kernel_size=3, stride=1, padding=pad,
-                                 dilation=pad, groups=n_channels, bias=True)
-
-        for m in self.modules():
-            if m == self.grad_xx:
-                m.weight.data.zero_()
-                m.weight.data[:, :, 1, 0] = 1
-                m.weight.data[:, :, 1, 1] = -2
-                m.weight.data[:, :, 1, -1] = 1
-            elif m == self.grad_yy:
-                m.weight.data.zero_()
-                m.weight.data[:, :, 0, 1] = 1
-                m.weight.data[:, :, 1, 1] = -2
-                m.weight.data[:, :, -1, 1] = 1
-            elif m == self.grad_xy:
-                m.weight.data.zero_()
-                m.weight.data[:, :, 0, 0] = 1
-                m.weight.data[:, :, 0, -1] = -1
-                m.weight.data[:, :, -1, 0] = -1
-                m.weight.data[:, :, -1, -1] = 1
-
-    def forward(self, x):
-        fxx = self.grad_xx(x)
-        fyy = self.grad_yy(x)
-        fxy = self.grad_xy(x)
-        hessian = ((fxx + fyy) + ((fxx - fyy) ** 2 + 4 * (fxy ** 2)) ** 0.5) / 2
-        return hessian
-
-class DiEnDec(nn.Module):
-    def __init__(self, n_channels, act=nn.ReLU(inplace=True), body=None):
-        super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(n_channels, n_channels * 2, kernel_size=3, padding=1, dilation=1, bias=True),
-            act,
-            nn.Conv2d(n_channels * 2, n_channels * 4, kernel_size=3, padding=2, dilation=2, bias=True),
-            act,
-            nn.Conv2d(n_channels * 4, n_channels * 8, kernel_size=3, padding=4, dilation=4, bias=True),
-            act,
-        )
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(n_channels * 8, n_channels * 4, kernel_size=3, padding=4, dilation=4, bias=True),
-            act,
-            nn.ConvTranspose2d(n_channels * 4, n_channels * 2, kernel_size=3, padding=2, dilation=2, bias=True),
-            act,
-            nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=3, padding=1, dilation=1, bias=True),
-            act,
-        )
-        self.gate = nn.Conv2d(in_channels=n_channels, out_channels=1, kernel_size=1)
-
-    def forward(self, x):
-        output = self.gate(self.decoder(self.encoder(x)))
-        return output
-
-class DAC(nn.Module):
-    def __init__(self, n_channels):
-        super(DAC, self).__init__()
-
-        self.mean = nn.Sequential(
-            nn.Conv2d(n_channels, n_channels // 16, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(n_channels // 16, n_channels, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-        )
-        self.std = nn.Sequential(
-            nn.Conv2d(n_channels, n_channels // 16, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(n_channels // 16, n_channels, 1, 1, 0, 1, 1, False),
-            # nn.BatchNorm2d(n_channels),
-        )
-
-    def forward(self, observed_feat, referred_feat):
-        assert (observed_feat.size()[:2] == referred_feat.size()[:2])
-        size = observed_feat.size()
-        referred_mean, referred_std = calc_mean_std(referred_feat)
-        observed_mean, observed_std = calc_mean_std(observed_feat)
-
-        normalized_feat = (observed_feat - observed_mean.expand(
-            size)) / observed_std.expand(size)
-        referred_mean = self.mean(referred_mean)
-        referred_std = self.std(referred_std)
-        output = normalized_feat * referred_std.expand(size) + referred_mean.expand(size)
-        return output
-
-class MeanShift(nn.Conv2d):
-    def __init__(
-        self, rgb_range,
-        rgb_mean=(0.40005, 0.42270, 0.45802), 
-        rgb_std=(0.28514, 0.31383, 0.28289), 
-        sign=-1):
-
-        super().__init__(3, 3, kernel_size=1)
-        std = torch.Tensor(rgb_std)
-        self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
-        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std
-        for p in self.parameters():
-            p.requires_grad = False
 
 
 def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
@@ -167,9 +54,13 @@ def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
         )
 
 class DenseProjection(nn.Module):
-    def __init__(self, in_channels, nr, scale, up=True, bottleneck=True, use_pa=True, use_shuffle=False,
+    def __init__(self, in_channels, nr, scale, 
+                 up=True, 
+                 bottleneck=True, 
+                 use_pa=True, 
+                 use_shuffle=False,
                  use_pa_learn_scale=False):
-        super(DenseProjection, self).__init__()
+        super().__init__()
         if bottleneck:
             self.bottleneck = nn.Sequential(*[
                 nn.Conv2d(in_channels, nr, 1),
@@ -245,12 +136,8 @@ class FDDBPN(nn.Module):
 
         channels = args.n_feats
         if self.use_hessian:
-            self.coder = nn.Sequential(DiEnDec(3, nn.ReLU(True)))
-            self.dac = nn.Sequential(DAC(channels))
-            self.hessian3 = nn.Sequential(MSHF(channels, kernel=3))
-            self.hessian5 = nn.Sequential(MSHF(channels, kernel=5))
-            self.hessian7 = nn.Sequential(MSHF(channels, kernel=7))
-
+            self.hessian_attn_in = HessianAttention(channels)
+            
         self.upmodules = nn.ModuleList()
         self.downmodules = nn.ModuleList()
         if self.use_pa:
@@ -294,11 +181,7 @@ class FDDBPN(nn.Module):
         self.reconstruction = nn.Sequential(*reconstruction)
 
         if self.use_hessian_out:
-            self.coder_out = nn.Sequential(DiEnDec(3, nn.ReLU(True)))
-            self.dac_out = nn.Sequential(DAC(self.out_dim))
-            self.hessian3_out = nn.Sequential(MSHF(self.out_dim, kernel=3))
-            self.hessian5_out = nn.Sequential(MSHF(self.out_dim, kernel=5))
-            self.hessian7_out = nn.Sequential(MSHF(self.out_dim, kernel=7))
+            self.hessian_attn_out = HessianAttention(self.out_dim)
 
         self.use_mean_shift = args.use_mean_shift
         if self.use_mean_shift:
@@ -311,16 +194,7 @@ class FDDBPN(nn.Module):
         x = self.initial(x)
         x_real, x_imag = self.split(x)
         if self.use_hessian:
-            hessian3 = self.hessian3(x)
-            hessian5 = self.hessian5(x)
-            hessian7 = self.hessian7(x)
-            hessian = torch.cat((torch.mean(hessian3, dim=1, keepdim=True),
-                                 torch.mean(hessian5, dim=1, keepdim=True),
-                                 torch.mean(hessian7, dim=1, keepdim=True))
-                                , 1)
-            hessian = self.coder(hessian)
-            attention = torch.sigmoid(self.dac[0](hessian.expand(x_real.size()), x_real))
-            x_real = x_real * attention
+            x_real = self.hessian_attn_in(x_real)
 
         h_r_list = []
         h_i_list = []
@@ -357,16 +231,7 @@ class FDDBPN(nn.Module):
         h_list = h_r_list + h_i_list
         out = self.reconstruction(torch.cat(h_list, dim=1))
         if self.use_hessian_out:
-            hessian3 = self.hessian3_out(out)
-            hessian5 = self.hessian5_out(out)
-            hessian7 = self.hessian7_out(out)
-            hessian = torch.cat((torch.mean(hessian3, dim=1, keepdim=True),
-                                    torch.mean(hessian5, dim=1, keepdim=True),
-                                    torch.mean(hessian7, dim=1, keepdim=True))
-                                , 1)
-            hessian = self.coder_out(hessian)
-            attention = torch.sigmoid(self.dac_out[0](hessian.expand(out.size()), out))
-            out = out * attention
+            out = self.hessian_attn_out(out)
         if self.use_mean_shift:
             out = self.add_mean(out)
 
