@@ -2,6 +2,8 @@ import random
 from argparse import Namespace
 
 import torch
+import torch.nn as nn
+from torch import Tensor
 import numpy as np
 
 def set_seed(seed):
