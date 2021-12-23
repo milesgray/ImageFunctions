@@ -16,7 +16,7 @@ class PixelAttention(nn.Module):
                  resize="same", 
                  scale=2, 
                  softmax=True, 
-                 use_pool=True,
+                 use_pool=False,
                  use_gate=False,
                  gate_params=None,
                  add_contrast=False,
