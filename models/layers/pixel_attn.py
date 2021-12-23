@@ -56,13 +56,13 @@ class PixelAttention(nn.Module):
             if self.use_pool:
                 self.channel_avg_pool = nn.AdaptiveAvgPool2d(1)
                 self.channel_max_pool = nn.AdaptiveMaxPool2d(1)
-                self.channel_theta = self.conv(
+                self.channel_theta = nn.Conv2d(
                     f_out, f_out // 8, kernel_size=1, padding=0, bias=False)
-                self.channel_phi = self.conv(
+                self.channel_phi = nn.Conv2d(
                     f_out, f_out // 8, kernel_size=1, padding=0, bias=False)
-                self.channel_g = self.conv(
+                self.channel_g = nn.Conv2d(
                     f_out, f_out // 2, kernel_size=1, padding=0, bias=False)
-                self.channel_o = self.conv(
+                self.channel_o = nn.Conv2d(
                     f_out // 2, f_out, kernel_size=1, padding=0, bias=False)
                 
             if self.use_gate:
