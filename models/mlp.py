@@ -34,7 +34,7 @@ class MLP(nn.Module):
                     block.append(nn.BatchNorm1d(hidden))
                 if self.act:
                     block.append(self.act)
-                transform = nn.Sequential(block)
+                transform = nn.Sequential(*block)
                 layers.append(LinearResidual(1.0, True, 'residual', transform))
             else:
                 layers.append(nn.Linear(lastv, hidden, bias=has_bias))
