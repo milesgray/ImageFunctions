@@ -26,6 +26,8 @@ class PixelAttention(nn.Module):
         super().__init__()
         if f_out is None:
             f_out = f_in
+            
+        self.channels = f_out
         
         self.add_contrast = add_contrast
         self.contrast = stdv_channels
@@ -115,19 +117,19 @@ class PixelAttention(nn.Module):
         if self.spatial_wise:
             spatial_y = self.spatial_conv(x)
             if self.use_pool:
-                phi = self.channel_avg_pool(self.phi(spatial_y))
-                g = self.channel_max_pool(self.g(spatial_y))
+                phi = self.channel_avg_pool(self.channel_phi(spatial_y))
+                g = self.channel_max_pool(self.channel_g(spatial_y))
                 # Perform reshapes
-                theta = spatial_y.view(-1, self.channels // 8, x.shape[2] * x.shape[3])
-                phi = phi.view(-1, self.channels // 8, x.shape[2] * x.shape[3] // 4)
-                g = g.view(-1, self.channels // 2, x.shape[2] * x.shape[3] // 4)
+                theta = spatial_y.view(-1, self.channels // 8, spatial_y.shape[2] * spatial_y.shape[3])
+                phi = phi.view(-1, self.channels // 8, spatial_y.shape[2] * spatial_y.shape[3] // 4)
+                g = g.view(-1, self.channels // 2, spatial_y.shape[2] * spatial_y.shape[3] // 4)
                 # Matmul and softmax to get attention maps
                 beta = F.softmax(torch.bmm(theta.transpose(1, 2), phi), -1)
                 # Attention map times g path
-                o = self.o(torch.bmm(g, beta.transpose(1, 2)).view(-1,
+                o = self.channel_o(torch.bmm(g, beta.transpose(1, 2)).view(-1,
                                                                 self.channels // 2,
-                                                                x.shape[2],
-                                                                x.shape[3]))
+                                                                spatial_y.shape[2],
+                                                                spatial_y.shape[3]))
                 spatial_y = spatial_y + o
             if self.use_gate:
                 spatial_gate = self.spatial_gate(spatial_y)
