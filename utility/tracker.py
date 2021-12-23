@@ -42,7 +42,8 @@ class LossTracker:
                  warmup=np.inf,
                  loss_limits=[-np.inf, np.inf],
                  block_size=100,
-                 scale_range=[0.2, 5]
+                 scale_range=[0.2, 5],
+                 use_ratio_scaling=False
                   ):
         """Wrapper around a call to a PyTorch Loss result that
         tracks the historical loss values and calculates statistics
@@ -80,7 +81,7 @@ class LossTracker:
         self.loss_up_limit = loss_limits[1]
         self.warmup = warmup
         self.block_size = block_size
-        self.use_scaling = use_scaling
+        self.use_scaling = use_ratio_scaling
         self.scale_min = scale_range[0]
         self.scale_max = scale_range[1]
         self.reset()
