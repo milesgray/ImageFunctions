@@ -16,7 +16,7 @@ class PixelAttention(nn.Module):
                  resize="same", 
                  scale=2, 
                  softmax=True, 
-                 use_pool=False,
+                 use_pool=True,
                  use_gate=False,
                  gate_params=None,
                  add_contrast=False,
@@ -56,6 +56,15 @@ class PixelAttention(nn.Module):
             if self.use_pool:
                 self.channel_avg_pool = nn.AdaptiveAvgPool2d(1)
                 self.channel_max_pool = nn.AdaptiveMaxPool2d(1)
+                self.channel_theta = self.conv(
+                    f_out, f_out // 8, kernel_size=1, padding=0, bias=False)
+                self.channel_phi = self.conv(
+                    f_out, f_out // 8, kernel_size=1, padding=0, bias=False)
+                self.channel_g = self.conv(
+                    f_out, f_out // 2, kernel_size=1, padding=0, bias=False)
+                self.channel_o = self.conv(
+                    f_out // 2, f_out, kernel_size=1, padding=0, bias=False)
+                
             if self.use_gate:
                 self.channel_gate = GateConv(f_out, f_out, 1, conv_args={"bias":False})
         if self.spatial_wise:
@@ -64,11 +73,13 @@ class PixelAttention(nn.Module):
                 self.spatial_avg_pool = SpatialMeanPool()
                 self.spatial_max_pool = SpatialMaxPool()
             if self.use_gate:
-                self.spatial_gate_conv = nn.Conv2d(2, f_out, 7, 
-                                                    padding=3,
-                                                    bias=False)
-                self.spatial_gate_act = nn.Hardsigmoid()           
-                self.spatial_gate_pool = ZPool()
+                gate = []
+                gate.append(nn.Conv2d(2, f_out, 7, 
+                                      padding=3,
+                                      bias=False))
+                gate.append(nn.Hardsigmoid())   
+                gate.append(ZPool())
+                self.spatial_gate = nn.Sequential(*gate)
         if not self.channel_wise and not self.spatial_wise:
             self.conv = GateConv(f_out, f_out, 1, conv_args={"bias":False})
 
@@ -103,10 +114,23 @@ class PixelAttention(nn.Module):
             x = x + self.contrast(x)
         if self.spatial_wise:
             spatial_y = self.spatial_conv(x)
+            if self.use_pool:
+                phi = self.channel_avg_pool(self.phi(spatial_y))
+                g = self.channel_max_pool(self.g(spatial_y))
+                # Perform reshapes
+                theta = spatial_y.view(-1, self.channels // 8, x.shape[2] * x.shape[3])
+                phi = phi.view(-1, self.channels // 8, x.shape[2] * x.shape[3] // 4)
+                g = g.view(-1, self.channels // 2, x.shape[2] * x.shape[3] // 4)
+                # Matmul and softmax to get attention maps
+                beta = F.softmax(torch.bmm(theta.transpose(1, 2), phi), -1)
+                # Attention map times g path
+                o = self.o(torch.bmm(g, beta.transpose(1, 2)).view(-1,
+                                                                self.channels // 2,
+                                                                x.shape[2],
+                                                                x.shape[3]))
+                spatial_y = spatial_y + o
             if self.use_gate:
-                spatial_gate = self.spatial_gate_pool(spatial_y)
-                spatial_gate = self.spatial_gate_conv(spatial_gate)                
-                spatial_gate = self.spatial_gate_act(spatial_gate)
+                spatial_gate = self.spatial_gate(spatial_y)
             spatial_y = self.sigmoid(spatial_y)
             if self.learn_weight:
                 spatial_y = self.spatial_scale(spatial_y)
