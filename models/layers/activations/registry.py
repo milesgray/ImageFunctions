@@ -11,11 +11,11 @@ def register(name):
 def make(act_spec, args=None):
     if 'args' in act_spec:
         if args is not None:
-            layer_args = copy.deepcopy(layer_spec['args'])
-            layer_args.update(args)
+            act_args = copy.deepcopy(act_spec['args'])
+            act_args.update(args)
         else:
-            layer_args = layer_spec['args']
-        layer = lookup[layer_spec['name']](**layer_args)
+            act_args = act_spec['args']
+        act = lookup[act_spec['name']](**act_args)
     else:
-        layer = lookup[layer_spec['name']]()
-    return layer
+        act = lookup[act_spec['name']]()
+    return act

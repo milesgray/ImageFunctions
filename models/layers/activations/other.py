@@ -3,12 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from models.layers import Scale, Balance
-from .methods import mish, logcosh
+from .methods import logcosh
 
 from .registry import register
-
-
 
 @register("logcosh")
 class LogCosh(torch.nn.Module):

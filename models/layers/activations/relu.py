@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from models.layers import Scale
 from .methods import *
 
 from .registry import register
@@ -19,12 +20,12 @@ class ScaledLeakyReLU(nn.Module):
                                            requires_grad=self.learnable)
         
         scale = math.sqrt(2 / (1 + negative_slope ** 2)) if scale is None else scale
-        self.scale = nn.Parameter(torch.FloatTensor([scale]), requires_grad=True)
+        self.scale = Scale(scale)
 
     def forward(self, input):
         out = F.leaky_relu(input, negative_slope=self.negative_slope)
 
-        return out * self.scale
+        return self.scale(out)
     
 @register("adaptive_leaky_relu")
 class AdaptiveLeakyReLU(nn.Module):
@@ -33,9 +34,9 @@ class AdaptiveLeakyReLU(nn.Module):
 
         self.negative_slope = nn.Parameter(torch.FloatTensor([negative_slope]), requires_grad=True)
         scale = math.sqrt(2 / (1 + negative_slope ** 2)) if scale is None else scale
-        self.scale = nn.Parameter(torch.FloatTensor([scale]), requires_grad=True)
+        self.scale = Scale(scale)
 
     def forward(self, x):
         out = F.leaky_relu(x, negative_slope=self.negative_slope)
 
-        return out * self.scale
+        return self.scale(out)
