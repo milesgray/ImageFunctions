@@ -24,8 +24,6 @@ class MLP(nn.Module):
         else:
             assert False, f'activation {act} is not supported'
             
-        if use_residual:
-            linear = LinearResidual(1.0, True, "residual", transform)
         layers = []
         lastv = in_dim
         for hidden in hidden_list:
