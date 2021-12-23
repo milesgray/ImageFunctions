@@ -65,7 +65,7 @@ model:
         out_dim: 3
         hidden_list: [256, 256, 256]
         has_bn: true
-        use_sine: true
+        act: "gelu"
 
 optimizer:
   name: adamw

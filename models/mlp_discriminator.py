@@ -9,6 +9,8 @@ from torch import Tensor
 import numpy as np
 
 import models
+import models.layers as layers
+import models.layers.activations as activations
 from models import register
 from utility import make_coord
 
@@ -17,28 +19,6 @@ def sn_wrapper(module: nn.Module, use_sn: bool, *sn_args, **sn_kwargs) -> nn.Mod
     So not to wrap it everywhere
     """
     if use_sn:
-        return nn.utils.spectral_norm(module, *sn_args, **sn_kwargs)
-    else:
-        return module
-
-class LinearResidual(nn.Module):
-    def __init__(self, args: Namespace, transform: Callable):
-        super().__init__()
-
-        self.args = args
-        self.transform = transform
-        self.weight = nn.Parameter(
-            torch.tensor(args.weight).float(), requires_grad=args.learnable_weight)
-
-    def forward(self, x: Tensor) -> Tensor:
-        if self.args.weighting_type == 'shortcut':
-            return self.transform(x) + self.weight * x
-        elif self.args.weighting_type == 'residual':
-            return self.weight * self.transform(x) + x
-        else:
-            raise ValueError
-
-
 
 class FourierINR(nn.Module):
     """
@@ -47,7 +27,7 @@ class FourierINR(nn.Module):
     def __init__(self, in_features, args: Namespace, num_fourier_feats=64, layer_sizes=[64,64,64], out_features=64, 
                  has_bias=True, activation="leaky_relu", 
                  learnable_basis=True,):
-        super(FourierINR, self).__init__()
+        super().__init__()
 
         layers = [
             nn.Linear(num_fourier_feats * 2, layer_sizes[0], bias=has_bias),

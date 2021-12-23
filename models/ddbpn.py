@@ -13,98 +13,7 @@ from models import register
 from .layers import MeanShift, HessianAttention, PixelAttention
 #from layers import FourierINR
 
-##################################################################################################
-# https://github.com/zongyi-li/fourier_neural_operator/blob/master/scripts/fourier_on_images.py #
-#################################################################################################
-
-def compl_mul2d(a, b):
-    op = partial(torch.einsum, "bctq,dctq->bdtq")
-    return torch.stack([
-        op(a[..., 0], b[..., 0]) - op(a[..., 1], b[..., 1]),
-        op(a[..., 1], b[..., 0]) + op(a[..., 0], b[..., 1])
-    ], dim=-1)
-
-
-class SpectralConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, mode):
-        super(SpectralConv2d, self).__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.modes1 = mode #Number of Fourier modes to multiply, at most floor(N/2) + 1
-        self.modes2 = mode
-
-        self.scale = (1 / (in_channels * out_channels))
-        self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, 2))
-        self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, 2))
-
-    def forward(self, x):
-        batchsize = x.shape[0]
-        #Compute Fourier coeffcients up to factor of e^(- something constant)
-        x_ft = torch.rfft(x, 2, normalized=True, onesided=True)
-
-        # Multiply relevant Fourier modes
-        out_ft = torch.zeros(batchsize, self.in_channels,  x.size(-2), x.size(-1)//2 + 1, 2, device=x.device)
-        out_ft[:, :, :self.modes1, :self.modes2] = \
-            compl_mul2d(x_ft[:, :, :self.modes1, :self.modes2], self.weights1)
-        out_ft[:, :, -self.modes1:, :self.modes2] = \
-            compl_mul2d(x_ft[:, :, -self.modes1:, :self.modes2], self.weights2)
-
-        #Return to physical space
-        x = torch.irfft(out_ft, 2, normalized=True, onesided=True, signal_sizes=( x.size(-2), x.size(-1)))
-        return x
-
-class SimpleBlock2d(nn.Module):
-    def __init__(self, modes):
-        super(SimpleBlock2d, self).__init__()
-
-        self.conv1 = SpectralConv2d(1, 16, modes=modes)
-        self.conv2 = SpectralConv2d(16, 32, modes=modes)
-        self.conv3 = SpectralConv2d(32, 64, modes=modes)
-
-        self.pool = nn.MaxPool2d(2, 2)
-
-
-        self.fc1 = nn.Linear(64 * 14 * 14, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.conv3(x)
-        x = self.pool(x)
-
-        x = x.view(-1, 64 * 14 * 14)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-
-        return x
-
-class Net2d(nn.Module):
-    def __init__(self, modes, width):
-        """
-        A wrapper function
-        """
-        super(Net2d, self).__init__()
-
-        self.conv1 = SimpleBlock2d(modes, modes,  width)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        return x.squeeze()
-
-    def count_params(self):
-        c = 0
-        for p in self.parameters():
-            c += reduce(operator.mul, list(p.size()))
-
-        return c
-
 #######################################
-
 class LinearResidual(nn.Module):
     def __init__(self, args: Namespace, transform: Callable):
         super().__init__()
@@ -168,8 +77,6 @@ class FourierINR(nn.Module):
     def forward(self, coords: Tensor) -> Tensor:
         return self.model(self.compute_fourier_feats(coords))
 
-
-
 def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
     kernel_size, stride, padding = {
         2: (6, 2, 2),
@@ -194,9 +101,13 @@ def projection_conv(in_channels, out_channels, scale, up=True, shuffle=False):
         )
 
 class DenseProjection(nn.Module):
-    def __init__(self, in_channels, nr, scale, up=True, bottleneck=True, use_pa=True, use_shuffle=False,
+    def __init__(self, in_channels, nr, scale, 
+                 up=True, 
+                 bottleneck=True, 
+                 use_pa=True, 
+                 use_shuffle=False,
                  use_pa_learn_scale=False):
-        super(DenseProjection, self).__init__()
+        super().__init__()
         if bottleneck:
             self.bottleneck = nn.Sequential(*[
                 nn.Conv2d(in_channels, nr, 1),
@@ -251,13 +162,15 @@ class DenseProjection(nn.Module):
 class DDBPN(nn.Module):
     def __init__(self, args):
         super().__init__()
-        scale = args.scale[0]
-
+        
+        self.scale = args.scale[0]
         self.depth = args.depth
         self.use_pa = args.use_pa
         self.use_pa_learn_scale = args.use_pa_learn_scale
         self.use_pa_bridge = args.use_pa_bridge
         self.use_hessian = args.use_hessian_attn
+        self.no_upsampling = args.no_upsampling
+        self.num_feats = args.n_feats
 
         fourier_args = Namespace()
         fourier_args.scale = 1.0
@@ -275,29 +188,32 @@ class DDBPN(nn.Module):
         initial = [
             nn.Conv2d(args.n_colors, args.n_feats_in, 3, padding=1),
             nn.PReLU(args.n_feats_in),
-            nn.Conv2d(args.n_feats_in, args.n_feats, 1),
-            nn.PReLU(args.n_feats)
+            nn.Conv2d(args.n_feats_in, self.num_feats, 1),
+            nn.PReLU(self.num_feats)
         ]
         self.initial = nn.Sequential(*initial)
 
-        channels = args.n_feats
         if self.use_hessian:
-            self.hessian = HessianAttention(channels)
+            self.hessian = HessianAttention(self.num_feats)
 
         self.upmodules = nn.ModuleList()
         self.downmodules = nn.ModuleList()
         if self.use_pa:
             self.attnmodules = nn.ModuleList()
 
+        channels = self.num_feats
         for i in range(self.depth):
             self.upmodules.append(
-                DenseProjection(channels, args.n_feats, scale, up=True, bottleneck=i > 1,
-                                use_pa=args.use_pa, use_shuffle=i%2==1,
+                DenseProjection(channels, self.num_feats, self.scale, 
+                                up=True, bottleneck=i > 1,
+                                use_pa=self.use_pa, 
+                                use_shuffle=i%2==1,
                                 use_pa_learn_scale=self.use_pa_learn_scale)
             )
             if i != 0:
-                channels += args.n_feats
-        self.no_upsampling = args.no_upsampling
+                channels += self.num_feats
+                
+        
         if self.no_upsampling:
             self.total_depth = self.depth
         else:
@@ -305,24 +221,29 @@ class DDBPN(nn.Module):
 
         self.out_dim = args.n_feats_out
 
-        channels = args.n_feats
+        channels = self.num_feats
         for i in range(self.total_depth):
             self.downmodules.append(
-                DenseProjection(channels, args.n_feats, scale, up=False, bottleneck=i != 0,
-                                use_pa=args.use_pa, use_pa_learn_scale=self.use_pa_learn_scale)
+                DenseProjection(channels, self.num_feats, self.scale, 
+                                up=False, 
+                                bottleneck=i != 0,
+                                use_pa=self.use_pa, 
+                                use_pa_learn_scale=self.use_pa_learn_scale)
             )
-            channels += args.n_feats
+            channels += self.num_feats
 
         if self.use_pa_bridge:
-            channels = args.n_feats
+            channels = self.num_feats
             for i in range(self.total_depth):
                 self.attnmodules.append(
-                    PixelAttention(channels, learn_weight=self.use_pa_learn_scale)
+                    PixelAttention(channels, 
+                                   learn_weight=self.use_pa_learn_scale)
                 )
-                channels += args.n_feats
-
+                channels += self.num_feats
+                
         reconstruction = [
-            nn.Conv2d(self.depth * args.n_feats, self.out_dim, 3, padding=1)
+            nn.Conv2d(self.depth * self.num_feats, self.out_dim, 3,
+                      padding=1)
         ]
         self.reconstruction = nn.Sequential(*reconstruction)
 

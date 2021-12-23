@@ -8,6 +8,7 @@ from torch import Tensor
 import numpy as np
 import models
 from models import register
+from models.layers.activations import make
 from utility import make_coord
 
 class LinearResidual(nn.Module):
