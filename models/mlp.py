@@ -27,7 +27,7 @@ class MLP(nn.Module):
         layers = []
         lastv = in_dim
         for hidden in hidden_list:
-            if use_residual:
+            if use_residual and lastv == hidden:
                 block = []
                 block.append(nn.Linear(lastv, hidden, bias=has_bias))
                 if has_bn:
