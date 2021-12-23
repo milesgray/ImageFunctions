@@ -61,9 +61,9 @@ model:
         depth: 5
         use_pa: true
         use_pa_learn_scale: true
-        use_pa_bridge: true
+        use_pa_bridge: false
         use_hessian_attn: true
-        no_upsampling: true
+        no_upsampling: false
     imnet_spec:
       name: mlp
       args:

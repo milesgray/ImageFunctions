@@ -121,6 +121,7 @@ class LossTracker:
                do_backwards=do_backwards,
                do_comet=do_comet,
                do_console=do_console)
+        return self.last_value
         
     def update(self, value, 
                do_backwards=True,
