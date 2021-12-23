@@ -10,7 +10,7 @@ import numpy as np
 
 import models
 import models.layers as layers
-import models.layers.activations as activations
+import models.layers.activations as activationsy
 from models import register
 from utility import make_coord
 
@@ -19,7 +19,9 @@ def sn_wrapper(module: nn.Module, use_sn: bool, *sn_args, **sn_kwargs) -> nn.Mod
     So not to wrap it everywhere
     """
     if use_sn:
-
+        return nn.utils.spectral_norm(module, *sn_args, **sn_kwargs)
+    else:
+        return module
 class FourierINR(nn.Module):
     """
     INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
