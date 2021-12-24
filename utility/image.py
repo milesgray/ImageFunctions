@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
+import utility as util
 
 def make_img_coeff(data_norm):
     if data_norm is None:
@@ -11,18 +12,18 @@ def make_img_coeff(data_norm):
         }
     try:
         result = data_norm.copy()
-        result = dict_apply(result, 
-                            lambda x: dict_apply(x,
+        result = util.dict_apply(result,
+                            lambda x: util.dict_apply(x,
                                                  lambda y: torch.FloatTensor(y))
         )
-        result['inp'] = dict_apply(result['inp'],
+        result['inp'] = util.dict_apply(result['inp'],
                                    lambda x: x.view(1, -1, 1, 1))
-        result['gt'] = dict_apply(result['gt'],
+        result['gt'] = util.dict_apply(result['gt'],
                                   lambda x: x.view(1, 1, -1))
 
         if torch.cuda.is_available():
-            result = dict_apply(result, 
-                                lambda x: dict_apply(x,
+            result = util.dict_apply(result,
+                                lambda x: util.dict_apply(x,
                                                  lambda y: y.cuda())
             )
         return result
@@ -65,7 +66,6 @@ def resize_fn(img, size):
         transforms.Resize(size, InterpolationMode.BICUBIC)(
             transforms.ToPILImage()(img)))
 
-
 def to_frequency_samples(f_img):
     freq = f_img.view(4, -1).permute(1, 0)
     return freq
@@ -82,6 +82,9 @@ def to_y_channel(img):
         img = bgr2ycbcr(img, y_only=True)
         img = img[..., None]
     return img * 255.
+
+# ----
+# COLOR SPACES
 
 def rgb2ycbcrT(rgb):
     rgb = rgb.numpy().transpose(1, 2, 0)
