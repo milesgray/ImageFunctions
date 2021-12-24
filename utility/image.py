@@ -3,6 +3,41 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 
+def make_img_coeff(data_norm):
+    if data_norm is None:
+        data_norm = {
+            'inp': {'sub': [0], 'div': [1]},
+            'gt': {'sub': [0], 'div': [1]}
+        }
+    try:
+        result = data_norm.copy()
+        result = dict_apply(result, 
+                            lambda x: dict_apply(x,
+                                                 lambda y: torch.FloatTensor(y))
+        )
+        result['inp'] = dict_apply(result['inp'],
+                                   lambda x: x.view(1, -1, 1, 1))
+        result['gt'] = dict_apply(result['gt'],
+                                  lambda x: x.view(1, 1, -1))
+
+        if torch.cuda.is_available():
+            result = dict_apply(result, 
+                                lambda x: dict_apply(x,
+                                                 lambda y: y.cuda())
+            )
+        return result
+    except Exception as e:
+        print(f"Img coeff fail:\n{e}")
+        return data_norm.copy()
+
+def reshape(pred, target_shape):
+    ih, iw = target_shape
+    s = math.sqrt(pred.shape[1] / (ih * iw))
+    shape = [pred.shape[0], round(ih * s), round(iw * s), 3]
+    pred = pred.view(*shape) \
+        .permute(0, 3, 1, 2).contiguous()
+    return pred
+
 def reorder_image(img, input_order='HWC'):
     """Reorder images to 'HWC' order.
     If the input_order is (h, w), return (h, w, 1);

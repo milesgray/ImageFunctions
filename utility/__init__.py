@@ -18,3 +18,13 @@ def make_tuple(x, n):
     if is_sequence(x):
         return x
     return tuple([x for _ in range(n)])
+
+def dict_apply(source, fn=lambda x: x):
+    try:
+        result = source.copy()
+        for k,v in result.items():
+            result[k] = fn(v)
+    except Exception as e:
+        print(f"dict_apply failure:\t{e}")
+        return source
+    return result

@@ -4,6 +4,30 @@ import torch
 from torch import Tensor
 import numpy as np
 
+def make_coord(shape, ranges=None, flatten=True):
+    """ Make coordinates at grid centers.
+    """
+    coord_seqs = []
+    for i, n in enumerate(shape):
+        if ranges is None:
+            v0, v1 = -1, 1
+        else:
+            v0, v1 = ranges[i]
+        r = (v1 - v0) / (2 * n)
+        seq = v0 + r + (2 * r) * torch.arange(n)
+        coord_seqs.append(seq)
+    ret = torch.stack(torch.meshgrid(*coord_seqs), dim=-1)
+    if flatten:
+        ret = ret.view(-1, ret.shape[-1])
+    return ret
+
+def make_coord_cell(target_shape=(32, 32), batch_size=8):
+    coord = make_coord(target_shape).repeat(batch_size, 1, 1)
+    cell = torch.ones_like(coord)
+    cell[..., 0] *= 2 / target_shape[1]
+    cell[..., 1] *= 2 / target_shape[0]
+    return coord, cell
+
 def generate_coords(batch_size: int, img_size: int) -> Tensor:
     row = torch.arange(0, img_size).float() / img_size # [img_size]
     x_coords = row.view(1, -1).repeat(img_size, 1) # [img_size, img_size]
@@ -59,23 +83,6 @@ def generate_random_resolution_coords(batch_size: int, img_size: int, scale: flo
     coords = torch.stack([x_coords, y_coords], dim=0).permute(2, 0, 1) # [batch_size, 2, img_size ** 2]
 
     return coords
-
-def make_coord(shape, ranges=None, flatten=True):
-    """ Make coordinates at grid centers.
-    """
-    coord_seqs = []
-    for i, n in enumerate(shape):
-        if ranges is None:
-            v0, v1 = -1, 1
-        else:
-            v0, v1 = ranges[i]
-        r = (v1 - v0) / (2 * n)
-        seq = v0 + r + (2 * r) * torch.arange(n)
-        coord_seqs.append(seq)
-    ret = torch.stack(torch.meshgrid(*coord_seqs), dim=-1)
-    if flatten:
-        ret = ret.view(-1, ret.shape[-1])
-    return ret
 
 def to_pixel_samples(img, bbox=None, channels=3):
     """ Convert the image to coord-RGB pairs.
