@@ -64,7 +64,7 @@ class ITNSR(nn.Module):
         self.feat = self.encoder(inp)
         return self.feat
 
-    def query_rgb(self, coord, scale=None):
+    def query_rgb(self, coord, scale=None, verbose=False):
         feat = self.feat
 
         if self.imnet is None:
@@ -107,14 +107,18 @@ class ITNSR(nn.Module):
                 coord_.clamp_(-1 + 1e-6, 1 - 1e-6)
                 #Interpolate K to HR resolution  
                 value = F.grid_sample(
-                    feat, coord_.flip(-1).unsqueeze(1),
-                    mode='nearest', align_corners=False)[:, :, 0, :] \
-                    .permute(0, 2, 1)
+                                feat, 
+                                coord_.flip(-1).unsqueeze(1),
+                                mode='nearest', 
+                                align_corners=False)[:, :, 0, :] \
+                        .permute(0, 2, 1)
                 #Interpolate K to HR resolution 
                 coord_k = F.grid_sample(
-                    feat_coord, coord_.flip(-1).unsqueeze(1),
-                    mode='nearest', align_corners=False)[:, :, 0, :] \
-                    .permute(0, 2, 1)
+                                feat_coord, 
+                                coord_.flip(-1).unsqueeze(1),
+                                mode='nearest', 
+                                align_corners=False)[:, :, 0, :] \
+                        .permute(0, 2, 1)
                 #calculate relation of Q-K
                 if self.embedding_q:
                     Q = self.embedding_q(coord.contiguous().view(bs * q, -1))
@@ -146,7 +150,8 @@ class ITNSR(nn.Module):
 
                 score = repeat(self.Score(rel.view(bs * q, -1)).view(bs, q, -1),'b q c -> b q (repeat c)', repeat=3)
                 
-                weight = self.imnet(inp.view(bs * q, -1)).view(bs * q, feat.shape[1], 3)
+                weight = self.imnet(inp.view(bs * q, -1))
+                weight = weight.view(bs * q, feat.shape[1], 3)
                 pred = torch.bmm(value.contiguous().view(bs * q, 1, -1), weight).view(bs, q, -1)
                 
                 pred +=score

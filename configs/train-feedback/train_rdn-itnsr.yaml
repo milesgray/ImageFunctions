@@ -3,7 +3,7 @@ train_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      repeat: 1
+      repeat: 5
       cache: in_memory
       last_k: 120000
       skip_every: 30
@@ -11,15 +11,15 @@ train_dataset:
     name: sr-setrange-downsampled-randcrop
     args:
       inp_size_min: 32
-      inp_size_max: 64
-      scale_min: 2
+      inp_size_max: 32
+      scale_min: 1
       scale_max: 4
       augment: true
-      sample_q: 4096
-      vary_q: true
+      sample_q: 2304
+      vary_q: false
       max_q: 8192
       return_hr: true
-  batch_size: 1
+  batch_size: 16
   num_workers: 4
   pin_memory: true
 
@@ -39,9 +39,9 @@ val_dataset:
       inp_size_max: 32
       scale_min: 2
       scale_max: 6
-      sample_q: 4096
+      sample_q: 2304
       return_hr: true
-  batch_size: 1
+  batch_size: 16
   num_workers: 4
   pin_memory: true
 
@@ -58,27 +58,30 @@ model:
     encoder_spec:
       name: rdn
       args:
+        D: 10
+        C: 2
+        G: 32
         no_upsampling: true
 
     imnet_spec:
       name: mlp
       args:
-        # in_dim: 1728
-        # out_dim: 3
+        in_dim: 1728
+        out_dim: 3
         hidden_list: [256,256,256,256]
         act: 'gelu'
 
 optimizer:
-  name: adam
+  name: adamw
   args:
     lr: 2.e-4
-epoch_max: 1000
+epoch_max: 100
 multi_step_lr:
-  milestones: [100, 200, 400, 600, 800]
+  milestones: [10, 20, 40, 60, 80]
   gamma: 0.5
 
 epoch_val: 1
-epoch_save: 100
+epoch_save: 1
 
 resume: ~
 pre_train: ~
