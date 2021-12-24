@@ -8,11 +8,15 @@ from .layers import LinearResidual
 class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, hidden_list, 
                 act='gelu', 
-                has_bn=False, 
+                has_bn=False,
+                norm="nn.InstanceNorm1d", 
                 has_bias=False, 
                 use_residual=True,
                 w0=1.0):
         super().__init__()
+        if norm is not None:
+            norm = eval(norm) if isinstance(norm, str) else norm
+        self.norm = norm
         if act is None:
             self.act = None
         elif act.lower() == 'relu':
@@ -31,7 +35,7 @@ class MLP(nn.Module):
                 block = []
                 block.append(nn.Linear(lastv, hidden, bias=has_bias))
                 if has_bn:
-                    block.append(nn.BatchNorm1d(hidden))
+                    block.append(self.norm(hidden))
                 if self.act:
                     block.append(self.act)
                 transform = nn.Sequential(*block)
@@ -39,7 +43,7 @@ class MLP(nn.Module):
             else:
                 layers.append(nn.Linear(lastv, hidden, bias=has_bias))
                 if has_bn:
-                    layers.append(nn.BatchNorm1d(hidden))
+                    layers.append(self.norm(hidden))
                 if self.act:
                     layers.append(self.act)
             lastv = hidden

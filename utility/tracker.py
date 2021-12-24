@@ -185,6 +185,9 @@ class LossTracker:
 
     def get_history(self):
         return self.value_history[:self.count]
+    
+    def item(self):
+        return self.value_history[self.count]
 
     def adjust_loss(self, loss, amount):
         """Changes the `loss` value by multiplying
