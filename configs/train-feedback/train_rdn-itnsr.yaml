@@ -66,8 +66,8 @@ model:
     imnet_spec:
       name: mlp
       args:
-        in_dim: 1728
-        out_dim: 3
+        # in_dim: 1728
+        # out_dim: 3
         hidden_list: [256,256,256,256]
         act: 'gelu'
 
