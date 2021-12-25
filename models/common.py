@@ -4,40 +4,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .layers import get_mean_std, SpaceToDepth
+
+from .registry import register
+
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(
         in_channels, out_channels, kernel_size,
         padding=(kernel_size // 2), bias=bias)
-
-def fill(x):
-    b, c, h, w = x.size()
-    pad_h = 8 - h % 8
-    pad_w = 8 - w % 8
-    y = F.pad(x, [0, pad_w, 0, pad_h])
-    return y
-
-def get_mean_std(data):
-    r = data[:, 0, :, :]
-    g = data[:, 1, :, :]
-    b = data[:, 2, :, :]
-    r_std, r_mean = torch.std_mean(r)
-    g_std, g_mean = torch.std_mean(g)
-    b_std, b_mean = torch.std_mean(b)
-    return (r_mean, g_mean, b_mean), (r_std, g_std, b_std)
-
-
-class SpaceToDepth(nn.Module):
-    def __init__(self, bs):
-        super().__init__()
-        self.bs = bs
-
-    def forward(self, x):
-        N, C, H, W = x.size()
-        x = x.view(N, C, H // self.bs, self.bs, W // self.bs, self.bs)
-        x = x.permute(0, 3, 5, 1, 2, 4).contiguous()
-        x = x.view(N, C * (self.bs ** 2), H // self.bs, W // self.bs)
-        return x
-
+    
+@register("denoiser")
 class Denoiser(nn.Module):
     def __init__(self, conv, channel, n_feat, act=nn.ReLU(True), bn=False):
         super().__init__()
@@ -60,6 +36,13 @@ class Denoiser(nn.Module):
 
         self.end = conv(n_feat, channel, 3)
 
+    def fill(self, x):
+        b, c, h, w = x.size()
+        pad_h = 8 - h % 8
+        pad_w = 8 - w % 8
+        y = F.pad(x, [0, pad_w, 0, pad_h])
+        return y
+    
     def forward(self, x):
         b, c, h, w = x.size()
         x = fill(x)
@@ -93,7 +76,7 @@ class BasicBlock(nn.Module):
     def __init__(
             self, conv, in_channels, out_channels, kernel_size, stride=1, bias=False,
             bn=True, act=nn.ReLU(True)):
-        super(BasicBlock, self).__init__()
+        super().__init__()
         m = [conv(in_channels, out_channels, kernel_size, bias=bias)]
         if bn:
             m.append(nn.BatchNorm2d(out_channels))

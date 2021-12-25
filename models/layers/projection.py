@@ -3,6 +3,19 @@ from torch import nn
 
 from .registry import register
 
+@register("space_to_depth")
+class SpaceToDepth(nn.Module):
+    def __init__(self, bs):
+        super().__init__()
+        self.bs = bs
+
+    def forward(self, x):
+        N, C, H, W = x.size()
+        x = x.view(N, C, H // self.bs, self.bs, W // self.bs, self.bs)
+        x = x.permute(0, 3, 5, 1, 2, 4).contiguous()
+        x = x.view(N, C * (self.bs ** 2), H // self.bs, W // self.bs)
+        return x
+
 @register("gaussian_0d")
 class GaussianTransform0d(nn.Module):
     def __init__(self, scale=512, requires_grad=requires_grad):

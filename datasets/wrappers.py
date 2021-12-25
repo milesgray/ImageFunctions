@@ -464,11 +464,22 @@ class SRRandRangeDownsampledRandCrop(SRRandCropDataset):
 @register('sr-setrange-downsampled-randcrop')
 class SRSetRangeDownsampledRandCrop(SRRandCropDataset):
     def __init__(self, dataset, 
-                 inp_size=None, inp_size_min=None, inp_size_max=None, min_size=16,
-                 scale_min=1, scale_max=None,
-                 augment=False, color_augment=False, color_augment_strength=0.8, 
-                 sample_q=None, vary_q=False, max_q=None, use_subgrid_coords=False,
-                 return_hr=False, resize_hr=False, return_freq=False):
+                 inp_size=None, 
+                 inp_size_min=None, 
+                 inp_size_max=None, 
+                 min_size=16,
+                 scale_min=1, 
+                 scale_max=None,
+                 augment=False, 
+                 color_augment=False, 
+                 color_augment_strength=0.8, 
+                 sample_q=None, 
+                 vary_q=False, 
+                 max_q=None, 
+                 use_subgrid_coords=False,
+                 return_hr=False, 
+                 resize_hr=False, 
+                 return_freq=False):
         super().__init__(dataset, inp_size=inp_size, scale_min=scale_min, scale_max=scale_max,
                  augment=augment, sample_q=sample_q, color_augment=color_augment, 
                  color_augment_strength=color_augment_strength,
