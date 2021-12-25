@@ -18,7 +18,7 @@ class SpaceToDepth(nn.Module):
 
 @register("gaussian_0d")
 class GaussianTransform0d(nn.Module):
-    def __init__(self, scale=512, requires_grad=requires_grad):
+    def __init__(self, scale=512, requires_grad=True):
         """ scale matches input and does not change shape, only values
         """
         super().__init__()
@@ -53,7 +53,7 @@ class GaussianTransform1d(nn.Module):
         return z
 @register("gaussian_2d")
 class GaussianTransform2d(nn.Module):
-    def __init__(self, scale=(4,4), requires_grad=requires_grad):
+    def __init__(self, scale=(4,4), requires_grad=True):
         super().__init__()
         if isinstance(scale, int):
             scale = (scale, scale)
@@ -69,7 +69,7 @@ class GaussianTransform2d(nn.Module):
 # Used for fine grain corrective projection after a heavier transform
 # ------------------------------------------------------------------------------------------------------------------
 class AffineTransform0d(nn.Module):
-    def __init__(self, scale=512, requires_grad=requires_grad):
+    def __init__(self, scale=512, requires_grad=True):
         """ scale matches input and does not change shape, only values
         """
         super().__init__()
@@ -86,7 +86,7 @@ class AffineTransform0d(nn.Module):
         z = z + x
         return z
 class AffineTransform1d(nn.Module):
-    def __init__(self, scale=512, requires_grad=requires_grad):
+    def __init__(self, scale=512, requires_grad=True):
         """ scale matches input and does not change shape, only values
         """
         super().__init__()
@@ -105,7 +105,7 @@ class AffineTransform1d(nn.Module):
         z = z + x
         return z
 class AffineTransform2d(nn.Module):
-    def __init__(self, scale=(4,4), requires_grad=requires_grad):
+    def __init__(self, scale=(4,4), requires_grad=True):
         super().__init__()
         if isinstance(scale, int):
             scale = (scale, scale)
