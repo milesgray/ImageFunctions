@@ -29,6 +29,16 @@ class ITNSR(nn.Module):
                 self.imnet = models.make(imnet_spec,args={'out_dim':self.encoder.out_dim*3})
         else:
             self.imnet = None
+        if imnet_spec is not None:
+            imnet_in_dim = self.encoder.out_dim
+            if self.feat_unfold:
+                imnet_in_dim *= 9
+            imnet_in_dim += self.encoder.out_dim # attach coord
+            if self.cell_decode:
+                imnet_in_dim += 2
+            self.imnet = models.make(imnet_spec, args={'in_dim': imnet_in_dim})
+        else:
+            self.imnet = None
         
         if embedding_coord is not None:
             self.embedding_q = models.make(embedding_coord)
@@ -209,6 +219,5 @@ class ITNSR(nn.Module):
         return ret
 
     def forward(self, inp, coord, scale):
-
         self.gen_feat(inp)
         return self.query_rgb(coord, scale)

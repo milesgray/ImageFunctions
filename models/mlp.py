@@ -9,7 +9,7 @@ class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, hidden_list, 
                 act='gelu', 
                 has_bn=False,
-                norm="nn.InstanceNorm1d", 
+                norm="nn.LayerNorm", 
                 has_bias=False, 
                 use_residual=True,
                 w0=1.0):
