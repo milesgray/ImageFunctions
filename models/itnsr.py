@@ -15,10 +15,12 @@ class ITNSR(nn.Module):
                  embedding_scale=None, 
                  local_ensemble=True, 
                  feat_unfold=True, 
+                 cell_decode=True,
                  scale_token=True):
         super().__init__()
         self.local_ensemble = local_ensemble
         self.feat_unfold = feat_unfold
+        self.cell_decode = cell_decode
         self.scale_token = scale_token
 
         self.encoder = models.make(encoder_spec)
