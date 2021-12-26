@@ -14,7 +14,7 @@ train_dataset:
       scale_max: 4
       scale_min: 1
       sample_q: 2304
-  batch_size: 16
+  batch_size: 1
   num_workers: 4
   pin_memory: true
 
@@ -34,7 +34,7 @@ val_dataset:
       scale_max: 4
       scale_min: 1
       sample_q: 2304
-  batch_size: 16
+  batch_size: 1
   num_workers: 4
   pin_memory: true
 
@@ -59,8 +59,7 @@ model:
     imnet_spec:
       name: mlp
       args:
-        in_dim: 1728
-        # out_dim: 3
+        in_dim: 2304
         hidden_list: [256,256,256,256]
         act: 'gelu'
 
