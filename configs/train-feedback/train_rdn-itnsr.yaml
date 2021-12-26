@@ -12,7 +12,7 @@ train_dataset:
     args:
       inp_size_min: 48
       inp_size_max: 48
-      scale_min: 1
+      scale_min: 2
       scale_max: 4
       augment: true
       sample_q: 2304
