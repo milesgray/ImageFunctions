@@ -3,17 +3,20 @@ train_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      repeat: 5
+      repeat: 1
       cache: in_memory
-      last_k: 120000
+      last_k: 60000
       skip_every: 30
   wrapper:
-    name: sr-implicit-downsampled
+    name: sr-setrange-downsampled-randcrop
     args:
-      inp_size: 48
-      scale_max: 4
+      inp_size_min: 48
+      inp_size_max: 48
       scale_min: 1
+      scale_max: 4
+      augment: true
       sample_q: 2304
+      return_hr: true
   batch_size: 1
   num_workers: 4
   pin_memory: true
@@ -23,17 +26,19 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      first_k: 42000
+      first_k: 12000
       skip_every: 168
       repeat: 1
       cache: in_memory
   wrapper:
-    name: sr-implicit-downsampled
+    name: sr-setrange-downsampled-randcrop
     args:
-      inp_size: 48
-      scale_max: 4
-      scale_min: 1
+      inp_size_min: 48
+      inp_size_max: 48
+      scale_min: 2
+      scale_max: 6
       sample_q: 2304
+      return_hr: true
   batch_size: 1
   num_workers: 4
   pin_memory: true
@@ -59,7 +64,7 @@ model:
     imnet_spec:
       name: mlp
       args:
-        in_dim: 2304
+        in_dim: 4
         hidden_list: [256,256,256,256]
         act: 'gelu'
 
