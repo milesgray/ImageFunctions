@@ -17,12 +17,14 @@ class Residual(nn.Module):
         self.scale = Scale() if scale else nn.Identity()
         
     def forward(self, x, **kwargs):
-        return self.fuse(self.scale(self.fn(x, **kwargs))_, x)
+        return self.fuse(self.scale(self.fn(x, **kwargs)), x)
 
+@register("prenorm")
 class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
+    def __init__(self, dim, fn, norm=nn.LayerNorm):
         super().__init__()
-        self.norm = nn.LayerNorm(dim)
+        norm = eval(norm) if isinstance(norm, str) else norm
+        self.norm = norm(dim)
         self.fn = fn
     def forward(self, x, **kwargs):
         return self.fn(self.norm(x), **kwargs)
@@ -55,7 +57,7 @@ class BasicBlock(nn.Module):
     def forward(self, x):
         return self.body(x)
 
-
+@register("upsampler")
 class Upsampler(nn.Sequential):
     def __init__(self, conv, scale, n_feats, bn=False, act=False, bias=True):
         m = []
