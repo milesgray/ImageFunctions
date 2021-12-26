@@ -81,7 +81,7 @@ class ITNSR(nn.Module):
                 feat.shape[0], feat.shape[1] * 9, feat.shape[2], feat.shape[3])
         
         # K
-        feat_coord = make_coord(feat.shape[-2:], flatten=False).cuda() \
+        feat_coord = make_coord(feat.shape[-2:], flatten=False).to(feat.device) \
             .permute(2, 0, 1) \
             .unsqueeze(0).expand(feat.shape[0], 2, *feat.shape[-2:])
 
