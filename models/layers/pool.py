@@ -85,3 +85,52 @@ class CovarPool(nn.Module):
     
     def forward(self, x):
         return Covpool.apply(x)
+
+class GlobalSTDPool2D(nn.Module):
+    """2D global standard variation pooling
+    https://github.com/buyizhiyou/NRVQA/blob/master/VSFA/CNNfeatures.py#L87
+    """
+    def __init__(self, dim=2, keepdim=True):
+        super().__init__()
+        self.dim = dim
+        self.keepdim = keepdim
+        
+    def  forward(self, x):
+        return torch.std(x.view(x.size()[0], x.size()[1], -1, 1),
+                        dim=self.dim, keepdim=self.keepdim)
+
+class TemporalPool(nn.Module):
+    """  subjectively-inspired temporal pooling
+    https://github.com/buyizhiyou/NRVQA/blob/master/VSFA/VSFA.py
+    """
+    def __init__(self, tau=12, beta=0.5):
+        super().__init__()
+        self.tau = tau
+        self.beta = beta
+                
+    def forward(self, x):
+        """subjectively-inspired temporal pooling"""
+        q = torch.unsqueeze(torch.t(x), 0)
+        qm = -torch.ones((1, 1, self.tau-1)) \
+                .mul(float('inf')) \
+                    .to(q.device)
+        qp = torch.ones((1, 1, self.tau - 1)) \
+                .mul(10000.0) \
+                    .to(q.device)  #
+        l = -F.max_pool1d(
+                torch.cat((qm, -q), 2), 
+                self.tau, 
+                stride=1)
+        m = F.avg_pool1d(
+                torch.cat((
+                    q * torch.exp(-q), 
+                    qp * torch.exp(-qp)
+                ), 2), 
+                self.tau, 
+                stride=1)
+        n = F.avg_pool1d(
+                torch.cat((torch.exp(-q), torch.exp(-qp)), 2), 
+                self.tau, 
+                stride=1)
+        m = m / n
+        return self.beta * m + (1 - self.beta) * l
