@@ -25,8 +25,6 @@ def calc_SSIM(input, target, rgb_range, shave):
     target = target[shave:(h - shave), shave:(w - shave)]
     return ssim(input.numpy(), target.numpy())
 
-
-
 def _ssim(img, img2):
     """Calculate SSIM (structural similarity) for one channel images.
     It is called by func:`calculate_ssim`.
@@ -100,7 +98,10 @@ def calculate_ssim(img, img2, crop_border, input_order='HWC', test_y_channel=Fal
 
 @register("ssim")
 class SSIMMetric(nn.Module):
-    def __init__(self, crop_border=0, input_order='HWC', test_y_channel=False):
+    def __init__(self, 
+                 crop_border=0, 
+                 input_order='HWC', 
+                 test_y_channel=False):
         super().__init__()
         self.input_order = input_order
         self.test_y_channel = test_y_channel
