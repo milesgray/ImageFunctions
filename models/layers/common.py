@@ -29,6 +29,24 @@ class PreNorm(nn.Module):
     def forward(self, x, **kwargs):
         return self.fn(self.norm(x), **kwargs)
 
+@register("basic_conv")
+class BasicConv(nn.Module):
+    def __init__(self, in_planes, out_planes, kernel_size, 
+                 stride=1, padding=0, dilation=1, groups=1, 
+                 act=nn.ReLU(True), conv=nn.Conv2d, bn=True, bias=False):
+        super().__init__()
+        self.out_channels = out_planes
+
+        m = [conv(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)]
+        if bn:
+            m.append( nn.BatchNorm2d(out_planes, eps=1e-5, momentum=0.01, affine=True) )
+        if act is not None:
+            m.append(act)
+        self.body = nn.Sequential(*m)
+
+    def forward(self, x):
+        return self.body(x)
+
 class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
@@ -42,6 +60,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
     
+@register("basic_block")
 class BasicBlock(nn.Module):
     def __init__(
             self, conv, in_channels, out_channels, kernel_size, stride=1, bias=False,
@@ -86,3 +105,8 @@ class Upsampler(nn.Sequential):
 
         super().__init__(*m)
 
+@register("flatten")
+class Flatten(nn.Module):
+
+    def forward(self, x):
+        return x.view(x.size(0), -1)
