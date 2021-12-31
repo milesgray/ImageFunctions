@@ -22,7 +22,7 @@ class ConditionalBatchNorm2d(nn.Module):
 @register("layer_norm")
 class LayerNorm(nn.Module):
     def __init__(self, num_features, eps=1e-5, affine=True):
-        super(LayerNorm, self).__init__()
+        super().__init__()
         self.num_features = num_features
         self.affine = affine
         self.eps = eps
@@ -59,7 +59,7 @@ class SpectralNorm(nn.Module):
     and the Pytorch implementation https://github.com/christiancosgrove/pytorch-spectral-normalization-gan
     """
     def __init__(self, module, name='weight', power_iterations=1):
-        super(SpectralNorm, self).__init__()
+        super().__init__()
         self.module = module
         self.name = name
         self.power_iterations = power_iterations
