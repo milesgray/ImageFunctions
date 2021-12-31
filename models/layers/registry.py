@@ -16,3 +16,6 @@ def make(layer_spec, args=None):
         layer_args = layer_spec['args']
     layer = lookup[layer_spec['name']](**layer_args)
     return layer
+
+def create(name, **kwargs):
+    return make({"name": name, "args": kwargs})

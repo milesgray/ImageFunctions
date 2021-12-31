@@ -12,8 +12,9 @@ from .registry import register
 @register("linear_residual")
 class LinearResidual(nn.Module):
     def __init__(self, weight: float, 
-                 learnable_weight: bool, 
+                 learnable_weight: bool,
                  weighting_type: str,
+                 enabled: bool,
                  layer: Callable):
         super().__init__()
         

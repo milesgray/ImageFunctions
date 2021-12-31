@@ -1,4 +1,4 @@
-from .registry import register, make
+from .registry import register, make, create
 
 from .gate import *
 from .pool import *
@@ -25,6 +25,7 @@ from .linear_residual import LinearResidual
 from .wavelet import WaveletTransform
 from .stiefel import StiefelHouseholder, StiefelHouseholderCanonical
 from .imdn import *
+from .inr import FourierINR
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 

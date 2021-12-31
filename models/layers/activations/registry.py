@@ -45,3 +45,6 @@ def make(act_spec, args=None):
     else:
         act = lookup[act_spec['name']]()
     return act
+
+def create(name, **kwargs):
+    return make({"name": name, "args": kwargs})
