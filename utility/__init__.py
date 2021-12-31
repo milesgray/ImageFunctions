@@ -1,13 +1,15 @@
 from .coords import *
+from .config import *
 from .files import *
 from .image import *
 from .log import *
 from .math import *
 from .model import *
 from .random import *
+from .spectral import *
 from .freq import *
-from .freq_np import *
 from .tracker import *
+from .visualize import *
 
 def is_sequence(arg):
     return (not hasattr(arg, "strip") and
