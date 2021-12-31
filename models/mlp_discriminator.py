@@ -10,9 +10,13 @@ import numpy as np
 
 import models
 import models.layers as layers
-import models.layers.activations as activationsy
+import models.layers.activations as activations
+from .inr_layers import *
 from models import register
 from utility import make_coord
+
+def create_activate(name, **kwargs):
+    return activations.make({"name": name, "args": kwargs})
 
 def sn_wrapper(module: nn.Module, use_sn: bool, *sn_args, **sn_kwargs) -> nn.Module:
     """
@@ -76,7 +80,7 @@ class MLPDiscriminator(nn.Module):
         fourier_args.residual.learnable_weight = True
         fourier_args.residual.enabled = True
 
-        self.fourier = FourierINR(2, fourier_args, num_fourier_feats=args.in_dim, out_features=args.in_dim)
+        self.fourier = layers.FourierINR(2, fourier_args, num_fourier_feats=args.in_dim, out_features=args.in_dim)
 
         layers = []
         lastv = args.in_dim
@@ -100,7 +104,11 @@ class MLPDiscriminator(nn.Module):
 
 
 @register('mlp_disc')
-def make_mlp_disc(in_dim=128, hidden_list=[128,128], out_dim=1, activation="scaled_leaky_relu", has_bias=True):
+def make_mlp_disc(in_dim=128, 
+                  hidden_list=[128,128], 
+                  out_dim=1, 
+                  activation="scaled_leaky_relu", 
+                  has_bias=True):
     args = Namespace()
     args.in_dim = in_dim
     args.hidden_list = hidden_list
