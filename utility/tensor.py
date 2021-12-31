@@ -3,7 +3,7 @@ import copy
 import opt_einsum
 import torch
 
-from ..utility.math import get_ranks_tt, dim_factorize_simple
+from .utility.math import get_ranks_tt, dim_factorize_simple
 
 def compute_tt_contraction_equation(num_cores):
     assert num_cores > 0
