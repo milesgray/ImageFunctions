@@ -5,28 +5,28 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
-import utility as util
+from . import dict_apply
 
 def make_img_coeff(data_norm):
     if data_norm is None:
         data_norm = {
-            'inp': {'sub': [0], 'div': [1]},
-            'gt': {'sub': [0], 'div': [1]}
+            'inp': {'sub': 0, 'div': 1},
+            'gt': {'sub': 0, 'div': 1}
         }
     try:
         result = data_norm.copy()
-        result = util.dict_apply(result,
-                            lambda x: util.dict_apply(x,
+        result = dict_apply(result,
+                            lambda x: dict_apply(x,
                                                  lambda y: torch.FloatTensor(y))
         )
-        result['inp'] = util.dict_apply(result['inp'],
+        result['inp'] = dict_apply(result['inp'],
                                    lambda x: x.view(1, -1, 1, 1))
-        result['gt'] = util.dict_apply(result['gt'],
+        result['gt'] = dict_apply(result['gt'],
                                   lambda x: x.view(1, 1, -1))
 
         if torch.cuda.is_available():
-            result = util.dict_apply(result,
-                                lambda x: util.dict_apply(x,
+            result = dict_apply(result,
+                                lambda x: dict_apply(x,
                                                  lambda y: y.cuda())
             )
         return result
