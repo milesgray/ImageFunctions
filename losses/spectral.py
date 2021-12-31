@@ -364,12 +364,21 @@ target are averaged to produce the total frequency loss LF .
 Note, since half of all frequency components are redundant,
 the summation for u is performed up to U/2−1 only, without affecting the loss due to Eq.
 """
-
+@register("fourier_space")
 class FourierSpaceLoss(nn.Module):
     def __init__(self, hann_window=3):
         super().__init__()
         self.hann = torch.hann_window(hann_window, periodic=True, requires_grad=True)
         
+    def channel_loss(self, x):
+        # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
+        x_haan = self.hann(x)
+        # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
+        x_fourier = torch.fft.rfftn(x_hann)
+        # where we calculate amplitude and phase of all frequency components
+        x_amp = torch.sqrt(x_fourier.real.pow(2) + x_fourier.imag.pow(2))
+        x_phase = torch.atan2(x_fourier.imag, x_fourier.real)
+        return loss
         
     def forward(self, x, y):
         # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 

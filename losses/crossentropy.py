@@ -61,7 +61,7 @@ def weight_reduce_loss(loss, weight=None, reduction='mean', avg_factor=None):
     return loss
 
 
-@register("ndce")
+@register("ce_nd")
 class CrossentropyND(torch.nn.CrossEntropyLoss):
     """
     Network has to have NO NONLINEARITY!
@@ -92,13 +92,16 @@ class TopKLoss(CrossentropyND):
     """
     def __init__(self, weight=None, ignore_index=-100, k=10):
         self.k = k
-        super(TopKLoss, self).__init__(weight, False, ignore_index, reduce=False)
+        super().__init__(weight, False, ignore_index, reduce=False)
 
     def forward(self, inp, target):
         target = target[:, 0].long()
-        res = super(TopKLoss, self).forward(inp, target)
+        res = super().forward(inp, target)
         num_voxels = np.prod(res.shape)
-        res, _ = torch.topk(res.view((-1, )), int(num_voxels * self.k / 100), sorted=False)
+        res, _ = torch.topk(
+            res.view((-1, )), 
+            int(num_voxels * self.k / 100), 
+            sorted=False)
         return res.mean()
 
 @register("weighted_ce")
@@ -221,21 +224,19 @@ def compute_edts_forPenalizedLoss(GT):
         res[i] = pos_edt/np.max(pos_edt) + neg_edt/np.max(neg_edt)
     return res
 
-
-def nll_loss(input, target):
+def nll_loss(x, y):
     """
     customized nll loss
     source: https://medium.com/@zhang_yang/understanding-cross-entropy-
     implementation-in-pytorch-softmax-log-softmax-nll-cross-entropy-416a2b200e34
     """
-    loss = -input[range(target.shape[0]), target]
+    loss = -x[range(y.shape[0]), target]
     return loss.mean()
 
 
 # implementations reference - https://github.com/CoinCheung/pytorch-loss/blob/master/pytorch_loss/taylor_softmax.py
 # paper - https://www.ijcai.org/Proceedings/2020/0305.pdf
 @register("taylor_softmax")
-
 class TaylorSoftmax(nn.Module):
 
     def __init__(self, dim=1, n=2):
@@ -252,23 +253,29 @@ class TaylorSoftmax(nn.Module):
             fn = fn + x.pow(i) / denor
         out = fn / fn.sum(dim=self.dim, keepdims=True)
         return out
+    
 @register("label_smoothing")
 class LabelSmoothingLoss(nn.Module):
-    def __init__(self, classes, smoothing=0.0, dim=-1): 
+    def __init__(self, classes, smoothing=0.0, dim=-1, use_softmax=False): 
         super().__init__() 
         self.confidence = 1.0 - smoothing 
         self.smoothing = smoothing 
         self.cls = classes 
         self.dim = dim 
+        self.use_softmax = use_softmax
         
     def forward(self, pred, target): 
         """Taylor Softmax and log are already applied on the logits"""
-        #pred = pred.log_softmax(dim=self.dim) 
+        if self.use_softmax:
+            pred = pred.log_softmax(dim=self.dim) 
         with torch.no_grad(): 
             true_dist = torch.zeros_like(pred) 
             true_dist.fill_(self.smoothing / (self.cls - 1)) 
             true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence) 
-        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+        return torch.mean(
+            torch.sum(
+                -true_dist * pred, 
+                dim=self.dim))
     
 @register("taylor_ce")
 class TaylorCrossEntropyLoss(nn.Module):
@@ -616,7 +623,8 @@ def kpos_cross_entropy(pred, label, weight=None, reduction='mean', avg_factor=No
 
     return loss
 
-class CrossEntropyLoss(nn.Module):
+@register("cev3")
+class CrossEntropyV3Loss(nn.Module):
 
     def __init__(self,
                  use_sigmoid=False,
@@ -687,6 +695,7 @@ def inverse_sigmoid(Y):
 
     return X
 
+@register("resample")
 class ResampleLoss(nn.Module):
 
     def __init__(self,
@@ -715,7 +724,7 @@ class ResampleLoss(nn.Module):
                  reweight_func=None,  # None, 'inv', 'sqrt_inv', 'rebalance', 'CB'
                  weight_norm=None, # None, 'by_instance', 'by_batch'
                  freq_file='./class_freq.pkl'):
-        super(ResampleLoss, self).__init__()
+        super().__init__()
 
         assert (use_sigmoid is True) or (partial is False)
         self.use_sigmoid = use_sigmoid
@@ -873,3 +882,68 @@ class ResampleLoss(nn.Module):
             sum_ = torch.sum(weight * gt_labels, dim=1, keepdim=True)
             weight = sum_ / torch.sum(gt_labels, dim=1, keepdim=True)
         return weight
+
+
+##############################
+## From TIMM
+# # https://github.com/rwightman/pytorch-image-models/blob/master/timm/loss/cross_entropy.py
+
+@register("label_smooth_ce")
+class LabelSmoothingCrossEntropy(nn.Module):
+    """ NLL loss with label smoothing.
+    """
+    def __init__(self, smoothing=0.1):
+        super().__init__()
+        assert smoothing < 1.0
+        self.smoothing = smoothing
+        self.confidence = 1. - smoothing
+
+    def forward(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        logprobs = F.log_softmax(x, dim=-1)
+        nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
+        nll_loss = nll_loss.squeeze(1)
+        smooth_loss = -logprobs.mean(dim=-1)
+        loss = self.confidence * nll_loss + self.smoothing * smooth_loss
+        return loss.mean()
+
+@register("soft_target_ce")
+class SoftTargetCrossEntropy(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
+        return loss.mean()
+
+@register("jsd_ce")    
+class JsdCrossEntropy(nn.Module):
+    """ Jensen-Shannon Divergence + Cross-Entropy Loss
+    Based on impl here: https://github.com/google-research/augmix/blob/master/imagenet.py
+    From paper: 'AugMix: A Simple Data Processing Method to Improve Robustness and Uncertainty -
+    https://arxiv.org/abs/1912.02781
+    Hacked together by / Copyright 2020 Ross Wightman
+    """
+    def __init__(self, num_splits=3, alpha=12, smoothing=0.1):
+        super().__init__()
+        self.num_splits = num_splits
+        self.alpha = alpha
+        if smoothing is not None and smoothing > 0:
+            self.cross_entropy_loss = LabelSmoothingCrossEntropy(smoothing)
+        else:
+            self.cross_entropy_loss = torch.nn.CrossEntropyLoss()
+
+    def __call__(self, output, target):
+        split_size = output.shape[0] // self.num_splits
+        assert split_size * self.num_splits == output.shape[0]
+        logits_split = torch.split(output, split_size)
+
+        # Cross-entropy is only computed on clean images
+        loss = self.cross_entropy_loss(logits_split[0], target[:split_size])
+        probs = [F.softmax(logits, dim=1) for logits in logits_split]
+
+        # Clamp mixture distribution to avoid exploding KL divergence
+        logp_mixture = torch.clamp(torch.stack(probs).mean(axis=0), 1e-7, 1).log()
+        loss += self.alpha * sum([F.kl_div(
+            logp_mixture, p_split, reduction='batchmean') for p_split in probs]) / len(probs)
+        return loss
