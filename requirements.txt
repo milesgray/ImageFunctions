@@ -7,3 +7,4 @@ tensorboardX
 ninja
 piq
 kornia
+opt_einsum

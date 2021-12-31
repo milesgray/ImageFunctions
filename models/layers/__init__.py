@@ -2,6 +2,7 @@ from .registry import register, make
 
 from .gate import *
 from .pool import *
+from .norm import *
 from .drop import *
 from .common import *
 from .softmax import *
@@ -21,7 +22,8 @@ from .cross_attn  import SelfAttention, CrossAttention
 
 from .scale_aware import ScaleAwareConv2d, ScaleAwareAdapt
 from .linear_residual import LinearResidual
-from .spectral import WaveletTransform
+from .wavelet import WaveletTransform
+from .stiefel import StiefelHouseholder, StiefelHouseholderCanonical
 from .imdn import *
 
 from .cutout import MakeCutouts, WarpRandomPerspective

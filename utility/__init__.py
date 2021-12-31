@@ -10,6 +10,8 @@ from .spectral import *
 from .freq import *
 from .tracker import *
 from .visualize import *
+from .tensor import *
+from .torch import *
 
 def is_sequence(arg):
     return (not hasattr(arg, "strip") and
@@ -30,3 +32,37 @@ def dict_apply(source, fn=lambda x: x):
         print(f"dict_apply failure:\t{e}")
         return source
     return result
+
+def dict_deep_get(d, key_path, split_ch='/', default=None, create_if_missing=False, dict_type=dict):
+    if type(key_path) is str:
+        parts = key_path.split(split_ch)
+    elif type(key_path) is list:
+        parts = key_path
+    else:
+        assert False
+    for i, part in enumerate(parts):
+        is_last = (i == len(parts)-1)
+        if part in d:
+            d = d[part]
+        else:
+            if create_if_missing:
+                if is_last:
+                    d[part] = default
+                else:
+                    d[part] = dict_type()
+                d = d[part]
+            else:
+                return default
+    return d
+
+def dict_flatten(d, prefix='', join_char='/'):
+    out = {}
+    for k, v in d.items():
+        cur_k = k if prefix == '' else prefix + join_char + k
+        if isinstance(v, dict):
+            out.update(dict_flatten(v, cur_k, join_char))
+        elif isinstance(v, list) or isinstance(v, tuple):
+            out.update(dict_flatten({f'{i}': a for i, a in enumerate(v)}, cur_k, join_char))
+        else:
+            out[cur_k] = v
+    return out
