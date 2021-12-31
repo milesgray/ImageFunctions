@@ -139,7 +139,7 @@ This implementation follows the "dynamic compensation" path, but instead of rely
 spectral normalization, as done by the authors in the official neurips20 repository
 (https://github.com/max-liu-112/SRGANs/tree/18379994b2fed12a47004db66dbc43e63ea6a0bb/dis_models),
 this implementation rewrites singular values in-place, so the learned parameters do not grow in magnitude.
-"""'
+"""
 
 def spectral_compensation_stateful(module, state=None, classes=None, normalize=False, truncation=None, eps=1e-7):
     if classes is None:
