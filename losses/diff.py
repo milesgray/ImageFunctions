@@ -23,3 +23,17 @@ class CharbonnierLoss(nn.Module):
         else:
             loss = loss.mean()
         return loss
+    
+@register("mse_super_res")
+class MSESuperResLoss(nn.Module):
+    def __init__(self, size_average=False):
+        super().__init__()
+        self.size_average = size_average
+            
+    def forward(self, x, y):
+        z = x - y 
+        z2 = z * z
+        if size_average:
+            return z2.mean()
+        else:
+            return z2.sum().div(x.size(0)*2)
