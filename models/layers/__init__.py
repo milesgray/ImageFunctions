@@ -22,6 +22,7 @@ from .cross_attn  import SelfAttention, CrossAttention
 from .scale_aware import ScaleAwareConv2d, ScaleAwareAdapt
 from .linear_residual import LinearResidual
 from .spectral import WaveletTransform
+from .imdn import *
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 

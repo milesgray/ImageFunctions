@@ -344,3 +344,59 @@ class FocalFrequencyLoss(nn.Module):
 
         # calculate focal frequency loss
         return self.loss_formulation(pred_freq, target_freq, matrix) * self.loss_weight
+    
+    
+###############################################################################
+"""  
+ https://openaccess.thecvf.com/content/ICCV2021/papers/Fuoli_Fourier_Space_Losses_for_Efficient_Perceptual_Image_Super-Resolution_ICCV_2021_paper.pdf
+ 
+In addition to these spatial domain losses, we propose a
+Fourier space loss LF for supervision from the ground truth
+frequency spectrum during training. First, ground truth y
+and generated image yˆ are pre-processed with a Hann window, 
+as described in Section 3.2. Afterwards, both images are transformed 
+into Fourier space by applying the fast
+Fourier transform (FFT), where we calculate amplitude and
+phase of all frequency components. The L1-loss of amplitude 
+difference LF,|·| and phase difference LF,∠ (we take
+into account the periodicity) between output image and 
+target are averaged to produce the total frequency loss LF .
+Note, since half of all frequency components are redundant,
+the summation for u is performed up to U/2−1 only, without affecting the loss due to Eq.
+"""
+
+class FourierSpaceLoss(nn.Module):
+    def __init__(self, hann_window=3):
+        super().__init__()
+        self.hann = torch.hann_window(hann_window, periodic=True, requires_grad=True)
+        
+        
+    def forward(self, x, y):
+        # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
+        # TODO
+        x_haan = self.hann(x)
+        y_hann = self.hann(y)
+        
+        # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
+        # TODO
+        x_fourier = torch.fft.rfftn(x_hann)
+        y_fourier = torch.fft.rfftn(y_hann)
+        
+        # where we calculate amplitude and phase of all frequency components
+        # TODO
+        x_amp = torch.sqrt(x_fourier.real.pow(2) + x_fourier.imag.pow(2))
+        x_phase = torch.atan2(x_fourier.imag, x_fourier.real)
+        
+        y_amp = torch.sqrt(y_fourier.real.pow(2) + y_fourier.imag.pow(2))
+        y_phase = torch.atan2(y_fourier.imag, y_fourier.real)
+        
+        # The L1-loss of amplitude difference LF,|·| and phase difference LF,∠ (we take
+        # into account the periodicity) between output image and  target are averaged to produce the total frequency loss LF
+        # TODO
+        
+        loss_amp = nn.L1Loss()(x_amp, y_amp)
+        loss_phase = nn.L1Loss()(x_phase, y_phase)
+        
+        loss = loss_amp + loss_phase / 2
+        
+        return loss
