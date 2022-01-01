@@ -10,7 +10,7 @@ class FourierINR(nn.Module):
     """
     INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
     """
-    def __init__(self, in_features, args: Namespace, 
+    def __init__(self, in_features, args, 
                  num_fourier_feats=64, 
                  layer_sizes=[64,64,64], 
                  out_features=64, 
