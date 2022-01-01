@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
-from . import dict_apply
+import utility as utils
 
 def make_img_coeff(data_norm):
     if data_norm is None:
@@ -15,18 +15,18 @@ def make_img_coeff(data_norm):
         }
     try:
         result = data_norm.copy()
-        result = dict_apply(result,
-                            lambda x: dict_apply(x,
+        result = utils.dict_apply(result,
+                            lambda x: utils.dict_apply(x,
                                                  lambda y: torch.FloatTensor(y))
         )
-        result['inp'] = dict_apply(result['inp'],
+        result['inp'] = utils.dict_apply(result['inp'],
                                    lambda x: x.view(1, -1, 1, 1))
-        result['gt'] = dict_apply(result['gt'],
+        result['gt'] = utils.dict_apply(result['gt'],
                                   lambda x: x.view(1, 1, -1))
 
         if torch.cuda.is_available():
-            result = dict_apply(result,
-                                lambda x: dict_apply(x,
+            result = utils.dict_apply(result,
+                                lambda x: utils.dict_apply(x,
                                                  lambda y: y.cuda())
             )
         return result

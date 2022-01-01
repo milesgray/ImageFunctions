@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from argparse import Namespace
+
 from .activations import create as create_activation
 from .linear_residual import LinearResidual
 

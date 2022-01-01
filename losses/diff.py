@@ -56,7 +56,7 @@ class MSESuperResLoss(nn.Module):
     def forward(self, x, y):
         z = x - y 
         z2 = z * z
-        if size_average:
+        if self.size_average:
             return z2.mean()
         else:
             return z2.sum().div(x.size(0)*2)

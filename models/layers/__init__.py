@@ -1,4 +1,4 @@
-from .registry import register, make, create
+from .registry import register, make, create, lookup
 
 from .gate import *
 from .pool import *
