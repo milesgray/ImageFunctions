@@ -75,3 +75,34 @@ class WGANGeneratorLoss(nn.Module):
 
     def forward(self, gen_out_fake):
         return -torch.mean(gen_out_fake)
+
+
+ 
+class GradLoss(nn.Module):
+    def __init__(self, style):
+        super().__init__()
+        self.style = style
+
+    def forward(self, disc_model, real, fake=None):
+        if self.style == "wgan":
+            loss = grad_loss.compute_wgan_gp(disc_model, real, fake)
+        elif self.style == "r1":
+            loss = grad_loss.compute_r1_penalty(disc_model, real)
+        return loss
+
+class NonSaturatingLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, fake):
+        return (-F.softsign(fake)).mean()
+
+
+class HingeLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, real, fake):
+        real = F.normalize(real, dim=-1, p=2)
+        fake = F.normalize(fake, dim=-1, p=2)
+        return (F.relu(1 + real) + F.relu(1 - fake)).mean()
