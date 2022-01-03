@@ -11,18 +11,50 @@ from .gate import GateConv, PoolGate
 from .statistics import stdv_channels
 
 class PixelAttention(nn.Module):
-    def __init__(self, f_in, 
-                 f_out=None, 
-                 resize="same", 
-                 scale=2, 
-                 softmax=True, 
-                 use_pool=False,
-                 use_gate=False,
-                 gate_params=None,
-                 add_contrast=False,
-                 learn_weight=True, 
-                 channel_wise=True, 
-                 spatial_wise=True):
+    def __init__(self, f_in: int, 
+                 f_out: int=None, 
+                 resize: str="same", 
+                 scale: int=2, 
+                 softmax: bool=True, 
+                 use_pool: bool=False,
+                 use_gate: bool=False,
+                 gate_params: dict=None,
+                 add_contrast: bool=False,
+                 learn_weight: bool=True, 
+                 channel_wise: bool=True, 
+                 spatial_wise: bool=True,
+                 dropout: float=0.0):
+        """Highly configurable novel attention mask that
+        attends to both channel-wise and spatial-wise views in different ways
+        of the image-based feature with shape :math:`(B, C, W, H)`.
+        Attention masks are calculated using sigmoid as a base and then
+        optionally have a softmax operation applied.
+        Uses a 2D version of softmax for spatial attention calculation.
+        Can learn scaling weights for all important fusion operations.
+
+        Args:
+            f_in (int): Number of channels for input tensor. Assumed to be
+                equal to the output channels if no `f_out` is specified.
+            f_out (int, optional): Number of output channels to reshape the
+                input features to. Adds an additional 1x1 Conv2d to reshape 
+                before any attention calculations are performed. 
+                Defaults to None.
+            resize (str, optional): Directive for either downsample or upsample,
+                if resizing is being applied. "same", "down", "up". 
+                Defaults to "same".
+            scale (int, optional): Resizing factor if `resize` is not "same". 
+                Defaults to 2.
+            softmax (bool, optional): Apply softmax after sigmoid when creating
+                attention masks. Defaults to True.
+            use_pool (bool, optional): [description]. Defaults to False.
+            use_gate (bool, optional): [description]. Defaults to False.
+            gate_params (dict, optional): [description]. Defaults to None.
+            add_contrast (bool, optional): [description]. Defaults to False.
+            learn_weight (bool, optional): [description]. Defaults to True.
+            channel_wise (bool, optional): [description]. Defaults to True.
+            spatial_wise (bool, optional): [description]. Defaults to True.
+            dropout (float, optional): [description]. Defaults to 0.0.
+        """
         super().__init__()
         if f_out is None:
             f_out = f_in
@@ -98,6 +130,10 @@ class PixelAttention(nn.Module):
             self.channel_scale = Scale(1.0)
             self.spatial_scale = Scale(1.0)
             self.global_balance = Balance()
+        
+        self.use_dropout = dropout > 0
+        if self.use_dropout:
+            self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x):
         """Creates an attention mask in the same shape as input.
@@ -140,6 +176,8 @@ class PixelAttention(nn.Module):
                 spatial_y = self.spatial_softmax(spatial_y)
             if self.use_gate:
                 spatial_y = spatial_y * spatial_gate
+            if self.use_dropout:
+                spatial_y = self.dropout(spatial_y)
             spatial_out = torch.mul(x, spatial_y)
         if self.channel_wise:
             channel_y = self.channel_conv(x)
@@ -152,6 +190,8 @@ class PixelAttention(nn.Module):
                 channel_y = self.channel_softmax(channel_y)
             if self.use_gate:
                 channel_y = channel_y * channel_gate
+            if self.use_dropout:
+                channel_y = self.dropout(channel_y)
             channel_out = torch.mul(x, channel_y)
         if self.channel_wise and self.spatial_wise:
             out = self.global_balance(spatial_out, channel_out)

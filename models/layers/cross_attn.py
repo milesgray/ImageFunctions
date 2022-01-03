@@ -51,9 +51,9 @@ class CrossAttention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
-        self.to_k = nn.Linear(dim, inner_dim , bias=False)
-        self.to_v = nn.Linear(dim, inner_dim , bias = False)
-        self.to_q = nn.Linear(dim, inner_dim, bias = False)
+        self.to_k = nn.Linear(dim, inner_dim, bias=False)
+        self.to_v = nn.Linear(dim, inner_dim, bias=False)
+        self.to_q = nn.Linear(dim, inner_dim, bias=False)
 
         self.to_out = nn.Sequential(
             nn.Linear(inner_dim, dim),

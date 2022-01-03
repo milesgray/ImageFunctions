@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Function
+from torch import Tensor
 
 from .registry import register
 
@@ -19,6 +20,7 @@ class ZPool(nn.Module):
             dim=1
         )
 
+@register("spatialmeanpool")
 class SpatialMeanPool(nn.Module):
     def __init__(self, dim=1, keepdim=True):
         super().__init__()
@@ -30,6 +32,7 @@ class SpatialMeanPool(nn.Module):
             y = y.unsqueeze(self.dim)
         return y
 
+@register("spatialmaxpool")
 class SpatialMaxPool(nn.Module):
     def __init__(self, dim=1, keepdims=True):
         super().__init__()
@@ -78,7 +81,8 @@ class Covpool(Function):
         grad_input = grad_input.bmm(x).bmm(I_hat)
         grad_input = grad_input.reshape(batchSize,dim,h,w)
         return grad_input
-    
+
+@register("covarpool")
 class CovarPool(nn.Module):
     def __init__(self):
         super().__init__()
@@ -86,6 +90,7 @@ class CovarPool(nn.Module):
     def forward(self, x):
         return Covpool.apply(x)
 
+@register("global_std_pool2d")
 class GlobalSTDPool2D(nn.Module):
     """2D global standard variation pooling
     https://github.com/buyizhiyou/NRVQA/blob/master/VSFA/CNNfeatures.py#L87
@@ -99,6 +104,7 @@ class GlobalSTDPool2D(nn.Module):
         return torch.std(x.view(x.size()[0], x.size()[1], -1, 1),
                         dim=self.dim, keepdim=self.keepdim)
 
+@register("temporalpool")
 class TemporalPool(nn.Module):
     """  subjectively-inspired temporal pooling
     https://github.com/buyizhiyou/NRVQA/blob/master/VSFA/VSFA.py
@@ -135,6 +141,36 @@ class TemporalPool(nn.Module):
         m = m / n
         return self.beta * m + (1 - self.beta) * l
     
+@register("channelpool")
 class ChannelPool(nn.Module):
     def forward(self, x):
         return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
+
+@register("maskedaveragepool")
+class MaskedAveragePool(nn.Module):
+    def __init__(self, interpolation="bilinear"):
+        super().__init__()
+        self.interpolation = interpolation
+        
+    def forward(self, x, mask):
+        """Resize feature `x` to match `mask` tensor via 
+        `F.interpolate`. This allows for element-wise 
+        multiplication with the mask and features,
+        then channel-wise summation (along the spatial (2,3) dimensions).
+        The final output is the element-wise division of each
+        feature channel sum by the original mask channel sum.
+
+        Args:
+            x (Tensor): [description]
+            mask (Tensor): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        feature = F.interpolate(x, 
+                                size=mask.shape[-2:], 
+                                mode=self.interpolation, 
+                                align_corners=True)
+        masked_feature = torch.sum(feature * mask[:, None, ...], dim=(2, 3)) \
+                         / (mask[:, None, ...].sum(dim=(2, 3)) + 1e-5)
+        return masked_feature

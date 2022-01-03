@@ -33,15 +33,15 @@ class MultiscaleL1Loss(nn.Module):
         self.weights = [1, 0.5, 0.25, 0.125, 0.125]
         self.weights = self.weights[:scale]
 
-    def forward(self, input, target, mask=None):
+    def forward(self, x, target, mask=None):
         loss = 0
         for i in range(len(self.weights)):
             if mask is not None:
-                loss += self.weights[i] * self.criterion(input * mask, target * mask)
+                loss += self.weights[i] * self.criterion(x * mask, target * mask)
             else:
-                loss += self.weights[i] * self.criterion(input, target)
+                loss += self.weights[i] * self.criterion(x, target)
             if i != len(self.weights) - 1:
-                input = self.downsample(input)
+                x = self.downsample(x)
                 target = self.downsample(target)
                 if mask is not None:
                     mask = self.downsample(mask)
