@@ -9,7 +9,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .op import fused_leaky_relu, upfirdn2d
+try:
+    from .op import fused_leaky_relu, upfirdn2d
+except Exception as e:
+    print(f"Unable to load custom ops\n{e}")
 
 
 #####################
@@ -26,7 +29,7 @@ def compl_mul2d(a, b):
 
 class SpectralConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, mode):
-        super(SpectralConv2d, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.modes1 = mode #Number of Fourier modes to multiply, at most floor(N/2) + 1
@@ -147,7 +150,7 @@ class ConditionalBatchNorm2d(nn.Module):
 
 class Reshape(nn.Module):
     def __init__(self, target_shape: Tuple[int]):
-        super(Reshape, self).__init__()
+        super().__init__()
 
         self.target_shape = target_shape
 
@@ -157,7 +160,7 @@ class Reshape(nn.Module):
 
 class ConvMeanPool(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size, bias=True, padding=0, use_sn: bool=False):
-        super(ConvMeanPool, self).__init__(
+        super().__init__(
             sn_wrapper(nn.Conv2d(in_channels, out_channels, kernel_size, bias, padding=padding), use_sn),
             nn.AvgPool2d((2,2)),
         )
@@ -165,7 +168,7 @@ class ConvMeanPool(nn.Sequential):
 
 class MeanPoolConv(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size, bias=True, padding=0, use_sn: bool=False):
-        super(MeanPoolConv, self).__init__(
+        super().__init__(
             nn.AvgPool2d((2,2)),
             sn_wrapper(nn.Conv2d(in_channels, out_channels, kernel_size, bias, padding=padding), use_sn),
         )

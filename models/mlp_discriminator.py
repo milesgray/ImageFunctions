@@ -11,7 +11,6 @@ import numpy as np
 import models
 import models.layers as layers
 import models.layers.activations as activations
-from .inr_layers import *
 from models import register
 from utility import make_coord
 

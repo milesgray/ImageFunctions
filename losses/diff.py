@@ -27,7 +27,7 @@ class CharbonnierLoss(nn.Module):
 @register("multiscale_l1")
 class MultiscaleL1Loss(nn.Module):
     def __init__(self, scale=5):
-        super(MultiscaleL1Loss, self).__init__()
+        super().__init__()
         self.criterion = nn.L1Loss()
         self.downsample = nn.AvgPool2d(2, stride=2, count_include_pad=False)
         self.weights = [1, 0.5, 0.25, 0.125, 0.125]
