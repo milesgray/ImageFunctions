@@ -1,4 +1,4 @@
-from .registry import register, make
+from .registry import register, make, lookup
 from . import edsr, rdn, rcan, ddbpn, rdan
 from . import freq_discriminator, mlp_discriminator
 from . import mlp
