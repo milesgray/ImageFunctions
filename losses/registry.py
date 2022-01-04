@@ -40,3 +40,7 @@ def make(spec, args=None):
         target_args = spec['args']
     target = lookup[spec['name']](**target_args)
     return target
+
+
+def create(name, **kwargs):
+    return make({"name": name, "args": kwargs})

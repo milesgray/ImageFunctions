@@ -1,4 +1,4 @@
-from .registry import register, make 
+from .registry import register, make, lookup, create
 
 from . import asymmetric
 from . import crossentropy

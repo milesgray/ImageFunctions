@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from .registry import register
 
-@register("stats"))
+@register("stats")
 class StatsLoss(nn.Module):
     def __init__(self, dim=1):
         super().__init__()
