@@ -35,7 +35,7 @@ class RDAB(nn.Module):
                  attn_fn=PixelAttention):
         super().__init__()
         G0 = growRate0
-        self.G  = growRate
+        self.G = G = growRate
         C  = nConvLayers
 
         self.convs = []
