@@ -449,3 +449,8 @@ def classification_accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].reshape(-1).int().sum(0, keepdim=True)
         res.append(correct_k)
     return res
+
+def get_valid_padding(kernel_size, dilation):
+    kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
+    padding = (kernel_size - 1) // 2
+    return padding

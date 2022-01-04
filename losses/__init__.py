@@ -1,9 +1,20 @@
 from .registry import register, make 
-from . import diff, crossentropy, dice
-from . import fid, spectral, gan, gradient, iqa
-from . import mdf, texture, tv
 
-
+from . import asymmetric
+from . import crossentropy
+from . import dice
+from . import diff
+from . import distance
+from . import divergence
+from . import fid
+from . import gan
+from . import gradient
+from . import iqa
+from . import mdf
+from . import spectral
+from . import statistics
+from . import texture
+from . import tv
 
 def weighted_loss(loss_func):
     """Create a weighted version of a given loss function.
