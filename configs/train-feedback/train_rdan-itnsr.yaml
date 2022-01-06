@@ -68,6 +68,32 @@ model:
         hidden_list: [256,256]
         act: 'gelu'
 
+losses:
+  q_vals:
+    pieapp:
+      name: pieapp
+      args:
+    tv:
+      name: tv
+      args:
+    bce:
+      name: bce_with_logits
+      args:
+  full_img:
+    dists:
+      name: dists
+      args:
+    haarpsi:
+      name: haar_psi
+      args:
+    freq:
+      name: focal_freq
+      args:    
+    multiscaleL1:
+      name: multiscale_l1
+      args:
+        scale: 2
+
 optimizer:
   name: adamw
   args:
