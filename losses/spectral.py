@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 IS_HIGH_VERSION = tuple(map(int, torch.__version__.split('+')[0].split('.'))) > (1, 7, 1)
 
-from ..models.layers import make as make_layer
+from ImageFunctions.models.layers import make as make_layer
 from .registry import register
 
 #########################################################################################
