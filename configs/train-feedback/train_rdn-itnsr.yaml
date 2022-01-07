@@ -5,8 +5,8 @@ train_dataset:
       root_path: /content/full/
       repeat: 1
       cache: in_memory
-      last_k: 60000
-      skip_every: 30
+      last_k: 4000
+      skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
@@ -56,16 +56,17 @@ model:
     encoder_spec:
       name: rdn
       args:
-        D: 10
-        C: 2
+        D: 15
+        C: 6
         G: 32
         no_upsampling: true
+        attn_fn: "partial(PixelAttention,  dropout=0.2)"
 
     imnet_spec:
       name: mlp
       args:
         in_dim: 4
-        hidden_list: [256,256,256,256]
+        hidden_list: [256,256]
         act: 'gelu'
 
 optimizer:

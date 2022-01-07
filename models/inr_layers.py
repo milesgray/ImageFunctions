@@ -168,7 +168,7 @@ class ConvMeanPool(nn.Sequential):
 
 class MeanPoolConv(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size, bias=True, padding=0, use_sn: bool=False):
-        super().__init__(
+        super(MeanPoolConv, self).__init__(
             nn.AvgPool2d((2,2)),
             sn_wrapper(nn.Conv2d(in_channels, out_channels, kernel_size, bias, padding=padding), use_sn),
         )
