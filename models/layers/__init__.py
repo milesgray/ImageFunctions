@@ -25,7 +25,7 @@ from .linear_residual import LinearResidual
 from .wavelet import WaveletTransform
 from .stiefel import StiefelHouseholder, StiefelHouseholderCanonical
 from .imdn import *
-from .inr import FourierINR
+from .fourier import FourierINR, FourierConv2d
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 
