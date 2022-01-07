@@ -52,11 +52,14 @@ class RDAB(nn.Module):
         self.res_balance = Balance()
 
     def forward(self, x):
-        output = x
+        output = x.clone()
         outputs = []
+        leftovers = []
         for conv, balance, attn in zip(self.convs, self.balancers, self.attns):
-            output = conv(output)
-            outputs.append(torch.split(balance(output, attn(x)), self.G)[-1])
+            output = conv(output).to(x.device)
+            split = torch.split(balance(output, attn(x)), self.G)
+            outputs.append(split[-1])   # size: [B, G, W, H]
+            leftovers.append(split[:-1])    # size: [B, G0 + (c-1)*G], W, H]
         return self.res_balance(self.LFF(torch.cat(outputs, dim=1)), x)
 
 class RDAN(nn.Module):
