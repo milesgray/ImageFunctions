@@ -8,9 +8,9 @@ from torch.nn import Identity
 from torch.nn.init import _calculate_correct_fan, calculate_gain
 
 from .stiefel import dof_stiefel, dof_stiefel_canonical
-from ...utility.torch import get_statedict_num_params, deep_transform, is_conv_transposed
-from ...utility.tensor import get_tt_contraction_fn_and_flops
-from ...utility.math import get_ranks_tt, dim_factorize_simple
+from ImageFunctions.utility.torch import get_statedict_num_params, deep_transform, is_conv_transposed
+from ImageFunctions.utility.tensor import get_tt_contraction_fn_and_flops
+from ImageFunctions.utility.math import get_ranks_tt, dim_factorize_simple
 
 from .registry import register
 
