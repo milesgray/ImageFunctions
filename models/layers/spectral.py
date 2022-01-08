@@ -3,6 +3,7 @@ import math
 from collections import OrderedDict
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Identity
 from torch.nn.init import _calculate_correct_fan, calculate_gain
