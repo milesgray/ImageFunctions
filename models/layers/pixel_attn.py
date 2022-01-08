@@ -9,10 +9,14 @@ from .softmax import SpatialSoftmax2d, ChannelSoftmax2d
 from .pool import ZPool, SpatialMaxPool, SpatialMeanPool
 from .gate import GateConv, PoolGate
 from .statistics import stdv_channels
+from .fourier import FourierConv2d
+from ImageFunctions.uilities.torch import get_valid_padding
 
 class PixelAttention(nn.Module):
     def __init__(self, f_in: int, 
                  f_out: int=None, 
+                 kernel: int=1,
+                 spatial_k: int=7,
                  resize: str="same", 
                  scale: int=2, 
                  softmax: bool=True, 
@@ -102,7 +106,7 @@ class PixelAttention(nn.Module):
             if self.use_gate:
                 self.channel_gate = GateConv(f_out, f_out, 1, conv_args={"bias":False})
         if self.spatial_wise:
-            self.spatial_conv = nn.Conv2d(f_out, f_out, 1, bias=False)
+            self.spatial_conv = nn.Conv2d(f_out, f_out, spatial_k, padding=get_valid_padding(spatial_k, 0), bias=False)
             if self.use_pool:
                 self.spatial_avg_pool = SpatialMeanPool()
                 self.spatial_max_pool = SpatialMaxPool()

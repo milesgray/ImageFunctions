@@ -22,10 +22,10 @@ class ZPool(nn.Module):
 
 @register("spatialmeanpool")
 class SpatialMeanPool(nn.Module):
-    def __init__(self, dim=1, keepdim=True):
+    def __init__(self, dim=1, keepdims=True):
         super().__init__()
         self.dim = dim
-        self.keepdim = keepdim
+        self.keepdims = keepdims
     def forward(self, x):
         y = torch.mean(x, self.dim)
         if self.keepdims:
@@ -165,7 +165,7 @@ class MaskedAveragePool(nn.Module):
             mask (Tensor): [description]
 
         Returns:
-            [type]: [description]
+            Tensor: [description]
         """
         feature = F.interpolate(x, 
                                 size=mask.shape[-2:], 
@@ -174,3 +174,19 @@ class MaskedAveragePool(nn.Module):
         masked_feature = torch.sum(feature * mask[:, None, ...], dim=(2, 3)) \
                          / (mask[:, None, ...].sum(dim=(2, 3)) + 1e-5)
         return masked_feature
+    
+
+
+class ConvMeanPool(nn.Sequential):
+    def __init__(self, in_channels, out_channels, kernel_size, bias=True, padding=0, use_sn: bool=False):
+        super().__init__(
+            sn_wrapper(nn.Conv2d(in_channels, out_channels, kernel_size, bias, padding=padding), use_sn),
+            nn.AvgPool2d((2,2)),
+        )
+            
+class MeanPoolConv(nn.Sequential):
+    def __init__(self, in_channels, out_channels, kernel_size, bias=True, padding=0, use_sn: bool=False):
+        super().__init__(
+            nn.AvgPool2d((2,2)),
+            sn_wrapper(nn.Conv2d(in_channels, out_channels, kernel_size, bias, padding=padding), use_sn),
+        )

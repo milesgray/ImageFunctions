@@ -56,12 +56,10 @@ def module_deep_get(d, key_path, split_ch='.'):
             return None
     return d
 
-
 def torch_save_atomic(what, path):
     path_tmp = path + '.tmp'
     torch.save(what, path_tmp)
     os.rename(path_tmp, path)
-
 
 def state_dict_size(state_dict):
     size = 0
@@ -78,7 +76,6 @@ def state_dict_size(state_dict):
     _state_dict_size(state_dict)
     return size
 
-
 def get_model_size_bytes(model):
     f = None
     try:
@@ -88,7 +85,6 @@ def get_model_size_bytes(model):
     finally:
         if f is not None:
             f.close()
-
 
 def net_extract_modules_order(net, dummy_input, classes_interest, net_prefix=None, classes_ignored=None):
     ignored_prefixes = []
@@ -118,8 +114,6 @@ def net_extract_modules_order(net, dummy_input, classes_interest, net_prefix=Non
         hook.remove()
 
     return out['module_order']
-
-
 class PersistentRandomSampler(torch.utils.data.Sampler):
     def __init__(self, dataset, num_samples_train_total, rng_seed=2020):
         self.dataset = dataset
@@ -149,7 +143,6 @@ class PersistentRandomSampler(torch.utils.data.Sampler):
 
     def fast_forward_to(self, sample_id):
         self.next_sample_id = sample_id
-
 
 class ModuleEMA(torch.nn.Module):
     def __init__(self, src, placement='same', momentum=0.9999):
@@ -186,7 +179,6 @@ class ModuleEMA(torch.nn.Module):
         with torch.no_grad():
             return dst.forward(*args, **kwargs)
 
-
 def generate_validation_fakes(g_model, num_samples, batch_size, z_sz, num_classes, root_out, rng_seed=2020):
     os.makedirs(root_out, exist_ok=False)
     num_samples_filename_digits = int(np.log10(num_samples)) + 1
@@ -206,7 +198,6 @@ def generate_validation_fakes(g_model, num_samples, batch_size, z_sz, num_classe
                 img = Image.fromarray(fake_rgb[i], mode='RGB')
                 img.save(path)
 
-
 def add_filetree_to_zip(zip, dir_src, filter_filename=None, filter_dirname=None):
     dir_src = os.path.abspath(dir_src)
     dir_src_name = os.path.basename(dir_src)
@@ -225,7 +216,6 @@ def add_filetree_to_zip(zip, dir_src, filter_filename=None, filter_dirname=None)
                 arcname=os.path.join(os.path.relpath(cur_dir, dir_src_parent_dir), filename)
             )
 
-
 def pack_source_and_configuration(cfg, dir_src, path_zip):
     dir_src = os.path.abspath(dir_src)
     cfg = copy.deepcopy(cfg.__dict__)
@@ -240,12 +230,10 @@ def pack_source_and_configuration(cfg, dir_src, path_zip):
         )
         zip.writestr('cfg.txt', cfg_str)
 
-
 def pack_directory(path_dir, path_zip, filter_filename):
     path_dir = os.path.abspath(path_dir)
     with zipfile.ZipFile(path_zip, 'w', compression=zipfile.ZIP_DEFLATED) as zip:
         add_filetree_to_zip(zip, path_dir, filter_filename=filter_filename)
-
 
 def diff_source_dir_and_zip(cfg, dir_src, path_zip):
     dir_src = os.path.abspath(dir_src)
@@ -279,7 +267,6 @@ def diff_source_dir_and_zip(cfg, dir_src, path_zip):
                 f'\n'.join(cfg_diff)
             )
 
-
 def verify_experiment_integrity(cfg):
     dir_src = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     path_zip = os.path.join(cfg.log_dir, 'source.zip')
@@ -289,7 +276,6 @@ def verify_experiment_integrity(cfg):
         pack_source_and_configuration(cfg, dir_src, path_zip)
     else:
         diff_source_dir_and_zip(cfg, dir_src, path_zip)
-
 
 def get_singular_values_from_network(net, classes_interest, classes_ignored=None):
     svs = {}
@@ -317,7 +303,6 @@ def get_singular_values_from_network(net, classes_interest, classes_ignored=None
         svs[n] = sv
     return svs
 
-
 def get_best_gan_metrics(current, last=None):
     if last is None:
         return current
@@ -339,7 +324,6 @@ def get_best_gan_metrics(current, last=None):
                 out[KEY_METRIC_PPL_MEAN] = current[KEY_METRIC_PPL_MEAN]
     return out
 
-
 def get_best_imgcls_metrics(current, last=None):
     if last is None:
         return current
@@ -348,7 +332,6 @@ def get_best_imgcls_metrics(current, last=None):
         if v_cur > out.get(k, 0):
             out[k] = v_cur
     return out
-
 
 def tb_add_scalars(tb, main_tag, tag_scalar_dict, global_step=None):
     # unlike SummaryWriter.add_scalars, this function does not create a separate FileWriter per each dict entry
@@ -359,13 +342,11 @@ def tb_add_scalars(tb, main_tag, tag_scalar_dict, global_step=None):
         else:
             tb.add_scalar(tag, v, global_step=global_step)
 
-
 def fileno(file_or_fd):
     fd = getattr(file_or_fd, 'fileno', lambda: file_or_fd)()
     if not isinstance(fd, int):
         raise ValueError("Expected a file (`.fileno()`) or a file descriptor")
     return fd
-
 
 @contextlib.contextmanager
 def stderr_redirected(to=os.devnull, stderr=None):
@@ -389,12 +370,10 @@ def stderr_redirected(to=os.devnull, stderr=None):
             stderr.flush()
             os.dup2(copied.fileno(), stderr_fd)  # $ exec >&copied
 
-
 class SilentSummaryWriter(SummaryWriter):
     def __init__(self, *args, **kwargs):
         with stderr_redirected():
             super().__init__(*args, **kwargs)
-
 
 def silent_torch_jit_trace_module(*args, **kwargs):
     with warnings.catch_warnings(record=True) as ws:
@@ -409,7 +388,6 @@ def silent_torch_jit_trace_module(*args, **kwargs):
             print(w)
         return out
 
-
 def is_conv_transposed(conv):
     assert isinstance(conv, torch.nn.modules.conv._ConvNd)
     if packaging.version.parse(torch.__version__) < packaging.version.parse('1.5.0'):
@@ -417,7 +395,6 @@ def is_conv_transposed(conv):
     else:
         out = isinstance(conv, torch.nn.modules.conv._ConvTransposeNd)
     return out
-
 
 def generate_noise(num_samples, z_sz, num_classes=0, rng_seed=None, device='cpu'):
     if isinstance(device, torch.nn.Module):
@@ -436,7 +413,6 @@ def generate_noise(num_samples, z_sz, num_classes=0, rng_seed=None, device='cpu'
             labels = rng.randint(low=0, high=num_classes, size=(num_samples,), dtype=np.int)
             labels = torch.from_numpy(labels).to(device, non_blocking=True)
     return z, labels
-
 
 def classification_accuracy(output, target, topk=(1,)):
     assert output.dim() == 2 and target.dim() == 1 and output.shape[0] == target.shape[0]
