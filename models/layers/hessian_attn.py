@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from .statistics import calc_mean_std
+from .statistics import make_mean_std
 from .registry import register
 
 @register("mshf")
@@ -89,8 +89,8 @@ class DAC(nn.Module):
     def forward(self, observed_feat, referred_feat):
         assert (observed_feat.size()[:2] == referred_feat.size()[:2])
         size = observed_feat.size()
-        referred_mean, referred_std = calc_mean_std(referred_feat)
-        observed_mean, observed_std = calc_mean_std(observed_feat)
+        referred_mean, referred_std = make_mean_std(referred_feat)
+        observed_mean, observed_std = make_mean_std(observed_feat)
 
         normalized_feat = (observed_feat - observed_mean.expand(
             size)) / observed_std.expand(size)
