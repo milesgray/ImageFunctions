@@ -10,7 +10,7 @@ from .pool import ZPool, SpatialMaxPool, SpatialMeanPool
 from .gate import GateConv, PoolGate
 from .statistics import stdv_channels
 from .fourier import FourierConv2d
-from ImageFunctions.uilities.torch import get_valid_padding
+from ImageFunctions.utility.torch import get_valid_padding
 
 class PixelAttention(nn.Module):
     def __init__(self, f_in: int, 
@@ -182,6 +182,10 @@ class PixelAttention(nn.Module):
                 spatial_y = spatial_y * spatial_gate
             if self.use_dropout:
                 spatial_y = self.dropout(spatial_y)
+            spatial_y = F.interpolate(spatial_y, 
+                            size=x.shape[-2:], 
+                            mode=self.interpolation, 
+                            align_corners=True)
             spatial_out = torch.mul(x, spatial_y)
         if self.channel_wise:
             channel_y = self.channel_conv(x)

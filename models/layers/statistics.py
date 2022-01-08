@@ -11,7 +11,7 @@ def stdv_channels(x):
     mean = mean_channels(x)
     variance = (x - mean).sum(3, keepdim=True).sum(2, keepdim=True) / (x.size(2) * x.size(3))
     return variance
-def get_mean_std(x):
+def get_mean_std_rgb(x):
     r = x[:, 0, :, :]
     g = x[:, 1, :, :]
     b = x[:, 2, :, :]
@@ -19,7 +19,7 @@ def get_mean_std(x):
     g_std, g_mean = torch.std_mean(g)
     b_std, b_mean = torch.std_mean(b)
     return (r_mean, g_mean, b_mean), (r_std, g_std, b_std)
-def calc_mean_std(feat, eps=1e-5):
+def get_mean_std_nd(feat, eps=1e-5):
     # eps is a small value added to the variance to avoid divide-by-zero.
     size = feat.size()
     assert (len(size) == 4)
