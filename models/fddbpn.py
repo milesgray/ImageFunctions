@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from .layers import PixelAttention, MeanShift, HessianAttention
 from .layers import MSHF, DiEnDec, DAC
-from .layers import make_mean_std
+from .layers import get_mean_std_rgb
 
 from models import register
 
