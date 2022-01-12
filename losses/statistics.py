@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .registry import register
 
@@ -25,8 +26,8 @@ class StatsLoss(nn.Module):
         }
         
     def forward(self, x, y):
-        x_stats = self.calc_mean_std(x, dim=self.dim)
-        y_stats = self.calc_mean_std(y, dim=self.dim)
+        x_stats = self.calc_stats(x, dim=self.dim)
+        y_stats = self.calc_stats(y, dim=self.dim)
 
         mean_loss = F.softplus(x_stats["mean"]/x_stats["max"] - y_stats["mean"]/y_stats["max"]).pow(2)
         std_loss = torch.log1m(x_stats["std"].exp() * y_stats["std"].exp()).pow(2)

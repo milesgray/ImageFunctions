@@ -39,7 +39,10 @@ class MLP(nn.Module):
                 if self.act:
                     block.append(self.act)
                 transform = nn.Sequential(*block)
-                layers.append(LinearResidual(1.0, True, 'residual', transform))
+                layers.append(LinearResidual(1.0, 
+                                             True, 
+                                             'residual', 
+                                             transform))
             else:
                 layers.append(nn.Linear(lastv, hidden, bias=has_bias))
                 if has_bn:
