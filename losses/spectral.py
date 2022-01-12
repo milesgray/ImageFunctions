@@ -391,7 +391,7 @@ class LpLoss(object):
 
 # Sobolev norm (HS norm)
 # where we also compare the numerical derivatives between the output and target
-@regiser("sobolev_norm")
+@register("sobolev_norm")
 class HsLoss(object):
     def __init__(self, d=2, p=2, k=1, a=None, group=False, size_average=True, reduction=True):
         super().__init__()
