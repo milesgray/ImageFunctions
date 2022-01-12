@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from .learnable import Scale, Balance
 from .softmax import SpatialSoftmax2d
 from .spectral import SpectralConv2d
-from ImageFunctions.uilities.torch import get_valid_padding
+from ImageFunctions.uility.torch import get_valid_padding
 from .registry import register
 
 class SpatialAttention(nn.Module):
