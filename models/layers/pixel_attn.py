@@ -18,7 +18,7 @@ class PixelAttention(nn.Module):
                  kernel: int=1,
                  spatial_k: int=7,
                  resize: str="same", 
-                 inerpolation: str="bilinear",
+                 interpolation: str="bilinear",
                  scale: int=2, 
                  softmax: bool=True, 
                  use_pool: bool=False,
@@ -66,7 +66,7 @@ class PixelAttention(nn.Module):
             
         self.channels = f_out
         
-        self.inerpolation = inerpolation
+        self.interpolation = interpolation
         
         self.add_contrast = add_contrast
         self.contrast = stdv_channels
