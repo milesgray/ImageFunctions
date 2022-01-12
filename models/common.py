@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .layers import get_mean_std, SpaceToDepth
+from .layers import SpaceToDepth
 
 from .registry import register
 
