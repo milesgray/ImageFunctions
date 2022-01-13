@@ -57,7 +57,7 @@ model:
       name: mardan
       args:
         D: 10
-        C: 6
+        C: 4
         G: 32
         no_upsampling: true
         attn_fn: "partial(PixelAttention,  dropout=0.2)"
