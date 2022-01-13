@@ -1,0 +1,85 @@
+train_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/
+      repeat: 1
+      cache: in_memory
+      first_k: 4000
+      skip_every: 1
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 48
+      inp_size_max: 48
+      scale_min: 2
+      scale_max: 4
+      augment: true
+      sample_q: 2304
+      return_hr: true
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+
+val_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/
+      last_k: 66000
+      skip_every: 168
+      repeat: 1
+      cache: in_memory
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 48
+      inp_size_max: 48
+      scale_min: 2
+      scale_max: 6
+      sample_q: 2304
+      return_hr: true
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+
+data_norm:
+  inp: {sub: [0], div: [1]}
+  gt: {sub: [0], div: [1]}
+
+model:
+  name: ITNSR
+  args:
+    feat_unfold: True
+    local_ensemble: True
+    scale_token: True
+    encoder_spec:
+      name: rdn
+      args:
+        D: 5
+        C: 4
+        G: 32
+        no_upsampling: true
+        attn_fn: "partial(PixelAttention,  dropout=0.2)"
+
+    imnet_spec:
+      name: mlp
+      args:
+        in_dim: 4
+        hidden_list: [256,256]
+        act: 'elu'
+
+optimizer:
+  name: adamw
+  args:
+    lr: 2.e-4
+epoch_max: 100
+multi_step_lr:
+  milestones: [10, 20, 40, 60, 80]
+  gamma: 0.5
+
+epoch_val: 1
+epoch_save: 1
+
+resume: ~
+pre_train: ~

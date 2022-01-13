@@ -9,19 +9,21 @@ import torch
 import torch.nn as nn
 from .layers import PixelAttention, NonLocalAttention
 from .layers import Balance, stdv_channels
+from .layers.activations import create as create_act
 
 from models import register
 
 class RDB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, 
                  kernel=3,
+                 act="gelu",
                  attn_fn=PixelAttention):
         super().__init__()
         Cin = inChannels
         G  = growRate
         self.conv = nn.Sequential(*[
             nn.Conv2d(Cin, G, kernel, padding=(kernel-1)//2, stride=1),
-            nn.ReLU()
+            create_act(act)
         ])
         self.attn = attn_fn(G)
 
@@ -32,6 +34,7 @@ class RDB_Conv(nn.Module):
 class RDB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers, 
                  kernel=3,
+                 act="gelu",
                  attn_fn=PixelAttention):
         super().__init__()
         G0 = growRate0
@@ -42,6 +45,7 @@ class RDB(nn.Module):
         for c in range(C):
             convs.append(RDB_Conv(G0 + c*G, G,
                                   kernel=kernel,
+                                  act=act,
                                   attn_fn=attn_fn))
         self.convs = nn.Sequential(*convs)
 
@@ -61,6 +65,7 @@ class RDN(nn.Module):
         G0 = args.G0    # baseline channel amount, also the output channel amount
         kernel = args.RDNkSize    # kernel size for SFE and GFF conv layers
         RDBkSize = args.RDBkSize    # kernel size of RDB conv layers
+        act = args.act  # activation function for layers
         D = args.D  # number of RDB blocks
         C = args.C  # conv layers per RDB block
         G = args.G  # output channels of each conv layer within RDB block, which are all concat together
@@ -85,6 +90,7 @@ class RDN(nn.Module):
                     growRate=G, 
                     nConvLayers=C,
                     kernel=RDBkSize,
+                    act=act,
                     attn_fn=attn_fn)
             )
 
@@ -142,13 +148,14 @@ class RDN(nn.Module):
 
 
 @register('rdn')
-def make_rdn(D=20, C=6, G=32, attn_fn='PixelAttention',
+def make_rdn(D=20, C=6, G=32, attn_fn='PixelAttention', act="gelu",
              G0=64, RDNkSize=3, RDBkSize=3, RDNconfig=None,
              scale=2, no_upsampling=True):
     args = Namespace()
     args.D = D
     args.C = C
     args.G = G
+    args.act = act
     args.attn_fn = attn_fn
     args.G0 = G0
     args.RDNkSize = RDNkSize
