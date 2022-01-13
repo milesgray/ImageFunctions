@@ -167,7 +167,7 @@ def make_mardan(D=20, C=6, G=32, attn_fn='PixelAttention', act="gelu",
     args.attn_fn = attn_fn
     args.G0 = G0
     args.RDNkSize = RDNkSize
-    args.RDBkSize = RDBkSize
+    args.RDBkSize = BlockkSize
 
     args.scale = [scale]
     args.no_upsampling = no_upsampling
