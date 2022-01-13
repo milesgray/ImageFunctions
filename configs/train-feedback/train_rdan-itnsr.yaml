@@ -69,7 +69,7 @@ model:
         act: 'gelu'
 
 losses:
-  q_vals:
+  q:
     pieapp:
       name: pieapp
       args:
@@ -79,7 +79,7 @@ losses:
     bce:
       name: bce_with_logits
       args:
-  full_img:
+  img:
     dists:
       name: dists
       args:

@@ -5,7 +5,7 @@ train_dataset:
       root_path: /content/full/
       repeat: 1
       cache: in_memory
-      last_k: 4000
+      first_k: 4000
       skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -26,7 +26,7 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      first_k: 12000
+      last_k: 66000
       skip_every: 168
       repeat: 1
       cache: in_memory
@@ -44,8 +44,8 @@ val_dataset:
   pin_memory: true
 
 data_norm:
-  inp: {sub: [0.5], div: [0.5]}
-  gt: {sub: [0.5], div: [0.5]}
+  inp: {sub: [0], div: [1]}
+  gt: {sub: [0], div: [1]}
 
 model:
   name: ITNSR
@@ -67,7 +67,7 @@ model:
       args:
         in_dim: 4
         hidden_list: [256,256]
-        act: 'gelu'
+        act: 'elu'
 
 optimizer:
   name: adamw
