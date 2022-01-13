@@ -24,7 +24,7 @@ class Layer(nn.Module):
         Cin = inChannels
         G  = growRate
         self.conv = nn.Sequential(*[
-            MAConv2d(Cin, G, kernel, padding=(kSize-1)//2, stride=1),
+            MAConv2d(Cin, G, kernel, padding=(kernel-1)//2, stride=1),
             create_act(act)
         ])
         self.attn = attn_fn(G)

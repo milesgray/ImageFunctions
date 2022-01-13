@@ -14,13 +14,13 @@ from models import register
 
 class RDB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, 
-                 kSize=3,
+                 kernel=3,
                  attn_fn=PixelAttention):
         super().__init__()
         Cin = inChannels
         G  = growRate
         self.conv = nn.Sequential(*[
-            nn.Conv2d(Cin, G, kSize, padding=(kSize-1)//2, stride=1),
+            nn.Conv2d(Cin, G, kernel, padding=(kernel-1)//2, stride=1),
             nn.ReLU()
         ])
         self.attn = attn_fn(G)
@@ -31,7 +31,7 @@ class RDB_Conv(nn.Module):
 
 class RDB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers, 
-                 kSize=3,
+                 kernel=3,
                  attn_fn=PixelAttention):
         super().__init__()
         G0 = growRate0
@@ -41,7 +41,7 @@ class RDB(nn.Module):
         convs = []
         for c in range(C):
             convs.append(RDB_Conv(G0 + c*G, G,
-                                  kSize=kSize,
+                                  kernel=kernel,
                                   attn_fn=attn_fn))
         self.convs = nn.Sequential(*convs)
 
@@ -59,7 +59,7 @@ class RDN(nn.Module):
         r = args.scale[0]
         nColors = args.n_colors # number of color channels expected as input
         G0 = args.G0    # baseline channel amount, also the output channel amount
-        kSize = args.RDNkSize    # kernel size for SFE and GFF conv layers
+        kernel = args.RDNkSize    # kernel size for SFE and GFF conv layers
         RDBkSize = args.RDBkSize    # kernel size of RDB conv layers
         D = args.D  # number of RDB blocks
         C = args.C  # conv layers per RDB block
@@ -70,8 +70,8 @@ class RDN(nn.Module):
         attn_fn = eval(attn_fn) if isinstance(attn_fn, str) else attn_fn
         
         # Shallow feature extraction net
-        self.SFENet1 = nn.Conv2d(nColors, G0, kSize, padding=(kSize-1)//2, stride=1)
-        self.SFENet2 = nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
+        self.SFENet1 = nn.Conv2d(nColors, G0, kernel, padding=(kernel-1)//2, stride=1)
+        self.SFENet2 = nn.Conv2d(G0, G0, kernel, padding=(kernel-1)//2, stride=1)
         
         self.SFE_attn = attn_fn(G0)
         self.SFE_res_attn = attn_fn(G0)
@@ -84,7 +84,7 @@ class RDN(nn.Module):
                 RDB(growRate0=G0, 
                     growRate=G, 
                     nConvLayers=C,
-                    kSize=RDBkSize,
+                    kernel=RDBkSize,
                     attn_fn=attn_fn)
             )
 
@@ -94,7 +94,7 @@ class RDN(nn.Module):
         #     channel dimension size
         self.GFF = nn.Sequential(*[
             nn.Conv2d(D * G0, G0, 1, padding=0, stride=1),
-            nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
+            nn.Conv2d(G0, G0, kernel, padding=(kernel-1)//2, stride=1)
         ])
         
         # learns a weighted sum of GFF and SFE_res_attn
