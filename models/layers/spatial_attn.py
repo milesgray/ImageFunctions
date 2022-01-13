@@ -85,6 +85,7 @@ class SoftWaveSpatialAttention(nn.Module):
             if self.learn_weight:
                 spatial_attn = self.spatial_scale(spatial_attn)
             spatial_attn = self.spatial_softmax(spatial_attn)
+            
             wave_attn = self.wave_conv(x)
             if self.learn_weight:
                 wave_attn = self.wave_scale(wave_attn)
@@ -92,6 +93,10 @@ class SoftWaveSpatialAttention(nn.Module):
             if self.use_dropout:
                 spatial_attn = self.dropout(spatial_attn)
                 wave_attn = self.dropout(wave_attn)
+            spatial_attn = F.interpolate(spatial_attn, 
+                            size=wave_attn.shape[-2:], 
+                            mode=self.interpolation, 
+                            align_corners=True)
             attn = self.global_balance(spatial_attn, wave_attn)
             attn = self.global_scale(attn)
             return attn

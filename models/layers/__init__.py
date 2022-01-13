@@ -9,6 +9,7 @@ from .softmax import *
 from .learnable import *
 from .statistics import *
 from .projection import *
+from .wavelet import *
 
 from .hessian_attn import HessianAttention, MSHF, DiEnDec, DAC
 from .pixel_attn import PixelAttention
@@ -19,13 +20,14 @@ from .balanced_attn import BalancedAttention
 from .nonlocal_attn import NonLocalAttention
 from .spatial_attn import SpatialAttention, CatPoolSpatialAttention
 from .cross_attn  import SelfAttention, CrossAttention
+from .local_self_attn import LocalSelfAttention
 
 from .scale_aware import ScaleAwareConv2d, ScaleAwareAdapt
 from .linear_residual import LinearResidual
-from .wavelet import WaveletTransform
 from .stiefel import StiefelHouseholder, StiefelHouseholderCanonical
 from .imdn import *
 from .fourier import FourierINR, FourierConv2d
+from .mutual_affine_conv import MAConv2d
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 
