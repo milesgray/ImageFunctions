@@ -10,6 +10,7 @@ from .learnable import *
 from .statistics import *
 from .projection import *
 from .wavelet import *
+from .shuffle import *
 
 from .hessian_attn import HessianAttention, MSHF, DiEnDec, DAC
 from .pixel_attn import PixelAttention
