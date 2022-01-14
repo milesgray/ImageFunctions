@@ -274,7 +274,7 @@ class FocalFrequencyLoss(nn.Module):
     
 ###############################################################################
 """  
- https://openaccess.thecvf.com/content/ICCV2021/papers/Fuoli_Fourier_Space_Losses_for_Efficient_Perceptual_Image_Super-Resolution_ICCV_2021_paper.pdf
+https://openaccess.thecvf.com/content/ICCV2021/papers/Fuoli_Fourier_Space_Losses_for_Efficient_Perceptual_Image_Super-Resolution_ICCV_2021_paper.pdf
  
 In addition to these spatial domain losses, we propose a
 Fourier space loss LF for supervision from the ground truth
@@ -288,13 +288,13 @@ difference LF,|·| and phase difference LF,∠ (we take
 into account the periodicity) between output image and 
 target are averaged to produce the total frequency loss LF .
 Note, since half of all frequency components are redundant,
-the summation for u is performed up to U/2−1 only, without affecting the loss due to Eq.
+the summation for u is performed up to U/2−1 only, without 
+affecting the loss due to Eq.
 """
 @register("fourier_space")
 class FourierSpaceLoss(nn.Module):
     def __init__(self, hann_window=3):
         super().__init__()
-        self.hann = torch.hann_window(hann_window, periodic=True, requires_grad=True)
         
     def channel_stats(self, x):
         # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
@@ -306,23 +306,27 @@ class FourierSpaceLoss(nn.Module):
         
     def forward(self, x, y):
         # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
-        win_length = x.reshape(-1).shape[0]
         win_shape = x.shape
+        win_length = x.reshape(win_shape[0], win_shape[1], -1).shape[-1]
+        
         window = torch.hann_window(win_length, 
                                    periodic=True, 
-                                   requires_grad=True).view(win_shape)
-        x = x * window
-        y = y * window
+                                   requires_grad=True) \
+                                       .to(x.device)
+        x = x.reshape(win_shape[0], win_shape[1], -1) * window
+        y = y.reshape(win_shape[0], win_shape[1], -1) * window
         loss = 0
         for i in range(x.shape[1]):
-            x_amp, x_phase = self.channel_stats(x[:,i,...].unsqueeze(1))
-            y_amp, y_phase = self.channel_stats(y[:,i,...].unsqueeze(1))
+            x_amp, x_phase = self.channel_stats(x[:,i,...])
+            y_amp, y_phase = self.channel_stats(y[:,i,...])
             
             # The L1-loss of amplitude difference LF,|·| and phase difference LF,∠ (we take
             # into account the periodicity) between output image and  
             # target are averaged to produce the total frequency loss LF
-            loss_amp = nn.L1Loss()(x_amp, y_amp)
-            loss_phase = nn.L1Loss()(x_phase, y_phase)
+            half_u = x_amp.shape[-1] // 2 - 1
+            
+            loss_amp = nn.L1Loss()(x_amp[:,:half_u], y_amp[:,:half_u])
+            loss_phase = nn.L1Loss()(x_phase[:,:half_u], y_phase[:,:half_u])
             
             loss += loss_amp + loss_phase / 2
         loss /= 3
