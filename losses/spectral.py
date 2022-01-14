@@ -296,43 +296,31 @@ class FourierSpaceLoss(nn.Module):
         super().__init__()
         self.hann = torch.hann_window(hann_window, periodic=True, requires_grad=True)
         
-    def channel_loss(self, x):
-        # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
-        x_haan = self.hann(x)
+    def channel_stats(self, x):
         # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
-        x_fourier = torch.fft.rfftn(x_hann)
+        fourier = torch.fft.fft(x, norm='ortho')
         # where we calculate amplitude and phase of all frequency components
-        x_amp = torch.sqrt(x_fourier.real.pow(2) + x_fourier.imag.pow(2))
-        x_phase = torch.atan2(x_fourier.imag, x_fourier.real)
-        return loss
+        amp = torch.sqrt(fourier.real.pow(2) + fourier.imag.pow(2))
+        phase = torch.atan2(fourier.imag, fourier.real)
+        return amp, phase
         
     def forward(self, x, y):
         # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
-        # TODO
-        window = "hann_window"
-        win_length = 2
-        fft_size=2
-        hop_length=2
-        window = getattr(torch, window)(win_length)
+        win_length = x.reshape(-1).shape[0]
+        win_shape = x.shape
+        window = torch.hann_window(win_length, 
+                                   periodic=True, 
+                                   requires_grad=True).view(win_shape)
+        x = x * window
+        y = y * window
         loss = 0
         for i in range(x.shape[1]):
-            # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
-            # TODO
-            x_fourier = torch.stft(torch.Tensor(x[i,:,:]).cuda(), fft_size, hop_length, win_length, window.cuda(), return_complex=True)
-            y_fourier = torch.stft(torch.Tensor(y[i,:,:]).cuda(), fft_size, hop_length, win_length, window.cuda(), return_complex=True)
-            
-            # where we calculate amplitude and phase of all frequency components
-            # TODO
-            x_amp = torch.sqrt(x_fourier.real.pow(2) + x_fourier.imag.pow(2))
-            x_phase = torch.atan2(x_fourier.imag, x_fourier.real)
-            
-            y_amp = torch.sqrt(y_fourier.real.pow(2) + y_fourier.imag.pow(2))
-            y_phase = torch.atan2(y_fourier.imag, y_fourier.real)
+            x_amp, x_phase = self.channel_stats(x[:,i,...].unsqueeze(1))
+            y_amp, y_phase = self.channel_stats(y[:,i,...].unsqueeze(1))
             
             # The L1-loss of amplitude difference LF,|·| and phase difference LF,∠ (we take
-            # into account the periodicity) between output image and  target are averaged to produce the total frequency loss LF
-            # TODO
-            
+            # into account the periodicity) between output image and  
+            # target are averaged to produce the total frequency loss LF
             loss_amp = nn.L1Loss()(x_amp, y_amp)
             loss_phase = nn.L1Loss()(x_phase, y_phase)
             
