@@ -16,6 +16,7 @@ from . import iqa
 from . import mdf
 from . import spectral
 from . import statistics
+from . import teacher
 from . import texture
 from . import tv
 
