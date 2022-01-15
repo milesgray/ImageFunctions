@@ -78,3 +78,25 @@ def compute_wgan_gp(discriminator, x_real, x_fake, y: Tensor=None):
     )[0].view(interpolations.size(0), -1)
 
     return ((grads.norm(p=2, dim=1) - 1) ** 2).mean()
+
+@register("gradient")
+class GradientLoss(nn.Module):
+    def __init__(self):
+        super(GradientLoss, self).__init__()
+        filterx = torch.tensor([[-3., 0., 3.], [-10., 0., 10.], [-3., 0. , 3.]])
+        self.fx = filterx.expand(1,3,3,3).cuda()
+
+        filtery = torch.tensor([[-3., -10, -3.], [0., 0., 0.], [3., 10. , 3.]])
+        self.fy = filtery.expand(1,3,3,3).cuda()
+
+    def forward(self, x, y):
+        schxx = F.conv2d(x, self.fx, stride=1, padding=1)
+        schxy = F.conv2d(x, self.fy, stride=1, padding=1)
+        gradx = torch.sqrt(torch.pow(schxx, 2) + torch.pow(schxy, 2) + 1e-6)
+        
+        schyx = F.conv2d(y, self.fx, stride=1, padding=1)
+        schyy = F.conv2d(y, self.fy, stride=1, padding=1)
+        grady = torch.sqrt(torch.pow(schyx, 2) + torch.pow(schyy, 2) + 1e-6)
+        
+        loss = F.l1_loss(gradx, grady)
+        return loss

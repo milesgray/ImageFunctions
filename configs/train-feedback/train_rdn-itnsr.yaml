@@ -69,6 +69,31 @@ model:
         hidden_list: [256,256]
         act: 'elu'
 
+losses:
+  q:
+    dst:
+      fn:
+        name: dists
+        args:
+      weight: 1.0
+    bce:
+      fn:
+        name: bce_with_logits
+        args:
+      weight: 0.2
+  img:
+    freq:
+      fn:
+        name: fourier_space
+        args:    
+      weight: 0.025
+    msL1:
+      fn:
+        name: multiscale_l1
+        args:
+          scale: 3
+      weight: 1.0
+
 optimizer:
   name: adamw
   args:
