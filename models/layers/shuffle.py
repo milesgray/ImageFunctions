@@ -3,7 +3,14 @@ import torch.nn as nn
 from torch.autograd import Function
 from torch import Tensor
 
+from .common import sequential
 from .registry import register
+
+class PixelShuffleIMDNBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, upscale_factor=2, kernel_size=3, stride=1):
+        conv = conv_layer(in_channels, out_channels * (upscale_factor ** 2), kernel_size, stride)
+        pixel_shuffle = nn.PixelShuffle(upscale_factor)
+        self.body = sequential(conv, pixel_shuffle)
 
 @register("shuffle_down")
 class ShuffleDown(nn.Module):

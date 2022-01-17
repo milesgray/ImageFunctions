@@ -32,14 +32,46 @@ class PreNorm(nn.Module):
 @register("basic_conv")
 class BasicConv(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size, 
-                 stride=1, padding=0, dilation=1, groups=1, 
-                 act=nn.ReLU(True), conv=nn.Conv2d, bn=True, bias=False):
+                 stride=1, 
+                 dilation=1, 
+                 groups=1, 
+                 act=nn.ReLU(True), 
+                 conv=nn.Conv2d, 
+                 bn=True, 
+                 bias=False):
         super().__init__()
         self.out_channels = out_planes
+        
+        padding = int((kernel_size - 1) / 2) * dilation
 
-        m = [conv(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)]
+        m = [conv(in_planes, out_planes, 
+                  kernel_size=kernel_size, 
+                  stride=stride, 
+                  padding=padding, 
+                  dilation=dilation, 
+                  groups=groups, 
+                  bias=bias)]
         if bn:
             m.append( nn.BatchNorm2d(out_planes, eps=1e-5, momentum=0.01, affine=True) )
+        if act is not None:
+            m.append(act)
+        self.body = nn.Sequential(*m)
+
+    def forward(self, x):
+        return self.body(x)
+    
+@register("basic_block")
+class BasicBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, 
+                 stride=1, 
+                 bias=False,
+                 bn=True, 
+                 conv=nn.Conv2d,
+                 act=nn.ReLU(True)):
+        super().__init__()
+        m = [conv(in_channels, out_channels, kernel_size, bias=bias)]
+        if bn:
+            m.append(nn.BatchNorm2d(out_channels))
         if act is not None:
             m.append(act)
         self.body = nn.Sequential(*m)
@@ -59,22 +91,6 @@ class FeedForward(nn.Module):
         )
     def forward(self, x):
         return self.net(x)
-    
-@register("basic_block")
-class BasicBlock(nn.Module):
-    def __init__(
-            self, conv, in_channels, out_channels, kernel_size, stride=1, bias=False,
-            bn=True, act=nn.ReLU(True)):
-        super().__init__()
-        m = [conv(in_channels, out_channels, kernel_size, bias=bias)]
-        if bn:
-            m.append(nn.BatchNorm2d(out_channels))
-        if act is not None:
-            m.append(act)
-        self.body = nn.Sequential(*m)
-
-    def forward(self, x):
-        return self.body(x)
 
 @register("upsampler")
 class Upsampler(nn.Sequential):
@@ -110,3 +126,22 @@ class Flatten(nn.Module):
 
     def forward(self, x):
         return x.view(x.size(0), -1)
+
+
+def get_valid_padding(kernel_size, dilation):
+    kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
+    padding = (kernel_size - 1) // 2
+    return padding
+def sequential(*args):
+    if len(args) == 1:
+        if isinstance(args[0], OrderedDict):
+            raise NotImplementedError('sequential does not support OrderedDict input.')
+        return args[0]
+    modules = []
+    for module in args:
+        if isinstance(module, nn.Sequential):
+            for submodule in module.children():
+                modules.append(submodule)
+        elif isinstance(module, nn.Module):
+            modules.append(module)
+    return nn.Sequential(*modules)S

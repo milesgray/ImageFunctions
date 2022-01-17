@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .registry import register
+
 def mean_channels(x):
     assert(x.dim() == 4)
     spatial_sum = x.sum(3, keepdim=True).sum(2, keepdim=True)
@@ -28,6 +30,8 @@ def get_mean_std_nd(feat, eps=1e-5):
     feat_std = feat_var.sqrt().view(N, C, 1, 1)
     feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
     return feat_mean, feat_std
+
+@register("mean_shift")
 class MeanShift(nn.Conv2d):
     def __init__(self, rgb_range,
                 rgb_mean=(0.40005, 0.42270, 0.45802), 
@@ -40,6 +44,7 @@ class MeanShift(nn.Conv2d):
         for p in self.parameters():
             p.requires_grad = False
 
+@register("sub_mean_std")
 class SubMeanStd(nn.Conv2d):
     def __init__(self, rgb_mean, rgb_std, sign=-1):
         super().__init__(3, 3, kernel_size=1)
@@ -49,6 +54,7 @@ class SubMeanStd(nn.Conv2d):
         for p in self.parameters():
             p.requires_grad = False
 
+@register("add_mean_std")
 class AddMeanStd(nn.Conv2d):
     def __init__(self, rgb_mean, rgb_std, sign=1):
         super().__init__(3, 3, kernel_size=1)
@@ -62,6 +68,7 @@ class AddMeanStd(nn.Conv2d):
 # Minibatch standard deviation layer 
 # reference: https://github.com/akanimax/pro_gan_pytorch/blob/master/pro_gan_pytorch/CustomLayers.py#L300
 # ------------------------------------------------------------------------------------------------------------------
+@register("minibatch_std_dev")
 class MinibatchStdDev(nn.Module):
     """
     Minibatch standard deviation layer

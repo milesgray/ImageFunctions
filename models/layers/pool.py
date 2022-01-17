@@ -20,7 +20,7 @@ class ZPool(nn.Module):
             dim=1
         )
 
-@register("spatialmeanpool")
+@register("spatial_mean_pool")
 class SpatialMeanPool(nn.Module):
     def __init__(self, dim=1, keepdims=True):
         super().__init__()
@@ -32,7 +32,7 @@ class SpatialMeanPool(nn.Module):
             y = y.unsqueeze(self.dim)
         return y
 
-@register("spatialmaxpool")
+@register("spatial_max_pool")
 class SpatialMaxPool(nn.Module):
     def __init__(self, dim=1, keepdims=True):
         super().__init__()
@@ -44,7 +44,7 @@ class SpatialMaxPool(nn.Module):
             y = y.unsqueeze(self.dim)
         return y
     
-
+@register("cov_pool")
 class Covpool(Function):
     @staticmethod
     def forward(ctx, input):
@@ -82,7 +82,7 @@ class Covpool(Function):
         grad_input = grad_input.reshape(batchSize,dim,h,w)
         return grad_input
 
-@register("covarpool")
+@register("covar_pool")
 class CovarPool(nn.Module):
     def __init__(self):
         super().__init__()
@@ -104,7 +104,7 @@ class GlobalSTDPool2D(nn.Module):
         return torch.std(x.view(x.size()[0], x.size()[1], -1, 1),
                         dim=self.dim, keepdim=self.keepdim)
 
-@register("temporalpool")
+@register("temporal_pool")
 class TemporalPool(nn.Module):
     """  subjectively-inspired temporal pooling
     https://github.com/buyizhiyou/NRVQA/blob/master/VSFA/VSFA.py
@@ -141,12 +141,12 @@ class TemporalPool(nn.Module):
         m = m / n
         return self.beta * m + (1 - self.beta) * l
     
-@register("channelpool")
+@register("channel_pool")
 class ChannelPool(nn.Module):
     def forward(self, x):
         return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
 
-@register("maskedaveragepool")
+@register("masked_average_pool")
 class MaskedAveragePool(nn.Module):
     def __init__(self, interpolation="bilinear"):
         super().__init__()

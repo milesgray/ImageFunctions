@@ -1,14 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 from .learnable import Scale, Balance
 from .softmax import SpatialSoftmax2d
 from .spectral import SpectralConv2d
 from ImageFunctions.utility.torch import get_valid_padding
-from .registry import register
 
+from .registry import register
+from . import create as create_layer
+
+@register("spatial_attn")
 class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size=7):
+    def __init__(self, kernel_size: int=7):
         super().__init__()
 
         assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
@@ -21,12 +25,13 @@ class SpatialAttention(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         max_out, _ = torch.max(x, dim=1, keepdim=True)
         return self.attn(max_out)
 
+@register("cat_pool_spatial_attn")
 class CatPoolSpatialAttention(nn.Module):
-    def __init__(self, kernel_size=7):
+    def __init__(self, kernel_size: int=7):
         super().__init__()
 
         assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
@@ -39,7 +44,7 @@ class CatPoolSpatialAttention(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         avg_out = torch.mean(x, dim=1, keepdim=True)
         max_out, _ = torch.max(x, dim=1, keepdim=True)
         x = torch.cat([avg_out, max_out], dim=1)
@@ -77,7 +82,7 @@ class SoftWaveSpatialAttention(nn.Module):
             self.pool_scale = Scale(0.0)
             self.global_balance = Balance()
             
-        def forward(self, x):
+        def forward(self, x: torch.Tensor):
             x = self.resize(x)
             
             spatial_y = self.spatial_conv(x)        

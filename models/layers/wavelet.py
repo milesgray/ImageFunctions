@@ -10,7 +10,7 @@ class Dct2d(nn.Module):
     """
     Blockwhise 2D DCT
     """
-    def __init__(self, blocksize=8, interleaving=False):
+    def __init__(self, blocksize: int=8, interleaving: bool=False):
         """
         Parameters:
         blocksize: int, size of the Blocks for discrete cosine transform 
@@ -37,7 +37,7 @@ class Dct2d(nn.Module):
         self.A = nn.Parameter(torch.tensor(A, dtype=torch.float32), requires_grad=False)
         self.unfold = torch.nn.Unfold(kernel_size=blocksize, padding=0, stride=self.stride)
         
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
         performs 2D blockwhise DCT
         
@@ -127,7 +127,7 @@ class WaveletTransform(nn.Module):
     loss = loss_sr.mul(0.99) + loss_lr.mul(0.01) + loss_img.mul(0.1) + loss_textures.mul(1)
     ```
     """
-    def __init__(self, scale=1, dec=True, params_path='weights/wavelet_weights_c2.pkl', transpose=True):
+    def __init__(self, scale: int=1, dec: bool=True, params_path: str='weights/wavelet_weights_c2.pkl', transpose=True):
         super().__init__()
 
         self.scale = scale
@@ -150,21 +150,21 @@ class WaveletTransform(nn.Module):
                 m.weight.data = torch.from_numpy(dct['rec%d' % ks])
                 m.weight.requires_grad = False
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         if self.dec:
           output = self.conv(x)
           if self.transpose:
             osz = output.size()
             output = output.view(osz[0], 3, -1, osz[2], osz[3]) \
-                            .transpose(1,2) \
-                                .contiguous(). \
-                                    view(osz)
+                            .transpose(1, 2) \
+                                .contiguous() \
+                                    .view(osz)
         else:
           if self.transpose:
             xx = x
             xsz = xx.size()
             xx = xx.view(xsz[0], -1, 3, xsz[2], xsz[3]) \
-                        .transpose(1,2) \
+                        .transpose(1, 2) \
                             .contiguous() \
                                 .view(xsz)
           output = self.conv(xx)

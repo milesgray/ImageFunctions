@@ -2,8 +2,12 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+from .registry import register
+from .learnable import Balance, Scale
+
+@register("non_local_attn")
 class NonLocalAttention(nn.Module):
-    def __init__(self, channels, conv=nn.Conv2d):
+    def __init__(self, channels: int, conv: nn.Module=nn.Conv2d):
         """A non-local block as used in SA-GAN.
 
         Args:
@@ -15,15 +19,29 @@ class NonLocalAttention(nn.Module):
         self.channels = channels
         self.conv = conv
         self.theta = self.conv(
-            self.channels, self.channels // 8, kernel_size=1, padding=0, bias=False)
+            self.channels, self.channels // 8, 
+            kernel_size=1, 
+            padding=0, 
+            bias=False)
         self.phi = self.conv(
-            self.channels, self.channels // 8, kernel_size=1, padding=0, bias=False)
+            self.channels, self.channels // 8, 
+            kernel_size=1, 
+            padding=0, 
+            bias=False)
         self.g = self.conv(
-            self.channels, self.channels // 2, kernel_size=1, padding=0, bias=False)
+            self.channels, self.channels // 2, 
+            kernel_size=1, 
+            padding=0, 
+            bias=False)
         self.o = self.conv(
-            self.channels // 2, self.channels, kernel_size=1, padding=0, bias=False)
+            self.channels // 2, 
+            self.channels, 
+            kernel_size=1, 
+            padding=0, bias=False)
         # Learnable gain parameter
-        self.gamma = nn.Parameter(torch.tensor(0.), requires_grad=True)
+        #self.gamma = nn.Parameter(torch.tensor(0.), requires_grad=True)
+        self.gamma = Scale(0.0)
+        self.residual_balance = Balance(0.0)
 
     def forward(self, x, y=None):
         # Apply convs
@@ -41,4 +59,4 @@ class NonLocalAttention(nn.Module):
                                                            self.channels // 2,
                                                            x.shape[2],
                                                            x.shape[3]))
-        return self.gamma * o + x
+        return self.residual_balance(self.gamma(o), x)
