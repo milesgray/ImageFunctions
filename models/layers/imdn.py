@@ -1,6 +1,7 @@
 import torch.nn as nn
 from collections import OrderedDict
 import torch
+from torch import Tensor
 
 from .common import sequential, get_valid_padding
 from .statistics import mean_channels, stdv_channels
