@@ -144,4 +144,4 @@ def sequential(*args):
                 modules.append(submodule)
         elif isinstance(module, nn.Module):
             modules.append(module)
-    return nn.Sequential(*modules)S
+    return nn.Sequential(*modules)
