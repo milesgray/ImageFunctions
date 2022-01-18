@@ -1,8 +1,12 @@
 from .registry import register, make, lookup
-from . import edsr, rdn, rcan, ddbpn, rdan, mardan
+from . import edsr
+from . import rcan
+from . import ddbpn
+from . import rdn, rdan, mardan, rdaidbn
+from . import imdn
 from . import freq_discriminator, mlp_discriminator
 from . import mlp
 from . import liif, inr_liif, itnsr
-from . import misc
 from . import dexined_v2, dexined_v3
+from . import misc
 from . import common
