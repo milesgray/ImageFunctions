@@ -31,8 +31,8 @@ class IMDN_AS(nn.Module):
         self.upsampler = upsample_block(nf, out_nc, upscale_factor=upscale)
 
 
-    def forward(self, input):
-        out_fea = self.fea_conv(input)
+    def forward(self, x):
+        out_fea = self.fea_conv(x)
         out_B1 = self.IMDB1(out_fea)
         out_B2 = self.IMDB2(out_B1)
         out_B3 = self.IMDB3(out_B2)
@@ -48,7 +48,7 @@ class IMDN_AS(nn.Module):
 @register("imdn")
 class IMDN(nn.Module):
     def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, upscale=4):
-        super(IMDN, self).__init__()
+        super().__init__()
 
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
 
@@ -68,7 +68,7 @@ class IMDN(nn.Module):
 
 
     def forward(self, input):
-        out_fea = self.fea_conv(input)
+        out_fea = self.fea_conv(x)
         out_B1 = self.IMDB1(out_fea)
         out_B2 = self.IMDB2(out_B1)
         out_B3 = self.IMDB3(out_B2)
@@ -85,7 +85,7 @@ class IMDN(nn.Module):
 @register("imdn_rtc")
 class IMDN_RTC(nn.Module):
     def __init__(self, in_nc=3, nf=12, num_modules=5, out_nc=3, upscale=2):
-        super(IMDN_RTC, self).__init__()
+        super().__init__()
 
         fea_conv = [conv_layer(in_nc, nf, kernel_size=3)]
         rb_blocks = [IMDModule_speed(in_channels=nf) for _ in range(num_modules)]
@@ -97,14 +97,14 @@ class IMDN_RTC(nn.Module):
         self.model = sequential(*fea_conv, ShortcutBlock(sequential(*rb_blocks, LR_conv)),
                                   *upsampler)
 
-    def forward(self, input):
-        output = self.model(input)
+    def forward(self, x):
+        output = self.model(x)
         return output
 
 @register("imdn_rte")
 class IMDN_RTE(nn.Module):
     def __init__(self, upscale=2, in_nc=3, nf=20, out_nc=3):
-        super(IMDN_RTE, self).__init__()
+        super().__init__()
         self.upscale = upscale
         self.fea_conv = nn.Sequential(conv_layer(in_nc, nf, 3),
                                       nn.ReLU(inplace=True),
@@ -121,9 +121,9 @@ class IMDN_RTE(nn.Module):
 
         self.upsampler = pixelshuffle_block(nf, out_nc, upscale_factor=upscale**2)
 
-    def forward(self, input):
+    def forward(self, x):
 
-        fea = self.fea_conv(input)
+        fea = self.fea_conv(x)
         out_b1 = self.block1(fea)
         out_b2 = self.block2(out_b1)
         out_b3 = self.block3(out_b2)

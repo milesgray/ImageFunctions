@@ -94,15 +94,15 @@ class SpectralConvNd(SpectralLayerBase):
         assert not self.is_transposed and module.padding_mode != 'circular' or module.padding_mode == 'zeros', \
             'Not implemented'
 
-    def forward(self, input):
+    def forward(self, x):
         weight = self.spectral_tensors_factory[0].get_tensor_by_name(self.name)
         if self.is_transposed:
             out = self.conv_fn(
-                input, weight, self.bias, self.stride, self.padding,
+                x, weight, self.bias, self.stride, self.padding,
                 self.output_padding, self.groups, self.dilation
             )
         else:
-            out = self.conv_fn(input, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+            out = self.conv_fn(x, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
         return out
 
     def extra_repr(self):
@@ -122,9 +122,9 @@ class SpectralLinear(SpectralLayerBase):
     def init_checks(self, module):
         assert isinstance(module, torch.nn.modules.Linear)
 
-    def forward(self, input):
+    def forward(self, x):
         weight = self.spectral_tensors_factory[0].get_tensor_by_name(self.name)
-        return F.linear(input, weight, self.bias)
+        return F.linear(x, weight, self.bias)
 
     def extra_repr(self):
         return f'[{" x ".join([str(a) for a in self.weight_shape])}] has_bias={self.bias is not None}'
@@ -147,10 +147,10 @@ class SpectralEmbedding(SpectralLayerBase):
     def init_checks(self, module):
         assert isinstance(module, torch.nn.modules.Embedding)
 
-    def forward(self, input):
+    def forward(self, x):
         weight = self.spectral_tensors_factory[0].get_tensor_by_name(self.name)
         return F.embedding(
-            input, weight, self.padding_idx, self.max_norm,
+            x, weight, self.padding_idx, self.max_norm,
             self.norm_type, self.scale_grad_by_freq, self.sparse
         )
 
@@ -490,9 +490,10 @@ class SpectralTensorsFactorySTTP(SpectralTensorsFactoryBase):
 
         return n_param_compressed
     
+@register("spectral_conv_2d")
 class SpectralConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
-        super(SpectralConv2d, self).__init__()
+        super().__init__()
 
         """
         2D Fourier layer. It does FFT, linear transform, and Inverse FFT.    
