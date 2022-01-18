@@ -31,7 +31,7 @@ class IMDModule(nn.Module):
         self.c2 = conv_layer(self.remaining_channels, self.in_channels, 3)
         self.c3 = conv_layer(self.remaining_channels, self.in_channels, 3)
         self.c4 = conv_layer(self.remaining_channels, self.distilled_channels, 3)
-        self.act = activation('lrelu', neg_slope=0.05)
+        self.act = create_act('leakyrelu', negative_slope=0.05)
         self.c5 = conv_layer(self.distilled_channels * 4, self.in_channels, 1)
         
         self.balance = Balance()
