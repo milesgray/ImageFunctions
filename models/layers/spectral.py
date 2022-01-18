@@ -490,7 +490,7 @@ class SpectralTensorsFactorySTTP(SpectralTensorsFactoryBase):
 
         return n_param_compressed
     
-@register("spectral_conv_2d")
+@register("spectral_conv2d")
 class SpectralConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
         super().__init__()
