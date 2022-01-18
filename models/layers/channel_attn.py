@@ -24,7 +24,7 @@ class ChannelAttention(nn.Module):
         y = self.attn(y)
         return y
 
-@registe("mix_pool_channel_attn")
+@register("mix_pool_channel_attn")
 class MixPoolChannelAttention(nn.Module):
     def __init__(self, channel, reduction=16, bias=False):
         super().__init__()
