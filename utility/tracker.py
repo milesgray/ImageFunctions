@@ -113,7 +113,7 @@ class LossTracker:
         self.max_history_size += self.block_size
 
     def __call__(self, x, y, 
-               do_backwards=True,
+               do_backwards=False,
                do_comet=True,
                do_console=False):
         self.last_value = self.fn(x, y)

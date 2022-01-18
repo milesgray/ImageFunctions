@@ -2,7 +2,7 @@ import os
 import yaml
 import pathlib
 
-class TrainingExperiment:
+class TrainingEngine:
     def __init__(self, args, comet=None, log=print):
         self.comet = comet
         self.log = log        
@@ -137,4 +137,122 @@ class TrainingExperiment:
             self.log('model: #params={}'.format(utils.compute_num_params(d_model, text=True)))
         return d_model, d_optimizer
         
-    
+    def do_epoch(self, epoch=None):
+            model.train()
+
+            val_results = {}
+            for k,v in metric_fns.items():
+                val_results[k] = 0
+
+            for k,v in loss_dict.items():
+                for name,args in v.items():
+                    loss_dict[k][name]["fn"] = losses.make(args["fn"])
+                    if use_loss_tracker:
+                        loss_dict[k][name]["tracker"] = utils.LossTracker(name, 
+                                    fn=losses.make(args["fn"]),
+                                    experiment=experiment,
+                                    weight=args["weight"],
+                                    warmup=1000)
+                    else:    
+                        loss_dict[k][name]["tracker"] = utils.Averager()
+
+            if use_loss_tracker:
+                train_loss = utils.LossTracker("train", 
+                                    experiment=experiment)
+            else:
+                train_loss = utils.Averager()
+            
+
+            data_norm = config['data_norm']
+            norms = utils.make_img_coeff(data_norm)
+
+            batch_num = 0
+            with tqdm(train_loader, leave=False, desc='train') as bar:
+                for batch in bar:
+                    results = {}
+                    if torch.cuda.is_available():
+                        for k, v in batch.items():
+                            batch[k] = v.cuda()
+
+                    inp = (batch['inp'] / norms["inp"]["div"]) - norms["inp"]["sub"]
+                    pred = model(inp, batch['coord'].clone(), batch['cell'])
+                    pred = torch.nan_to_num(pred)
+                    gt = (batch['gt'] / norms["gt"]["div"]) - norms["gt"]["sub"]
+                    
+                    pred_out = pred.unsqueeze(0)
+                    gt_inp = gt.unsqueeze(0)
+
+                    for k,v in loss_dict["q"].items():
+                        loss = v["fn"](pred_out, gt_inp) * v["weight"]
+                        v["tracker"].add(loss.item())
+                        results[k] = loss
+                        if experiment: experiment.log_metric(k, loss.item())
+
+                    # teacher
+                    if t_model is not None:
+                        t_feat = t_model(inp).detach()
+                        for k,v in loss_dict["teacher"].items():
+                            loss = v["fn"](model.feat, t_feat) * v["weight"]
+                            v["tracker"].add(loss.item())
+                            results[k] = loss
+                            if experiment: experiment.log_metric(k, loss.item())
+                        
+                    target_shape = batch['hr'].shape[-2:]
+                    batch_size = batch['hr'].shape[0]
+                    coord, cell = utils.make_coord_cell(target_shape=target_shape, batch_size=batch_size)
+                    if torch.cuda.is_available():
+                        coord = coord.cuda()
+                        cell = cell.cuda()
+                    pred = model(inp, coord, cell)
+                    pred = torch.nan_to_num(pred)
+                    pred = pred.clamp_(0, 1)
+                    pred_out = utils.reshape(pred, target_shape)
+
+                    hr_inp = batch['hr'].clamp_(0, 1)
+
+                    for k,v in loss_dict["img"].items():
+                        loss = v["fn"](pred_out, hr_inp) * v["weight"]
+                        v["tracker"].add(loss.item())
+                        results[k] = loss
+                        if experiment: experiment.log_metric(k, loss.item())
+
+                    optimizer.zero_grad()
+
+                    loss_q = sum([v for k,v in results.items() if k in loss_dict["q"].keys()]) / \
+                            len([v for k,v in results.items() if k in loss_dict["q"].keys()])
+                    loss_img = sum([v for k,v in results.items() if k in loss_dict["img"].keys()]) / \
+                            len([v for k,v in results.items() if k in loss_dict["img"].keys()])
+                    loss_t = sum([v for k,v in results.items() if k in loss_dict["teacher"].keys()]) / \
+                            len([v for k,v in results.items() if k in loss_dict["teacher"].keys()])
+
+                    loss = loss_q + loss_img + loss_t
+                    if use_loss_tracker:
+                        results["TRAIN"] = train_loss(loss, None)
+                    else:
+                        train_loss.add(loss.item())
+
+                        loss.backward()
+                    optimizer.step()
+
+                    batch_num += 1
+                    if val_loader is not None:
+                        if batch_num == config.get('batch_eval_first', 100) or batch_num % config.get('batch_eval', 1000) == 0:
+                            val_results = validate(model, val_loader, config, 
+                                                metric_fns=metric_fns,
+                                                epoch=epoch,
+                                                experiment=experiment)
+                    
+                    for k,v in val_results.items():
+                        results[k] = v
+
+                    #results = {k:v.item() for k,v in results.items() if isinstance(v, torch.Tensor)}
+                    results = {}
+                    for k,v in loss_dict.items():
+                        for name, args in v.items():
+                            results[f"{k}-{name}"] = args["tracker"].item()
+                    
+                    pred = None; loss = None
+                    bar.set_postfix(results)
+            results["TRAIN"] = train_loss.item()
+            if experiment: experiment.log_metric('loss', train_loss.item())
+            return results
