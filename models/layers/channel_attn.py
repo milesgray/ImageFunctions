@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from .learnable import Balance
 from .registry import register
 
+@register("channel_attn")
 class ChannelAttention(nn.Module):
     def __init__(self, channel, reduction=16, bias=False):
         super().__init__()
@@ -23,6 +24,7 @@ class ChannelAttention(nn.Module):
         y = self.attn(y)
         return y
 
+@registe("mix_pool_channel_attn")
 class MixPoolChannelAttention(nn.Module):
     def __init__(self, channel, reduction=16, bias=False):
         super().__init__()
@@ -46,3 +48,23 @@ class MixPoolChannelAttention(nn.Module):
         max_out = self.net(self.max_pool(x))
         out = self.balance(avg_out, max_out)
         return self.sigmoid(out)
+    
+# contrast-aware channel attention module
+@register("contrast_aware_attn")
+class CCALayer(nn.Module):
+    def __init__(self, channel: int, reduction: int=16):
+        super().__init__()
+
+        self.contrast = stdv_channels
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.conv_du = nn.Sequential(
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x: Tensor):
+        y = self.contrast(x) + self.avg_pool(x)
+        y = self.conv_du(y)
+        return x * y    

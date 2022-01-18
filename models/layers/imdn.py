@@ -49,9 +49,6 @@ def pad(pad_type, padding):
         raise NotImplementedError('padding layer [{:s}] is not implemented'.format(pad_type))
     return layer
 
-
-
-
 def conv_block(in_nc, out_nc, kernel_size, 
                stride=1, 
                dilation=1, 
@@ -64,8 +61,13 @@ def conv_block(in_nc, out_nc, kernel_size,
     p = pad(pad_type, padding) if pad_type and pad_type != 'zero' else None
     padding = padding if pad_type == 'zero' else 0
 
-    c = nn.Conv2d(in_nc, out_nc, kernel_size=kernel_size, stride=stride, padding=padding,
-                  dilation=dilation, bias=bias, groups=groups)
+    c = nn.Conv2d(in_nc, out_nc, 
+                  kernel_size=kernel_size, 
+                  stride=stride, 
+                  padding=padding,
+                  dilation=dilation, 
+                  bias=bias, 
+                  groups=groups)
     a = activation(act_type) if act_type else None
     n = norm(norm_type, out_nc) if norm_type else None
     return sequential(p, c, n, a)

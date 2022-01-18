@@ -13,6 +13,43 @@ from .layers.activations import create as create_act
 
 from models import register
 
+def conv_layer(in_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1, bias=True):
+    padding = int((kernel_size - 1) / 2) * dilation
+    return nn.Conv2d(in_channels, out_channels, kernel_size, stride, 
+                     padding=padding, 
+                     bias=bias, 
+                     dilation=dilation,
+                     groups=groups)
+
+class IMDModule(nn.Module):
+    def __init__(self, in_channels, distillation_rate=0.25):
+        super().__init__()
+        self.in_channels = in_channels
+        self.distilled_channels = int(self.in_channels * distillation_rate)
+        self.remaining_channels = int(self.in_channels - self.distilled_channels)
+        self.c1 = conv_layer(self.in_channels, self.in_channels, 3)
+        self.c2 = conv_layer(self.remaining_channels, self.in_channels, 3)
+        self.c3 = conv_layer(self.remaining_channels, self.in_channels, 3)
+        self.c4 = conv_layer(self.remaining_channels, self.distilled_channels, 3)
+        self.act = activation('lrelu', neg_slope=0.05)
+        self.c5 = conv_layer(self.distilled_channels * 4, self.in_channels, 1)
+        
+        self.balance = Balance()
+        self.attn = NonLocalAttention(self.in_channels)
+
+    def forward(self, x):
+        out_c1 = self.act(self.c1(x))
+        distilled_c1, remaining_c1 = torch.split(out_c1, (self.distilled_channels, self.remaining_channels), dim=1)
+        out_c2 = self.act(self.c2(remaining_c1))
+        distilled_c2, remaining_c2 = torch.split(out_c2, (self.distilled_channels, self.remaining_channels), dim=1)
+        out_c3 = self.act(self.c3(remaining_c2))
+        distilled_c3, remaining_c3 = torch.split(out_c3, (self.distilled_channels, self.remaining_channels), dim=1)
+        out_c4 = self.c4(remaining_c3)
+
+        out = torch.cat([distilled_c1, distilled_c2, distilled_c3, out_c4], dim=1)
+        out_fused = self.balance(self.c5(out), self.attn(x))
+        return out_fused
+
 class RDAB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, 
                  kernel=3,
@@ -93,6 +130,10 @@ class RDAN(nn.Module):
                     act=act,
                     attn_fn=attn_fn)
             )
+            
+        # IMD nonlocal residual branch
+        self.branch = IMDModule(G0)
+        self.branch_balance = Balance()
 
         # Global Feature Fusion 
         #   - This takes all of the RDB block outputs concatenated together and
@@ -132,6 +173,9 @@ class RDAN(nn.Module):
     def forward(self, x):
         f__1 = self.SFENet1(x)
         x = self.SFE_balance(self.SFENet2(f__1), self.SFE_attn(f__1))
+        
+        n = self.branch(x)
+        residual = self.branch_balance(n, self.SFE_res_attn(f__1))
 
         out = []
         for block in self.blocks:
@@ -139,7 +183,7 @@ class RDAN(nn.Module):
             out.append(x)
 
         x = self.GFF(torch.cat(out, dim=1))
-        x = self.GFF_balance(x, self.SFE_res_attn(f__1))
+        x = self.GFF_balance(x, residual)
 
         if self.args.no_upsampling:
             return x
