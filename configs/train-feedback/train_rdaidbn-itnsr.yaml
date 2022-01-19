@@ -73,6 +73,7 @@ teacher:
   backbone: rdn
   head: itnsr
   id: 21
+  end_epoch: 15
 
 losses:
   q:

@@ -8,7 +8,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 from .layers import PixelAttention, NonLocalAttention
-from .layers import Balance, stdv_channels
+from .layers import Balance, Scale, stdv_channels
 from .layers import SpectralConv2d
 from .layers import create as create_layer
 from .layers.activations import create as create_act
@@ -23,7 +23,7 @@ def conv_layer(in_channels, out_channels, kernel_size, stride=1, dilation=1, gro
                      dilation=dilation,
                      groups=groups)
 
-class IMDModule(nn.Module):
+class SpectralIMDModule(nn.Module):
     def __init__(self, in_channels, distillation_rate=0.25):
         super().__init__()
         self.in_channels = in_channels
@@ -51,6 +51,41 @@ class IMDModule(nn.Module):
         out = torch.cat([distilled_c1, distilled_c2, distilled_c3, out_c4], dim=1)
         out_fused = self.balance(self.c5(out), self.attn(x))
         return out_fused
+
+class ResBlock(nn.Module):
+    def __init__(
+        self, conv, n_feats, kernel_size,
+        bias=True, bn=False, pa=False, act=nn.ReLU(True), res_scale=1):
+
+        super().__init__()
+        m = []
+        for i in range(2):
+            m.append(conv(n_feats, n_feats, kernel_size, bias=bias))
+            if bn:
+                m.append(nn.BatchNorm2d(n_feats))
+            if i == 0:
+                m.append(act)
+
+        self.body = nn.Sequential(*m)
+        self.res_scale = Scale(init_value=res_scale)
+        self.use_pa = pa
+        if pa:
+            self.pa_add = PixelAttention(n_feats, n_feats)
+            self.pa_sub = PixelAttention(n_feats)
+            self.balance_add = Balance()
+        self.residual_balance = Balance(0.0)
+
+    def forward(self, x):
+        res = self.body(x)
+        if self.use_pa:
+            y = res.sub(self.pa_sub(x))
+            y = self.res_scale(y)
+            res = self.self.balance_add(y, self.pa_add(res))
+        else:
+            res = self.res_scale(res)
+        res = self.residual_balance(res, x)
+
+        return res
 
 class RDAB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, 
@@ -95,7 +130,7 @@ class RDAB(nn.Module):
     def forward(self, x):
         return self.res_balance(self.LFF(self.convs(x)), x)
 
-class RDAN(nn.Module):
+class RDAIDBN(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
@@ -133,13 +168,17 @@ class RDAN(nn.Module):
                     attn_fn=attn_fn)
             )
             
-        # IMD nonlocal residual branch
+        # IMD nonlocal branch
         self.imd_branch = nn.ModuleList()
         self.imd_rda_balancers = nn.ModuleList()
         for i in range(D//2):
-            self.imd_branch.append(IMDModule(G0))
+            self.imd_branch.append(SpectralIMDModule(G0))
             self.imd_rda_balancers.append(Balance(0.0))
         self.imd_branch_balance = Balance()
+        
+        # residual branch
+        self.branch = ResBlock(conv_layer, G0, 5)
+        self.branch_balance = Balance()
 
         # Global Feature Fusion 
         #   - This takes all of the RDB block outputs concatenated together and
@@ -218,4 +257,4 @@ def make_rdaidbn(blocks=20, layers=6, filters=32, attn_fn='PixelAttention', act=
     args.no_upsampling = no_upsampling
 
     args.n_colors = 3
-    return RDAN(args)
+    return RDAIDBN(args)

@@ -40,6 +40,7 @@ class LossTracker:
                  experiment=None, 
                  weight=1.0,
                  warmup=np.inf,
+                 stats_window=100,
                  loss_limits=[-np.inf, np.inf],
                  block_size=100,
                  scale_range=[0.2, 5],
@@ -63,6 +64,9 @@ class LossTracker:
             warmup (int, optional): Number of updates to wait before applying dynamic
                 scaling value instead of the static `weight` scaling value.
                 Defaults to np.inf.
+            stats_window (int, optional): Number of historic values to use when calculating
+                statistics such as mean in a moving style. 
+                Use `None` to allow for all historic values to be used. Defaults to 100.
             loss_limit (list, optional): The minimum and maximum values to restrict
                 final loss values to. Defaults to [-np.inf, np.inf].
             block_size (int, optional): Number of elements to allocate to the numpy
@@ -80,6 +84,7 @@ class LossTracker:
         self.loss_low_limit = loss_limits[0]
         self.loss_up_limit = loss_limits[1]
         self.warmup = warmup
+        self.stats_window = stats_window
         self.block_size = block_size
         self.use_scaling = use_ratio_scaling
         self.scale_min = scale_range[0]
@@ -140,6 +145,8 @@ class LossTracker:
             self.expand_buffer()
         assert self.count < self.max_history_size
         self.value_history[self.count] = self.value
+        # update statistical calculations such as mean
+        self.set_stats()
 
         # calculate li(t) - equation (3)
         if self.mean != 0:
@@ -161,11 +168,14 @@ class LossTracker:
 
     def set_stats(self):
         try:
-            self.max = self.value_history[:self.count].max()
-            self.min = self.value_history[:self.count].min()
-            self.mean = self.value_history[:self.count].mean()
-            self.var = self.value_history[:self.count].var()
-            self.std = self.value_history[:self.count].std()
+            start = self.count - self.stats_window if self.stats_window else 0
+            start = start if start > 0 else 0
+            end = self.count
+            self.max = self.value_history[start:end].max()
+            self.min = self.value_history[start:end].min()
+            self.mean = self.value_history[start:end].mean()
+            self.var = self.value_history[start:end].var()
+            self.std = self.value_history[start:end].std()
             self.cov = self.std / self.mean
         except Exception as e:
             print(f"[ERROR]\tFailed to set metric stats\n{e}")
