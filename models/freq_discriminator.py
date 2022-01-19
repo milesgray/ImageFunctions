@@ -3,6 +3,7 @@ from argparse import Namespace
 import torch
 import torch.nn as nn
 
+import models
 from models import register
 
 @register('freq_disc')
