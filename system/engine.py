@@ -1,9 +1,41 @@
-import os
-import yaml
-import pathlib
+import gc, os, math, yaml
+import pathlib, importlib
+from typing import Union
+from functools import partial
+
+from tqdm.notebook import tqdm
+
+import torch
+import torch.nn
+from torch.utils.data import DataLoader
+
+import ImageFunctions.optimizers as optimizers
+import ImageFunctions.datasets as datasets
+import ImageFunctions.losses as losses
+import ImageFunctions.models as models
+import ImageFunctions.utility as utils
+
 
 class TrainingEngine:
-    def __init__(self, args, comet=None, log=print):
+    def __init__(self, dataset: str, backbone: str, head: str,
+                 id: str=None,
+                 resume_id: str=None,
+                 teach_id: str=None,
+                 comet=None, 
+                 log=print):
+        """Loads a config file based on the `dataset`, `backbone`, and `head`
+        and builds a model to train based on the contents.
+
+        Args:
+            dataset (str): [description]
+            backbone (str): [description]
+            head (str): [description]
+            id (str, optional): [description]. Defaults to None.
+            resume_id (str, optional): [description]. Defaults to None.
+            teach_id (str, optional): [description]. Defaults to None.
+            comet ([type], optional): [description]. Defaults to None.
+            log ([type], optional): [description]. Defaults to print.
+        """
         self.comet = comet
         self.log = log        
         self.args = args
@@ -43,90 +75,110 @@ class TrainingEngine:
             }
         self.comet.log_parameters(self.config)
         
-    #@title Prepare Training
-    def prepare_training(self):
+        comp = self.build()
+        self.model = comp["model"]
+        self.optimizer = comp["optimizer"]
+        self.d_model = comp["d_model"]
+        self.d_optimizer = comp["d_optimizer"]
+        self.epoch = comp["epoch"]
+        self.lr_scheduler = comp["lr_scheduler"]
+        
+        
+    def build(self):
+        comp = {}
         d_model = None
         d_optimizer = None
         max_val_v = 0
         if self.config.get('resume') is not None:
-            if torch.cuda.is_available():
-                sv_file = torch.load(self.config['resume'])
-            else:            
-                sv_file = torch.load(self.config['resume'], map_location=torch.device('cpu'))            
-            
-            self.config['model'] = sv_file['model_spec']
-        
-            model = sv_file['model']       
-            if torch.cuda.is_available():
-                model = model.cuda()
-            if 'sd' in self.config['model']:
-                del self.config['model']['sd']   
-            
-            self.config['optimizer'] = sv_file['optimizer_spec']
-            optimizer = sv_file['optimizer']
-            if 'sd' in self.config['optimizer']:
-                del self.config['optimizer']['sd']
-            
-            epoch_start = sv_file['epoch'] + 1        
-            
-            # Load Discriminator Model if defined
-            if 'd_model' in sv_file:
-                d_model = models.make(sv_file['d_model'], load_sd=True)
-                if torch.cuda.is_available():            
-                    d_model = d_model.cuda()
-                d_optimizer = optimizers.make(list(model.parameters()) + list(d_model.parameters()), 
-                                            sv_file['d_optimizer'], 
-                                            load_sd=True)
-            # Set previous max value of PSNR metric tracker
-            if "max_val_v" in sv_file:
-                max_val_v = sv_file["max_val_v"]
-            elif "max_val_v" in self.config:
-                max_val_v = self.config["max_val_v"]
-            else:
-                max_val_v = 1e-13
-
-            # Resume at previous epoch
-            epoch_start = sv_file['epoch'] + 1
-            # Set LR to previous value
-
-            if 'lr_scheduler' in sv_file:
-                lr_scheduler = sv_file['lr_scheduler']
-            else:
-                if self.config.get('multi_step_lr') is None:
-                    lr_scheduler = None
-                else:
-                    lr_scheduler = MultiStepLR(optimizer, **self.config['multi_step_lr'])
-                for _ in range(epoch_start - 1):
-                    lr_scheduler.step()
+            comp = load_checkpoint()
         else:
-            model = models.make(self.config['model'])
+            comp["model"] = models.make(self.config['model'])
             if torch.cuda.is_available():
-                model = model.cuda()        
-            optimizer = optimizers.make(model.parameters(), self.config['optimizer'])
+                comp["model"] = comp["model"].cuda()        
+            comp["optimizer"] = optimizers.make(comp["model"].parameters(), self.config['optimizer'])
 
             epoch_start = 1
+            if self.config.get('multi_step_lr') is None:
+                comp["lr_scheduler"] = None
+            else:
+                comp["lr_scheduler"] = MultiStepLR(comp["optimizerz"], **self.config['multi_step_lr'])
+            
+            if "d_model" in self.config:
+                comp["d_model"] = models.make(self.config['d_model'])
+                if torch.cuda.is_available():            
+                    comp["d_model"] = d_model.cuda()
+                comp["d_optimizer"] = optimizers.make(list(model.parameters()) + list(comp["d_model"].parameters()), self.config['d_optimizer'])
+            if "max_val_psnr" in self.config:
+                comp["max_val_psnr"] = self.config["max_val_psnr"]
+
+        if self.comet: self.comet.set_model_graph(str(comp['model']))
+        self.log(f"model: #params={utils.compute_num_params(comp['model'], text=True)}")
+        self.log(f"epoch start: {comp['epoch_star']}")
+        
+        if comp["d_model"] is not None:
+            self.log('discriminator model: #params={}'.format(utils.compute_num_params(comp["d_model"], text=True)))
+
+        return comp
+
+    def load_checkpoint(self):
+        if torch.cuda.is_available():
+            sv_file = torch.load(self.config['resume'])
+        else:            
+            sv_file = torch.load(self.config['resume'], map_location=torch.device('cpu'))            
+        
+        self.config['model'] = sv_file['model_spec']
+    
+        model = sv_file['model']       
+        if torch.cuda.is_available():
+            model = model.cuda()
+        if 'sd' in self.config['model']:
+            del self.config['model']['sd']   
+        
+        self.config['optimizer'] = sv_file['optimizer_spec']
+        optimizer = sv_file['optimizer']
+        if 'sd' in self.config['optimizer']:
+            del self.config['optimizer']['sd']
+        
+        epoch_start = sv_file['epoch'] + 1        
+        
+        # Load Discriminator Model if defined
+        if 'd_model' in sv_file:
+            d_model = models.make(sv_file['d_model'], load_sd=True)
+            if torch.cuda.is_available():            
+                d_model = d_model.cuda()
+            d_optimizer = optimizers.make(list(model.parameters()) + list(d_model.parameters()), 
+                                        sv_file['d_optimizer'], 
+                                        load_sd=True)
+        # Set previous max value of PSNR metric tracker
+        if "max_val_v" in sv_file:
+            max_val_v = sv_file["max_val_v"]
+        elif "max_val_v" in self.config:
+            max_val_v = self.config["max_val_v"]
+        else:
+            max_val_v = 1e-13
+
+        # Resume at previous epoch
+        epoch_start = sv_file['epoch'] + 1
+        # Set LR to previous value
+
+        if 'lr_scheduler' in sv_file:
+            lr_scheduler = sv_file['lr_scheduler']
+        else:
             if self.config.get('multi_step_lr') is None:
                 lr_scheduler = None
             else:
                 lr_scheduler = MultiStepLR(optimizer, **self.config['multi_step_lr'])
-            
-            if "d_model" in self.config:
-                d_model = models.make(self.config['d_model'])
-                if torch.cuda.is_available():            
-                    d_model = d_model.cuda()
-                d_optimizer = optimizers.make(list(model.parameters()) + list(d_model.parameters()), self.config['d_optimizer'])
-            if "max_val_v" in self.config:
-                max_val_v = self.config["max_val_v"]
-
-        if self.comet: self.comet.set_model_graph(str(model))
-        self.log(f"model: #params={utils.compute_num_params(model, text=True)}")
-        self.log(f"epoch start: {epoch_start}")
+            for _ in range(epoch_start - 1):
+                lr_scheduler.step()
+        return {
+            "model": model, 
+            "optimizer": optimizer, 
+            "epoch": epoch_start, 
+            "lr_scheduler": lr_scheduler, 
+            "d_model": d_model, 
+            "d_optimizer": d_optimizer
+        }
         
-        if d_model is not None:
-            self.log('Discriminator model: #params={}'.format(utils.compute_num_params(d_model, text=True)))
-
-        return model, optimizer, epoch_start, lr_scheduler, max_val_v, d_model, d_optimizer
-
     def make_discriminator(self):
         d_model, d_optimizer = None, None
         if 'd_model' in self.config:
@@ -136,6 +188,33 @@ class TrainingEngine:
             d_optimizer = optimizers.make(list(model.parameters()) + list(d_model.parameters()), self.config['d_optimizer'])
             self.log('model: #params={}'.format(utils.compute_num_params(d_model, text=True)))
         return d_model, d_optimizer
+        
+    def make_data_loader(self, spec, tag=''):
+        if spec is None:
+            return None
+
+        dataset = datasets.make(spec['dataset'])
+        dataset = datasets.make(spec['wrapper'], args={'dataset': dataset})
+
+        log_msg('{} dataset: size={}'.format(tag, len(dataset)))
+        for k, v in dataset[0].items():
+            if hasattr(v, "shape"):
+                log_msg('  {}: shape={}'.format(k, tuple(v.shape)))
+            else:
+                log_msg('  {}: len={}'.format(k, len(v)))
+
+        loader = DataLoader(dataset, 
+                            batch_size=spec['batch_size'],
+                            shuffle=(tag == 'train'), 
+                            num_workers=spec['num_workers'], 
+                            pin_memory=spec['pin_memory'])
+        return loader
+
+
+    def make_data_loaders(self, config):
+        train_loader = make_data_loader(config.get('train_dataset'), tag='train')
+        val_loader = make_data_loader(config.get('val_dataset'), tag='val')
+        return train_loader, val_loader
         
     def do_epoch(self, epoch=None):
             model.train()

@@ -68,6 +68,21 @@ model:
         hidden_list: [256,256,256,256]
         act: 'gelu'
 
+    embedding_scale:
+      name: mlp
+      args:
+        in_dim: 2
+        out_dim: 2
+        hidden_list: [64,64,64]
+        act: 'adaptive_leaky_relu'
+    embedding_coord:
+      name: mlp
+      args:
+        in_dim: 2
+        out_dim: 2
+        hidden_list: [64,64,64]
+        act: 'adaptive_leaky_relu'
+
 d_model:
   name: freq_disc
   args:
@@ -77,17 +92,11 @@ d_model:
         in_dim: 4608
         out_dim: 1
         hidden_list: [1024, 1024, 1024, 1024]
-        act: 'leaky_relu'
+        act: 'adaptive_leaky_relu'
 d_optimizer:
   name: adamw
   args:
-    lr: 2.e-4
-
-teacher:
-  dataset: feedback
-  backbone: rdn
-  head: itnsr
-  id: 21
+    lr: 1.e-4
 
 losses:
   q:
@@ -95,12 +104,17 @@ losses:
       fn:
         name: l1
         args:
-      weight: 1.0
+      weight: 0.1
     fspace:
       fn:
         name: fourier_space
         args:
-      weight: 0.25
+      weight: 1.0
+    sobol:
+      fn:
+        name: sobolev_norm
+        args:
+      weight: 0.1
   img:
     freq:
       fn:
