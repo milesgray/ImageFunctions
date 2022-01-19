@@ -80,7 +80,7 @@ class ResBlock(nn.Module):
         if self.use_pa:
             y = res.sub(self.pa_sub(x))
             y = self.res_scale(y)
-            res = self.self.balance_add(y, self.pa_add(res))
+            res = self.balance_add(y, self.pa_add(res))
         else:
             res = self.res_scale(res)
         res = self.residual_balance(res, x)
