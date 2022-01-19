@@ -55,7 +55,7 @@ class SpectralIMDModule(nn.Module):
 class ResBlock(nn.Module):
     def __init__(
         self, conv, n_feats, kernel_size,
-        bias=True, norm=nn.LayerNorm, pa=False, act=nn.ReLU(True), res_scale=1):
+        bias=True, norm=None, pa=False, act=nn.ReLU(True), res_scale=1):
 
         super().__init__()
         m = []
