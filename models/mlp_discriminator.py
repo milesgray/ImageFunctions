@@ -71,16 +71,7 @@ class MLPDiscriminator(nn.Module):
     def __init__(self, args):
         super().__init__()
 
-        fourier_args = Namespace()
-        fourier_args.scale = 1.0
-        fourier_args.residual = Namespace()
-        fourier_args.residual.weight = 1.0
-        fourier_args.residual.weighting_type = 'residual'
-        fourier_args.residual.learnable_weight = True
-        fourier_args.residual.enabled = True
-
-        self.fourier = layers.FourierINR(2, fourier_args, num_fourier_feats=args.in_dim, out_features=args.in_dim)
-
+        
         layers = []
         lastv = args.in_dim
         for hidden in args.hidden_list[1:]:

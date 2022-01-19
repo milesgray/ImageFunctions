@@ -169,3 +169,5 @@ class WaveletTransform(nn.Module):
                                 .view(xsz)
           output = self.conv(xx)
         return output
+    
+    

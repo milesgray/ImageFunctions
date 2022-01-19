@@ -225,7 +225,7 @@ class Paul(object):
         return s / 2 ** .5
 
 
-class DOG(object):
+class DOG:
     def __init__(self, m=2):
         """Initialise a Derivative of Gaussian wavelet of order `m`."""
         if m == 2:

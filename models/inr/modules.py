@@ -307,7 +307,7 @@ class INRFactorizedSELinear(INRLinear):
 
 class INRAdaIN(INRModule):
     def __init__(self, size: int) -> Tensor:
-        super(INRAdaIN, self).__init__()
+        super().__init__()
 
         self.size = size
         self.num_external_params = self.size * 2
@@ -335,7 +335,7 @@ class INRProxy(INRModule):
     A proxy layer which just applies another function in INRModule-like fashion
     """
     def __init__(self, fn: Callable):
-        super(INRProxy, self).__init__()
+        super().__init__()
 
         self.fn = fn
 
@@ -352,7 +352,7 @@ class INRActNorm(INRModule):
     Adapted from https://github.com/rosinality/glow-pytorch/blob/master/model.py
     """
     def __init__(self, size: int):
-        super(INRActNorm, self).__init__()
+        super().__init__()
 
         self.bias = nn.Parameter(torch.zeros(1, size, 1))
         self.scale = nn.Parameter(torch.ones(1, size, 1))
@@ -384,7 +384,7 @@ class INRActNorm(INRModule):
 
 class INRResidual(INRModule):
     def __init__(self, transform: INRModule, res_branch_weight: float=0.01):
-        super(INRResidual, self).__init__()
+        super().__init__()
 
         self.transform = transform
         self.num_external_params = 1 + self.transform.num_external_params
@@ -404,7 +404,7 @@ class INRResidual(INRModule):
 
 class INRSequential(INRModule):
     def __init__(self, *modules):
-        super(INRSequential, self).__init__()
+        super().__init__()
 
         self._inr_modules = nn.ModuleList(modules)
         self.num_external_params = sum(c.num_external_params for c in self._inr_modules)
@@ -435,7 +435,7 @@ class INRInputSkip(INRModule):
     of input coordinates to each subsequent layer
     """
     def __init__(self, *modules, skip_type: str='residual'):
-        super(INRInputSkip, self).__init__()
+        super().__init__()
 
         self.skip_type = skip_type
         self._inr_modules = nn.ModuleList(modules)
@@ -470,7 +470,7 @@ class INRCoordsSkip(INRModule):
     of input coordinates to each subsequent layer
     """
     def __init__(self, *modules, concat_to_the_first: bool=True):
-        super(INRCoordsSkip, self).__init__()
+        super().__init__()
 
         self._inr_modules = nn.ModuleList(modules)
         self.concat_to_the_first = concat_to_the_first

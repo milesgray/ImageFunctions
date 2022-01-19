@@ -4,9 +4,12 @@ from torch import Tensor
 
 from argparse import Namespace
 
+from .registry import register
+
 from .activations import create as create_activation
 from .linear_residual import LinearResidual
 
+@register("fourier_inr")
 class FourierINR(nn.Module):
     """
     INR with Fourier features as specified in https://people.eecs.berkeley.edu/~bmild/fourfeat/
@@ -53,7 +56,7 @@ class FourierINR(nn.Module):
     def forward(self, coords: Tensor) -> Tensor:
         return self.model(self.compute_fourier_feats(coords))
     
-    
+@register("fourier_conv2d")
 class FourierConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
         super().__init__()
@@ -79,7 +82,7 @@ class FourierConv2d(nn.Module):
     def forward(self, x):
         batchsize = x.shape[0]
         #Compute Fourier coeffcients up to factor of e^(- something constant)
-        x_ft = torch.fft.rfft2(x)
+        x_ft = torch.fft.rfft2(x, norm="ortho")
 
         # Multiply relevant Fourier modes
         out_ft = torch.zeros(batchsize, self.out_channels,  x.size(-2), x.size(-1)//2 + 1, dtype=torch.cfloat, device=x.device)
@@ -89,5 +92,5 @@ class FourierConv2d(nn.Module):
             self.compl_mul2d(x_ft[:, :, -self.modes1:, :self.modes2], self.weights2)
 
         #Return to physical space
-        x = torch.fft.irfft2(out_ft, s=(x.size(-2), x.size(-1)))
+        x = torch.fft.irfft2(out_ft, s=(x.size(-2), x.size(-1)), norm="ortho")
         return x

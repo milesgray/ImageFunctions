@@ -56,9 +56,9 @@ model:
     encoder_spec:
       name: rdaidbn
       args:
-        blocks: 6
+        blocks: 10
         layers: 6
-        filters: 64
+        filters: 32
         no_upsampling: true
 
     imnet_spec:
@@ -67,7 +67,21 @@ model:
         in_dim: 4
         hidden_list: [256,256,256,256]
         act: 'gelu'
-        
+
+d_model:
+  name: freq_disc
+  args:
+    model_spec:
+      name: mlp
+      args:
+        in_dim: 4608
+        out_dim: 1
+        hidden_list: [1024, 1024, 1024, 1024]
+        act: 'leaky_relu'
+d_optimizer:
+  name: adamw
+  args:
+    lr: 2.e-4
 
 teacher:
   dataset: feedback
@@ -79,20 +93,20 @@ losses:
   q:
     dst:
       fn:
-        name: dists
+        name: l1
         args:
       weight: 1.0
-    bce:
+    fspace:
       fn:
-        name: bce_with_logits
+        name: fourier_space
         args:
-      weight: 0.2
+      weight: 0.25
   img:
     freq:
       fn:
-        name: fourier_space
+        name: focal_freq
         args:    
-      weight: 0.25
+      weight: 0.1
     msL1:
       fn:
         name: multiscale_l1

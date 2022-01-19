@@ -148,12 +148,13 @@ class MultiResolutionSTFTLoss(torch.nn.Module):
 @register("dct")
 class DCTLoss(nn.Module):
     def __init__(self, metric_fn=lambda x,y: nn.L1Loss()(x,y), 
+                 module_name="dct2d",
                  blocksize=8, 
                  interleaving=False):
         super().__init__()
         self.metric_fn = metric_fn
-        self.dct_real = make_layer({"name": "dct3d", "args": {"blocksize":blocksize, "interleaving":interleaving}})
-        self.dct_pred = make_layer({"name": "dct3d", "args": {"blocksize":blocksize, "interleaving":interleaving}})
+        self.dct_real = make_layer({"name": module_name, "args": {"blocksize":blocksize, "interleaving":interleaving}})
+        self.dct_pred = make_layer({"name": module_name, "args": {"blocksize":blocksize, "interleaving":interleaving}})
         
     def forward(self, pred, real):
         pred_coeff = self.dct_pred(pred)
@@ -209,11 +210,9 @@ class FocalFrequencyLoss(nn.Module):
         y = torch.stack(patch_list, 1)
 
         # perform 2D DFT (real-to-complex, orthonormalization)
-        if IS_HIGH_VERSION:
-            freq = torch.fft.fft2(y, norm='ortho')
-            freq = torch.stack([freq.real, freq.imag], -1)
-        else:
-            freq = torch.rfft(y, 2, onesided=False, normalized=True)
+        freq = torch.fft.fft2(y, norm='ortho')
+        freq = torch.stack([freq.real, freq.imag], -1)
+
         return freq
 
     def loss_formulation(self, recon_freq, real_freq, matrix=None):
@@ -336,7 +335,7 @@ class FourierSpaceLoss(nn.Module):
     
 #loss function with rel/abs Lp loss
 @register("lp")
-class LpLoss(object):
+class LpLoss(nn.Module):
     def __init__(self, d=2, p=2, size_average=True, reduction=True):
         super().__init__()
 
@@ -378,13 +377,13 @@ class LpLoss(object):
 
         return diff_norms/y_norms
 
-    def __call__(self, x, y):
+    def forward(self, x, y):
         return self.rel(x, y)
 
 # Sobolev norm (HS norm)
 # where we also compare the numerical derivatives between the output and target
 @register("sobolev_norm")
-class HsLoss(object):
+class HsLoss(nn.Module):
     def __init__(self, d=2, p=2, k=1, a=None, group=False, size_average=True, reduction=True):
         super().__init__()
 
@@ -413,7 +412,7 @@ class HsLoss(object):
                 return torch.sum(diff_norms/y_norms)
         return diff_norms/y_norms
 
-    def __call__(self, x, y, a=None):
+    def forward(self, x, y, a=None):
         nx = x.size()[1]
         ny = x.size()[2]
         k = self.k
