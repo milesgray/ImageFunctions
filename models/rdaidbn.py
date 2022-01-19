@@ -223,7 +223,7 @@ class RDAIDBN(nn.Module):
         residual = self.branch_balance(n, self.SFE_res_attn(f__1))
 
         out = []
-        for i, block in enumerate(self.rdan_branch):
+        for i, block in enumerate(self.rda_branch):
             x = block(x)
             out.append(x)            
             if i % 2 == 0:
