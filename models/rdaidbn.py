@@ -32,7 +32,7 @@ class SpectralIMDModule(nn.Module):
         self.c1 = SpectralConv2d(in_channels=self.in_channels, out_channels=self.in_channels, modes1=12, modes2=12)
         self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=12, modes2=12)
         self.c3 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=12, modes2=12)
-        self.c4 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=12, modes2=12)        
+        self.c4 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=12, modes2=12)        
         self.act = create_act('leakyrelu', negative_slope=0.05)
         self.c5 = conv_layer(self.distilled_channels * 4, self.in_channels, 1)
         
@@ -49,20 +49,20 @@ class SpectralIMDModule(nn.Module):
         out_c4 = self.c4(remaining_c3)
 
         out = torch.cat([distilled_c1, distilled_c2, distilled_c3, out_c4], dim=1)
-        out_fused = self.balance(self.c5(out), self.attn(x))
+        out_fused = self.balance(self.attn(self.c5(out)), x)
         return out_fused
 
 class ResBlock(nn.Module):
     def __init__(
         self, conv, n_feats, kernel_size,
-        bias=True, bn=False, pa=False, act=nn.ReLU(True), res_scale=1):
+        bias=True, norm=nn.LayerNorm, pa=False, act=nn.ReLU(True), res_scale=1):
 
         super().__init__()
         m = []
         for i in range(2):
             m.append(conv(n_feats, n_feats, kernel_size, bias=bias))
-            if bn:
-                m.append(nn.BatchNorm2d(n_feats))
+            if norm:
+                m.append(norm(n_feats))
             if i == 0:
                 m.append(act)
 
@@ -177,7 +177,7 @@ class RDAIDBN(nn.Module):
         self.imd_branch_balance = Balance()
         
         # residual branch
-        self.branch = ResBlock(conv_layer, G0, 5)
+        self.branch = ResBlock(conv_layer, G0, 5, pa=True)
         self.branch_balance = Balance()
 
         # Global Feature Fusion 
