@@ -143,6 +143,7 @@ epoch_max: 100
 
 epoch_val: 1
 epoch_save: 1
+batch_eval: 700
 
 resume: ~
 pre_train: ~

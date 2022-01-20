@@ -107,6 +107,7 @@ class HingeLoss(nn.Module):
         real = F.normalize(real, dim=-1, p=2)
         fake = F.normalize(fake, dim=-1, p=2)
         return (F.relu(1 + real) + F.relu(1 - fake)).mean()
+
 @register("gan_adversarial")
 class AdversarialLoss(nn.Module):
     def __init__(self, gan_type='vanilla', real_label_val=1.0, fake_label_val=0.0):
@@ -117,7 +118,7 @@ class AdversarialLoss(nn.Module):
             fake_label_val (float): The value for fake label. Default: 0.0.
         """
 
-        super(AdversarialLoss, self).__init__()
+        super().__init__()
 
         self.gan_type = gan_type
         self.real_label_val = real_label_val
@@ -136,29 +137,29 @@ class AdversarialLoss(nn.Module):
         else:
             raise NotImplementedError('GAN type %s is not implemented.' % self.gan_type)
 
-    def _wgan_loss(self, input, target):
+    def _wgan_loss(self, x, target):
         """
         Args:
             input (Tensor): Input tensor.
             target (bool): Target label.
         """
-        return -input.mean() if target else input.mean()
+        return -x.mean() if target else x.mean()
 
-    def _wgan_softplus_loss(self, input, target):
+    def _wgan_softplus_loss(self, x, target):
         """wgan loss with soft plus. softplus is a smooth approximation to the ReLU function.
         In StyleGAN2, it is called:
             Logistic loss for discriminator;
             Non-saturating loss for generator.
         Args:
-            input (Tensor): Input tensor.
+            x (Tensor): Input tensor.
             target (bool): Target label.
         """
-        return F.softplus(-input).mean() if target else F.softplus(input).mean()
+        return F.softplus(-x).mean() if target else F.softplus(x).mean()
 
-    def get_target_label(self, input, target_is_real):
+    def get_target_label(self, x, target_is_real):
         """Get target label.
         Args:
-            input (Tensor): Input tensor.
+            x (Tensor): Input tensor.
             target_is_real (bool): Whether the target is real or fake.
         Returns:
             (bool | Tensor): Target tensor. Return bool for wgan, otherwise, return Tensor.
@@ -166,7 +167,7 @@ class AdversarialLoss(nn.Module):
         if self.gan_type in ['wgan', 'wgan_softplus']:
             return target_is_real
         target_val = (self.real_label_val if target_is_real else self.fake_label_val)
-        return input.new_ones(input.size()) * target_val
+        return x.new_ones(x.size()) * target_val
 
     def forward(self, input, target_is_real, is_disc=False):
         """
