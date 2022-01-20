@@ -12,10 +12,10 @@ train_dataset:
     args:
       inp_size_min: 48
       inp_size_max: 48
-      scale_min: 2
-      scale_max: 4
+      scale_min: 2.1
+      scale_max: 5
       augment: true
-      sample_q: 2304
+      sample_q: 4608
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -37,7 +37,7 @@ val_dataset:
       inp_size_max: 48
       scale_min: 2
       scale_max: 6
-      sample_q: 2304
+      sample_q: 4608
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -56,9 +56,9 @@ model:
     encoder_spec:
       name: rdaidbn
       args:
-        blocks: 10
+        blocks: 24
         layers: 6
-        filters: 32
+        filters: 16
         no_upsampling: true
 
     imnet_spec:
@@ -73,15 +73,15 @@ model:
       args:
         in_dim: 2
         out_dim: 2
-        hidden_list: [64,64,64]
-        act: 'adaptive_leaky_relu'
+        hidden_list: [64,64]
+        act: leaky_relu
     embedding_coord:
       name: mlp
       args:
         in_dim: 2
         out_dim: 2
-        hidden_list: [64,64,64]
-        act: 'adaptive_leaky_relu'
+        hidden_list: [64,64]
+        act: leaky_relu
 
 d_model:
   name: freq_disc
@@ -89,10 +89,10 @@ d_model:
     model_spec:
       name: mlp
       args:
-        in_dim: 4608
+        in_dim: 27648
         out_dim: 1
-        hidden_list: [1024, 1024, 1024, 1024]
-        act: 'adaptive_leaky_relu'
+        hidden_list: [256, 256, 256, 256]
+        act: gelu
 d_optimizer:
   name: adamw
   args:
@@ -100,7 +100,7 @@ d_optimizer:
 
 losses:
   q:
-    dst:
+    l1:
       fn:
         name: l1
         args:
@@ -120,7 +120,7 @@ losses:
       fn:
         name: focal_freq
         args:    
-      weight: 0.1
+      weight: 1.0
     msL1:
       fn:
         name: multiscale_l1
