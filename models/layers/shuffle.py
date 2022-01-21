@@ -7,20 +7,26 @@ from .common import sequential
 from .registry import register
 
 class PixelShuffleIMDNBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, upscale_factor=2, kernel_size=3, stride=1):
+    def __init__(self, in_channels: int, out_channels: int, 
+                 upscale_factor: int=2, 
+                 kernel_size: int=3, 
+                 stride: int=1):
         conv = conv_layer(in_channels, out_channels * (upscale_factor ** 2), kernel_size, stride)
         pixel_shuffle = nn.PixelShuffle(upscale_factor)
         self.body = sequential(conv, pixel_shuffle)
+        
+    def forward(self, x: Tensor) -> Tensor:
+        return self.body(x)
 
 @register("shuffle_down")
 class ShuffleDown(nn.Module):
     """ https://github.com/dariofuoli/RLSP/blob/master/pytorch/functions.py
     Originally from RLSP video SR project """
-    def __init__(self, factor=2):
+    def __init__(self, factor: int=2):
         super().__init__()
         self.factor = factor
         
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         # format: (B, C, H, W)
         b, c, h, w = x.shape
 
@@ -37,11 +43,11 @@ class ShuffleDown(nn.Module):
 class ShuffleUp(nn.Module):
     """ https://github.com/dariofuoli/RLSP/blob/master/pytorch/functions.py
     Originally from RLSP video SR project """
-    def __init__(self, factor=2):
+    def __init__(self, factor: int=2):
         super().__init__()
         self.factor = factor
         
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         # format: (B, C, H, W)
         b, c, h, w = x.shape
 

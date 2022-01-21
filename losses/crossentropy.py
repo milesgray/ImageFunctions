@@ -11,8 +11,6 @@ import numpy as np
 from argparse import Namespace
 from .registry import register
 
-
-
 def reduce_loss(loss, reduction):
     """Reduce loss as specified.
 
@@ -59,7 +57,6 @@ def weight_reduce_loss(loss, weight=None, reduction='mean', avg_factor=None):
         elif reduction != 'none':
             raise ValueError('avg_factor can not be used with reduction="sum"')
     return loss
-
 
 @register("ce_nd")
 class CrossentropyND(torch.nn.CrossEntropyLoss):
