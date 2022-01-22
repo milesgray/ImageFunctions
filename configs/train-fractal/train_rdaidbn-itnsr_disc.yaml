@@ -2,10 +2,10 @@ train_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/
+      root_path: /content/full/content/full/
       repeat: 1
       cache: in_memory
-      last_k: 4000
+      last_k: 800
       skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -25,9 +25,9 @@ val_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/
-      first_k: 1000
-      skip_every: 10
+      root_path: /content/full/content/full/
+      first_k: 100
+      skip_every: 1
       repeat: 1
       cache: in_memory
   wrapper:
@@ -35,7 +35,7 @@ val_dataset:
     args:
       inp_size_min: 48
       inp_size_max: 48
-      scale_min: 3
+      scale_min: 2
       scale_max: 6
       sample_q: 4608
       return_hr: true
@@ -60,12 +60,14 @@ model:
         layers: 6
         filters: 16
         no_upsampling: true
+
     imnet_spec:
       name: mlp
       args:
         in_dim: 4
         hidden_list: [256,256,256,256]
         act: 'gelu'
+
     embedding_scale:
       name: mlp
       args:
@@ -78,7 +80,7 @@ model:
       args:
         in_dim: 2
         out_dim: 2
-        hidden_list: [256,256]
+        hidden_list: [64,64]
         act: leaky_relu
 d_model:
   name: freq_disc
@@ -116,8 +118,9 @@ losses:
       weight: 1.0
     msL1:
       fn:
-        name: fs
+        name: multiscale_l1
         args:
+          scale: 3
       weight: 1.0
   teacher:
     kl:
