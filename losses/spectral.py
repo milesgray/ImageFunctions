@@ -14,7 +14,7 @@ from .registry import register
 # SFTT LOSS - https://github.com/rishikksh20/TFGAN/blob/main/utils/stft_loss.py #######
 ####################################################################################
 
-def stft(x, fft_size, hop_size, win_length, window):
+def stft_mag(x, fft_size, hop_size, win_length, window):
     """Perform STFT and convert to magnitude spectrogram.
     Args:
         x (Tensor): Input signal tensor (B, T).
@@ -54,9 +54,10 @@ class SpectralConvergenceLoss(torch.nn.Module):
 class LogSTFTMagnitudeLoss(torch.nn.Module):
     """Log STFT magnitude loss module."""
 
-    def __init__(self):
+    def __init__(self, diff_fn=F.l1_loss):
         """Initilize los STFT magnitude loss module."""
         super().__init__()
+        self.diff_fn = diff_fn
 
     def forward(self, x_mag, y_mag):
         """Calculate forward propagation.
@@ -66,7 +67,7 @@ class LogSTFTMagnitudeLoss(torch.nn.Module):
         Returns:
             Tensor: Log STFT magnitude loss value.
         """
-        return F.l1_loss(torch.log(y_mag), torch.log(x_mag))
+        return self.diff_fn(torch.log(y_mag), torch.log(x_mag))
 
 @register("stft")
 class STFTLoss(torch.nn.Module):
@@ -91,8 +92,8 @@ class STFTLoss(torch.nn.Module):
             Tensor: Spectral convergence loss value.
             Tensor: Log STFT magnitude loss value.
         """
-        x_mag = stft(x, self.fft_size, self.shift_size, self.win_length, self.window)
-        y_mag = stft(y, self.fft_size, self.shift_size, self.win_length, self.window)
+        x_mag = stft_mag(x, self.fft_size, self.shift_size, self.win_length, self.window)
+        y_mag = stft_mag(y, self.fft_size, self.shift_size, self.win_length, self.window)
         sc_loss = self.spectral_convergenge_loss(x_mag, y_mag)
         mag_loss = self.log_stft_magnitude_loss(x_mag, y_mag)
 

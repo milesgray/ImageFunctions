@@ -8,11 +8,22 @@ import torch
 import torch.fft as tfft
 from torch.utils.data import Dataset
 from torchvision import transforms
+from torchvision.transforms import  InterpolationMode
 import kornia
 
 from datasets import register
-from utility import to_pixel_samples, to_frequency_samples, resize_fn
+from utility import to_pixel_samples, to_frequency_samples
 from datasets import augments
+
+def resize_fn(img, size):
+    modes = {
+        0: InterpolationMode.BICUBIC,
+        1: InterpolationMode.BILINEAR,
+        2: InterpolationMode.NEAREST
+    }
+    return transforms.ToTensor()(
+        transforms.Resize(size, modes[random.randint(0,2)])(
+            transforms.ToPILImage()(img)))
 
 @register('sr-implicit-paired')
 class SRImplicitPaired(Dataset):
