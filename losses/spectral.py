@@ -80,7 +80,7 @@ class STFTLoss(torch.nn.Module):
         self.shift_size = shift_size
         self.win_length = win_length
         self.window = getattr(torch, window)(win_length)
-        self.spectral_convergenge_loss = SpectralConvergengeLoss()
+        self.spectral_convergenge_loss = SpectralConvergenceLoss()
         self.log_stft_magnitude_loss = LogSTFTMagnitudeLoss()
 
     def forward(self, x, y):

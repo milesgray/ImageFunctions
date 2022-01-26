@@ -21,9 +21,7 @@ def resize_fn(img, size):
         1: InterpolationMode.BILINEAR,
         2: InterpolationMode.NEAREST
     }
-    return transforms.ToTensor()(
-        transforms.Resize(size, modes[random.randint(0,2)])(
-            transforms.ToPILImage()(img)))
+    return transforms.Resize(size, modes[random.randint(0,2)])(img)
 
 @register('sr-implicit-paired')
 class SRImplicitPaired(Dataset):

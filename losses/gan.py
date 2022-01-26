@@ -169,7 +169,7 @@ class AdversarialLoss(nn.Module):
         target_val = (self.real_label_val if target_is_real else self.fake_label_val)
         return x.new_ones(x.size()) * target_val
 
-    def forward(self, input, target_is_real, is_disc=False):
+    def forward(self, x, target_is_real, is_disc=False):
         """
         Args:
             input (Tensor): The input for the loss module, i.e., the network
@@ -180,14 +180,14 @@ class AdversarialLoss(nn.Module):
         Returns:
             Tensor: GAN loss value.
         """
-        target_label = self.get_target_label(input, target_is_real)
+        target_label = self.get_target_label(x, target_is_real)
         if self.gan_type == 'hinge':
             if is_disc:
-                input = -input if target_is_real else input
-                loss = self.loss(1 + input).mean()
+                x = -x if target_is_real else x
+                loss = self.loss(1 + x).mean()
             else:
-                loss = -input.mean()
+                loss = -x.mean()
         else:  # other gan types
-            loss = self.loss(input, target_label)
+            loss = self.loss(x, target_label)
 
         return loss

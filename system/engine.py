@@ -83,6 +83,8 @@ class TrainingEngine:
         self.epoch = comp["epoch"]
         self.lr_scheduler = comp["lr_scheduler"]
         
+        self.loaders = self.make_data_loaders()
+        
     def build(self):
         comp = {}
         d_model = None
@@ -209,10 +211,10 @@ class TrainingEngine:
                             pin_memory=spec['pin_memory'])
         return loader
 
-    def make_data_loaders(self, config):
-        train_loader = make_data_loader(config.get('train_dataset'), tag='train')
-        val_loader = make_data_loader(config.get('val_dataset'), tag='val')
-        return train_loader, val_loader
+    def make_data_loaders(self):
+        train_loader = make_data_loader(self.config.get('train_dataset'), tag='train')
+        val_loader = make_data_loader(self.config.get('val_dataset'), tag='val')
+        return {"train":train_loader, "val":val_loader}
         
     def step(self, epoch=None, use_loss_tracker=False):
         self.model.train()
@@ -240,11 +242,11 @@ class TrainingEngine:
             train_loss = utils.Averager()
         
 
-        data_norm = config['data_norm']
+        data_norm = self.config['data_norm']
         norms = utils.make_img_coeff(data_norm)
 
         batch_num = 0
-        with tqdm(train_loader, leave=False, desc='train') as bar:
+        with tqdm(self.loaders["train"], leave=False, desc='train') as bar:
             for batch in bar:
                 results = {}
                 if torch.cuda.is_available():
@@ -296,11 +298,11 @@ class TrainingEngine:
                 self.optimizer.zero_grad()
 
                 loss_q = sum([v for k,v in results.items() if k in self.loss_dict["q"].keys()]) / \
-                        len([v for k,v in results.items() if k in self.loss_dict["q"].keys()])
+                         len([v for k,v in results.items() if k in self.loss_dict["q"].keys()])
                 loss_img = sum([v for k,v in results.items() if k in self.loss_dict["img"].keys()]) / \
-                        len([v for k,v in results.items() if k in self.loss_dict["img"].keys()])
+                           len([v for k,v in results.items() if k in self.loss_dict["img"].keys()])
                 loss_t = sum([v for k,v in results.items() if k in self.loss_dict["teacher"].keys()]) / \
-                        len([v for k,v in results.items() if k in self.loss_dict["teacher"].keys()])
+                         len([v for k,v in results.items() if k in self.loss_dict["teacher"].keys()])
 
                 loss = loss_q + loss_img + loss_t
                 if use_loss_tracker:
@@ -333,3 +335,142 @@ class TrainingEngine:
         results["TRAIN"] = train_loss.item()
         if self.comet: self.comet.log_metric('loss', train_loss.item())
         return results
+    
+    def validate(self, epoch, metric_fns):
+        self.model.eval()
+
+        norms = utils.make_img_coeff(self.config["data_norm"])
+
+        results = {}
+        for name, fn in metric_fns.items():
+            results[name] = utils.Averager()
+
+        for batch in self.loaders["val"]:
+            if torch.cuda.is_available():
+                for k, v in batch.items():
+                    batch[k] = v.cuda()
+
+            inp = (batch['inp'] - norms["inp"]["sub"]) / norms["inp"]["div"]
+
+            target_shape = batch['hr'].shape[-2:]
+            batch_size = batch['hr'].shape[0]
+            coord, cell = utils.make_coord_cell(target_shape=target_shape, batch_size=batch_size)
+            if torch.cuda.is_available():
+                coord = coord.cuda()
+                cell = cell.cuda()
+            with torch.no_grad():
+                pred = self.model(inp, coord, cell)
+            pred = torch.nan_to_num(pred)
+            pred = pred.clamp_(0, 1)
+            pred = utils.reshape(pred, target_shape)
+            for name, fn in metric_fns.items():
+                if name in ["NIQE"]:
+                    patch_size = target_shape[1] // 2
+                    patch_size -= 1
+                    results[name].add(fn(pred, patch_size=patch_size).item())
+                else:
+                    results[name].add(fn(pred, batch['hr']).item())
+
+        if save_plot:
+            try:
+                self.plot(self.loaders["val"], epoch, 
+                        save_dir=savedir,
+                        batch_size=pred.shape[0],
+                        count=eval_count,
+                        data_norm=data_norm)
+            except Exception as e:
+                self.log(f"Failed to save validation preview\n{e}")
+        
+        for k, v in results.items():
+            results[k] = v.item()
+            if self.experiment: self.experiment.log_metric(k, v.item())
+
+        return results
+    
+    def plot(self, losder, epoch,
+                name="testfig", 
+                save_dir="/content",
+                fig_size=None,
+                target_shape=None, 
+                batch_size=1,
+                count=1, 
+                min_var=0.1,
+                data_norm=None,
+                return_data=False):
+        inputs = []
+        preds = []
+        originals = []
+        batches = []
+        for i, batch in enumerate(loader):
+            try:
+                if torch.cuda.is_available():
+                    for k, v in batch.items():
+                        batch[k] = v.cuda()
+                norms = utils.make_img_coeff(data_norm)
+                gt = batch["hr"].clamp_(0, 1).contiguous()
+                gt_var = gt.var()
+                if gt_var < min_var: continue
+
+                batch_shape = gt.shape[-2:] if target_shape is None else target_shape
+                inp = (batch['inp'] / norms["inp"]["div"]) - norms["inp"]["sub"]
+                self.model.eval()
+                
+                inp = inp.clamp_(0, 1)
+                coord, cell = utils.make_coord_cell(target_shape=batch_shape, 
+                                                    batch_size=batch_size)
+                if torch.cuda.is_available():
+                    coord = coord.cuda()
+                    cell = cell.cuda()
+                with torch.no_grad():
+                    pred = self.model(inp, coord, cell)
+                overflow_count = pred.abs()[pred > 1].float().sum().item()
+                if experiment: experiment.log_metric("overflow output pixels", overflow_count)
+                underflow_count = pred[pred < 0].float().sum().item()
+                if experiment: experiment.log_metric("underflow output pixels", underflow_count)
+                nan_count = pred.isnan().float().sum().item()
+                if experiment: experiment.log_metric("nan output pixels", nan_count)
+                pred = pred.clamp_(0, 1)
+                pred = torch.nan_to_num(pred)
+                pred = utils.reshape(pred, batch_shape)
+                inp = batch['inp'].clamp_(0, 1).contiguous()
+                
+                inputs.append(inp[0])
+                preds.append(pred[0])
+                originals.append(gt[0])
+                batches.append(batch)
+
+                # can't use i because of potential skips
+                if len(inputs) > count: break
+            except Exception as e:
+                log(f"Failed to calculate preview batch!\n{e}")
+                try:
+                    del batch
+                except:
+                    pass
+                try:
+                    del pred
+                except:
+                    pass
+        
+        try:
+            plt.figure(figsize=fig_size if fig_size else (10, count * 2))
+            for i, (inp, p, g) in enumerate(zip(inputs, preds, originals)): 
+                if i >= count: break
+                if torch.cuda.is_available():
+                    inp = inp.cpu()
+                    p = p.cpu()
+                    g = g.cpu()
+            
+                plt.subplot(count,3,(i * 3) + 1)
+                plt.imshow(inp.numpy().transpose(1,2,0))
+                plt.subplot(count,3,(i * 3) + 2)
+                plt.imshow(p.numpy().transpose(1,2,0))
+                plt.subplot(count,3,(i * 3) + 3)
+                plt.imshow(g.numpy().transpose(1,2,0))
+            plt.savefig(f"{save_dir}/{name}_{epoch}.png")
+            plt.close()
+            experiment.log_image(f"{save_dir}/{name}_{epoch}.png")
+        except Exception as e:
+            self.log(f"Failed to save preview plot!\n{e}")
+        if return_data:
+            return preds, batches    
