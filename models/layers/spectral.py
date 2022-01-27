@@ -524,6 +524,8 @@ class SpectralConv2d(nn.Module):
             x_ft = torch.fft.fftshift(x_ft)
         if self.freq:
             freq = torch.fft.rfftfreq(x_ft.shape[-2])
+            if torch.cuda.is_available():
+                freq = freq.cuda()
             x_ft = x_ft * freq
 
         # Multiply relevant Fourier modes
