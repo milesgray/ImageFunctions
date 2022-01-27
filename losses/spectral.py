@@ -340,8 +340,8 @@ class FourierHighSpaceLoss(nn.Module):
         
     def channel_stats(self, x):
         # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
-        fourier = fft.fftshift(x)
-        freq = fft.rfftfreq(fourier.shape[-2])
+        fourier = torch.fft.fftshift(x)
+        freq = torch.fft.rfftfreq(fourier.shape[-2])
         if torch.cuda.is_available():
             freq = freq.cuda()
         fourier = torch.fft.rfft(x, norm='ortho') * freq
