@@ -14,10 +14,10 @@ class FrequencyDiscriminator(nn.Module):
         
     def frequency_transform(self, x):
         # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
-        fourier = torch.fft.fft(x, norm='ortho')
+        fourier = torch.fft.fft2(x, norm='ortho')
         # where we calculate amplitude and phase of all frequency components
         amp = torch.sqrt(fourier.real.pow(2) + fourier.imag.pow(2))
-        phase = torch.atan2(fourier.imag, fourier.real)
+        phase = fourier.angle()
         return amp, phase
     
     def forward(self, x):

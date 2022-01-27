@@ -6,11 +6,20 @@ from .layers import LinearResidual
 from .layers import create as create_layer
 from .layers.activations import create as create_act
 
+def sn_wrapper(module: nn.Module, use_sn: bool, *sn_args, **sn_kwargs) -> nn.Module:
+    """
+    So not to wrap it everywhere
+    """
+    if use_sn:
+        return nn.utils.spectral_norm(module, *sn_args, **sn_kwargs)
+    else:
+        return module
+
 @register('mlp')
 class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, hidden_list, 
                 act='gelu', 
-                has_bn=False,
+                has_norm=False,
                 norm="nn.LayerNorm", 
                 has_bias=False, 
                 use_residual=True,
@@ -35,8 +44,8 @@ class MLP(nn.Module):
         for hidden in hidden_list:
             if use_residual and lastv == hidden:
                 block = []
-                block.append(nn.Linear(lastv, hidden, bias=has_bias))
-                if has_bn:
+                block.append(sn_wrapper(nn.Linear(lastv, hidden, bias=has_bias), True))
+                if has_norm:
                     block.append(self.norm(hidden))
                 if self.act:
                     block.append(self.act)
@@ -46,8 +55,8 @@ class MLP(nn.Module):
                                              'residual', 
                                              transform))
             else:
-                layers.append(nn.Linear(lastv, hidden, bias=has_bias))
-                if has_bn:
+                layers.append(sn_wrapper(nn.Linear(lastv, hidden, bias=has_bias), True))
+                if has_norm:
                     layers.append(self.norm(hidden))
                 if self.act:
                     layers.append(self.act)
