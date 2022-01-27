@@ -61,6 +61,8 @@ model:
         filters: 16
         out_filters: 64
         spectral_modes: [12,12]
+        spectral_shift: [false, true, true, false]
+        spectral_freq: [false, true, false, false]
         no_upsampling: true
     imnet_spec:
       name: mlp
@@ -92,7 +94,9 @@ d_model:
         out_dim: 1
         use_sn: true
         hidden_list: [256, 256, 256, 256]
-        act: mish
+        act: gelu
+start_disc: 2
+
 teacher:
   dataset: feedback
   backbone: rdn
@@ -129,7 +133,7 @@ losses:
         name: focal_freq
         args:    
       weight: 1.0
-    msL1:
+    fs:
       fn:
         name: fs
         args:

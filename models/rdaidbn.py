@@ -24,15 +24,17 @@ def conv_layer(in_channels, out_channels, kernel_size, stride=1, dilation=1, gro
                      groups=groups)
 
 class SpectralIMDModule(nn.Module):
-    def __init__(self, in_channels, distillation_rate=0.25, modes=[12,12]):
+    def __init__(self, in_channels, distillation_rate=0.25, modes=[12,12], 
+                 use_shift=[False,False,False,False], 
+                 use_freq=[False,False,False,False]):
         super().__init__()
         self.in_channels = in_channels
         self.distilled_channels = int(self.in_channels * distillation_rate)
         self.remaining_channels = int(self.in_channels - self.distilled_channels)
-        self.c1 = SpectralConv2d(in_channels=self.in_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1])
-        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0]//2, modes2=modes[1])
-        self.c3 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1]//2)
-        self.c4 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=modes[0], modes2=modes[1])        
+        self.c1 = SpectralConv2d(in_channels=self.in_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[0], freq=use_freq[0])
+        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0]//2, modes2=modes[1], shift=use_shift[1], freq=use_freq[1])
+        self.c3 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1]//2, shift=use_shift[2], freq=use_freq[2])
+        self.c4 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[3], freq=use_freq[3])
         self.act = create_act('leakyrelu', negative_slope=0.05)
         self.c5 = conv_layer(self.distilled_channels * 4, self.in_channels, 1)
         
@@ -144,6 +146,8 @@ class RDAIDBN(nn.Module):
         C = args.C  # conv layers per RDB block
         G = args.G  # output channels of each conv layer within RDB block, which are all concat together
         spectral_modes = args.spectral_modes # spectral modes for spectral conv branch
+        spectral_shift = args.spectral_shift # apply fftshift in spectral conv - list of 4 bools, one for each conv layer
+        spectral_freq = args.spectral_freq # apply fftfreq in spectral conv branch - list of 4 bools, one for each conv layer
         
         # configure attention layer function from string input
         attn_fn = args.attn_fn  if hasattr(args, "attn_fn") else PixelAttention        
@@ -173,7 +177,10 @@ class RDAIDBN(nn.Module):
         self.imd_branch = nn.ModuleList()
         self.imd_rda_balancers = nn.ModuleList()
         for i in range(D//2):
-            self.imd_branch.append(SpectralIMDModule(G0, modes=args.spectral_modes))
+            self.imd_branch.append(SpectralIMDModule(G0, 
+                                                     modes=args.spectral_modes,
+                                                     use_shift=spectral_shift,
+                                                     use_freq=spectral_freq))
             self.imd_rda_balancers.append(Balance(0.0))
         self.imd_branch_balance = Balance()
         
@@ -243,6 +250,7 @@ class RDAIDBN(nn.Module):
 @register('rdaidbn')
 def make_rdaidbn(blocks=20, layers=6, filters=32, attn_fn='PixelAttention', act="gelu",
              out_filters=64, RDANkSize=3, RDABkSize=3, spectral_modes=[12,12],
+             spectral_shift=[False,True,True,False], spectral_freq=[False,True,False,False],
              scale=2, no_upsampling=True):
     args = Namespace()
     args.D = blocks
@@ -258,6 +266,8 @@ def make_rdaidbn(blocks=20, layers=6, filters=32, attn_fn='PixelAttention', act=
     args.no_upsampling = no_upsampling
     
     args.spectral_modes = spectral_modes
+    args.spectral_shift = spectral_shift
+    args.spectral_freq = spectral_freq
 
     args.n_colors = 3
     return RDAIDBN(args)
