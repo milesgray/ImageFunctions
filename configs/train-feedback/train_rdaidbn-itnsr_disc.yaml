@@ -56,16 +56,18 @@ model:
     encoder_spec:
       name: rdaidbn
       args:
-        blocks: 24
+        blocks: 12
         layers: 6
         filters: 16
+        out_filters: 64
+        spectral_modes: [12,12]
         no_upsampling: true
     imnet_spec:
       name: mlp
       args:
         in_dim: 4
         hidden_list: [256,256,256,256]
-        act: 'gelu'
+        act: gelu
     embedding_scale:
       name: mlp
       args:
@@ -88,8 +90,9 @@ d_model:
       args:
         in_dim: 27648
         out_dim: 1
+        use_sn: true
         hidden_list: [256, 256, 256, 256]
-        act: gelu
+        act: mish
 teacher:
   dataset: feedback
   backbone: rdn
@@ -116,6 +119,11 @@ losses:
         args:
       weight: 0.1
   img:
+    fhspace:
+      fn:
+        name: fourier_hi_space
+        args:
+      weight: 1.0
     freq:
       fn:
         name: focal_freq
@@ -139,7 +147,6 @@ losses:
         name: gan_nonsaturating
         args: 
       weight: 0.1
-      
       
 optimizer:
   name: adamw
