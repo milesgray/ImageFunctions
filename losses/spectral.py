@@ -348,8 +348,8 @@ class FourierHighSpaceLoss(nn.Module):
         # where we calculate amplitude and phase of all frequency components
         amp = torch.sqrt(fourier.real.pow(2) + fourier.imag.pow(2))
         phase = fourier.angle()
-        return amp, phase,
-        
+        return amp, phase
+    
     def forward(self, x, y):
         # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
         win_shape = x.shape

@@ -492,7 +492,7 @@ class SpectralTensorsFactorySTTP(SpectralTensorsFactoryBase):
     
 @register("spectral_conv2d")
 class SpectralConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, modes1, modes2):
+    def __init__(self, in_channels, out_channels, modes1, modes2, shift=False, freq=False):
         super().__init__()
 
         """
@@ -503,6 +503,9 @@ class SpectralConv2d(nn.Module):
         self.out_channels = out_channels
         self.modes1 = modes1 #Number of Fourier modes to multiply, at most floor(N/2) + 1
         self.modes2 = modes2
+
+        self.shift = shift # apply fftshift to put high frequency components in front
+        self.freq = freq # apply fftfreq to fft results
 
         self.scale = (1 / (in_channels * out_channels))
         self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
@@ -517,6 +520,11 @@ class SpectralConv2d(nn.Module):
         batchsize = x.shape[0]
         #Compute Fourier coeffcients up to factor of e^(- something constant)
         x_ft = torch.fft.rfft2(x, norm="ortho")
+        if self.shift:
+            x_ft = torch.fft.fftshift(x_ft)
+        if self.freq:
+            freq = torch.fft.rfftfreq(x_ft.shape[-2])
+            x_ft = x_ft * freq
 
         # Multiply relevant Fourier modes
         out_ft = torch.zeros(batchsize, self.out_channels,  x.size(-2), x.size(-1)//2 + 1, dtype=torch.cfloat, device=x.device)

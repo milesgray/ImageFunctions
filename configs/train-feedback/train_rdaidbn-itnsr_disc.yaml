@@ -90,6 +90,13 @@ d_model:
         out_dim: 1
         hidden_list: [256, 256, 256, 256]
         act: gelu
+teacher:
+  dataset: feedback
+  backbone: rdn
+  head: itnsr
+  id: 21
+  
+end_teach: 10
 
 losses:
   q:

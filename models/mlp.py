@@ -23,6 +23,7 @@ class MLP(nn.Module):
                 norm="nn.LayerNorm", 
                 has_bias=False, 
                 use_residual=True,
+                use_sn=False,
                 w0=1.0):
         super().__init__()
         if norm is not None:
@@ -44,7 +45,7 @@ class MLP(nn.Module):
         for hidden in hidden_list:
             if use_residual and lastv == hidden:
                 block = []
-                block.append(sn_wrapper(nn.Linear(lastv, hidden, bias=has_bias), True))
+                block.append(sn_wrapper(nn.Linear(lastv, hidden, bias=has_bias), use_sn))
                 if has_norm:
                     block.append(self.norm(hidden))
                 if self.act:
@@ -55,7 +56,7 @@ class MLP(nn.Module):
                                              'residual', 
                                              transform))
             else:
-                layers.append(sn_wrapper(nn.Linear(lastv, hidden, bias=has_bias), True))
+                layers.append(sn_wrapper(nn.Linear(lastv, hidden, bias=has_bias), use_sn))
                 if has_norm:
                     layers.append(self.norm(hidden))
                 if self.act:
