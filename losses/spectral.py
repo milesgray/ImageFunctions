@@ -333,6 +333,51 @@ class FourierSpaceLoss(nn.Module):
         
         return loss 
     
+@register("fourier_hi_space")
+class FourierHighSpaceLoss(nn.Module):
+    def __init__(self, hann_window=3):
+        super().__init__()
+        
+    def channel_stats(self, x):
+        # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
+        fourier = fft.fftshift(x)
+        freq = fft.rfftfreq(fourier.shape[-2])
+        if torch.cuda.is_available():
+            freq = freq.cuda()
+        fourier = torch.fft.rfft(x, norm='ortho') * freq
+        # where we calculate amplitude and phase of all frequency components
+        amp = torch.sqrt(fourier.real.pow(2) + fourier.imag.pow(2))
+        phase = fourier.angle()
+        return amp, phase,
+        
+    def forward(self, x, y):
+        # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
+        win_shape = x.shape
+        win_length = x.reshape(win_shape[0], win_shape[1], -1).shape[-1]
+        
+        window = torch.hann_window(win_length, 
+                                   periodic=True, 
+                                   requires_grad=True) \
+                                       .to(x.device)
+        x = x.reshape(win_shape[0], win_shape[1], -1) * window
+        y = y.reshape(win_shape[0], win_shape[1], -1) * window
+        loss = 0
+        for i in range(x.shape[1]):
+            x_amp, x_phase = self.channel_stats(x[:,i,...])
+            y_amp, y_phase = self.channel_stats(y[:,i,...])
+            
+            # The L1-loss of amplitude difference LF,|·| and phase difference LF,∠ (we take
+            # into account the periodicity) between output image and  
+            # target are averaged to produce the total frequency loss LF
+            half_u = x_amp.shape[-1] // 2 - 1
+            
+            loss_amp = nn.L1Loss()(x_amp[:,:half_u], y_amp[:,:half_u])
+            loss_phase = nn.L1Loss()(x_phase[:,:half_u], y_phase[:,:half_u])
+            
+            loss += loss_amp + loss_phase / 2
+        loss /= 3
+        
+        return loss 
     
 #loss function with rel/abs Lp loss
 @register("lp")
@@ -385,7 +430,10 @@ class LpLoss(nn.Module):
 # where we also compare the numerical derivatives between the output and target
 @register("sobolev_norm")
 class HsLoss(nn.Module):
-    def __init__(self, d=2, p=2, k=1, a=None, group=False, size_average=True, reduction=True):
+    def __init__(self, d=2, p=2, k=1, a=None, 
+                 group=False, 
+                 size_average=True, 
+                 reduction=True):
         super().__init__()
 
         #Dimension and Lp-norm type are postive

@@ -10,7 +10,7 @@ from .registry import register
 @register("asymmeric_multi")
 class AsymmetricLossMultiLabel(nn.Module):
     def __init__(self, gamma_neg=4, gamma_pos=1, clip=0.05, eps=1e-8, disable_torch_grad_focal_loss=False):
-        super(AsymmetricLossMultiLabel, self).__init__()
+        super().__init__()
 
         self.gamma_neg = gamma_neg
         self.gamma_pos = gamma_pos
@@ -58,7 +58,7 @@ class AsymmetricLossMultiLabel(nn.Module):
 @register("asymmeric_single")
 class AsymmetricLossSingleLabel(nn.Module):
     def __init__(self, gamma_pos=1, gamma_neg=4, eps: float = 0.1, reduction='mean'):
-        super(AsymmetricLossSingleLabel, self).__init__()
+        super().__init__()
 
         self.eps = eps
         self.logsoftmax = nn.LogSoftmax(dim=-1)

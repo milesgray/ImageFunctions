@@ -216,6 +216,30 @@ class TrainingEngine:
         val_loader = make_data_loader(self.config.get('val_dataset'), tag='val')
         return {"train":train_loader, "val":val_loader}
         
+    def train(self, epoch_start=0);
+        
+        for epoch in range(epoch_start, epoch_max + 1):
+            timer.s()
+
+            losses_dict = self.config["losses"].copy()
+            if epoch > self.config["end_teach"] and "teacher" in losses_dict:
+                del losses_dict["teacher"]
+                
+            train_results = self.step(epoch=epoch,
+                                use_loss_tracker=False,)
+            if lr_scheduler is not None:
+                lr_scheduler.step()
+            msg = f"[Epoch {epoch}]  [{utils.time_text(timer.t())}]"
+            msg = f"{msg}Results: {train_results['TRAIN']:.5f}"
+            for k,v in train_results.items():
+                if k != "TRAIN":
+                    msg = f"{msg}\t[{k}] {v:.5f}"
+            log_msg(msg)
+
+            self.save_models(self.model, self.d_model, self.optimizer, self.d_optimizer, 
+                        self.lr_scheduler, epoch, self.config, self.comet, self.save_path)
+                
+        
     def step(self, epoch=None, use_loss_tracker=False):
         self.model.train()
 
