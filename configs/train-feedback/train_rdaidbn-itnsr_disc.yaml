@@ -56,13 +56,13 @@ model:
     encoder_spec:
       name: rdaidbn
       args:
-        blocks: 12
+        blocks: 24
         layers: 6
         filters: 16
         out_filters: 64
         spectral_modes: [12,12]
-        spectral_shift: [false, true, true, false]
-        spectral_freq: [false, true, false, false]
+        spectral_shift: [false, false, false, false]
+        spectral_freq: [false, false, false, false]
         no_upsampling: true
     imnet_spec:
       name: mlp
@@ -103,7 +103,7 @@ teacher:
   head: itnsr
   id: 21
   
-end_teach: 10
+end_teach: 4
 
 losses:
   q:
@@ -121,7 +121,7 @@ losses:
       fn:
         name: sobolev_norm
         args:
-      weight: 0.1
+      weight: 1.0
   img:
     fhspace:
       fn:
