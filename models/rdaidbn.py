@@ -32,8 +32,8 @@ class SpectralIMDModule(nn.Module):
         self.distilled_channels = int(self.in_channels * distillation_rate)
         self.remaining_channels = int(self.in_channels - self.distilled_channels)
         self.c1 = SpectralConv2d(in_channels=self.in_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[0], freq=use_freq[0])
-        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0]//2, modes2=modes[1], shift=use_shift[1], freq=use_freq[1])
-        self.c3 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1]//2, shift=use_shift[2], freq=use_freq[2])
+        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[1], freq=use_freq[1])
+        self.c3 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[2], freq=use_freq[2])
         self.c4 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[3], freq=use_freq[3])
         self.act = create_act('leakyrelu', negative_slope=0.05)
         self.c5 = conv_layer(self.distilled_channels * 4, self.in_channels, 1)
@@ -57,7 +57,7 @@ class SpectralIMDModule(nn.Module):
 class ResBlock(nn.Module):
     def __init__(
         self, conv, n_feats, kernel_size,
-        bias=True, norm=None, pa=False, act=nn.ReLU(True), res_scale=1):
+        bias=True, norm=nn.InstanceNorm2d, pa=False, act=nn.ReLU(True), res_scale=1):
 
         super().__init__()
         m = []
@@ -128,9 +128,10 @@ class RDAB(nn.Module):
         # Local Feature Fusion
         self.LFF = nn.Conv2d(G0 + C*G, G0, 1, padding=0, stride=1)
         self.res_balance = Balance()
+        self.res_attn = NonLocalAttention(G0)
 
     def forward(self, x):
-        return self.res_balance(self.LFF(self.convs(x)), x)
+        return self.res_balance(self.LFF(self.convs(x)), self.res_attn(x))
 
 class RDAIDBN(nn.Module):
     def __init__(self, args):
