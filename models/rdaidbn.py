@@ -32,7 +32,7 @@ class SpectralIMDModule(nn.Module):
         self.distilled_channels = int(self.in_channels * distillation_rate)
         self.remaining_channels = int(self.in_channels - self.distilled_channels)
         self.c1 = SpectralConv2d(in_channels=self.in_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[0], freq=use_freq[0])        
-        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[3], freq=use_freq[3])
+        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[1], freq=use_freq[1])
         self.act = create_act('leakyrelu', negative_slope=0.05)
         self.c3 = conv_layer(self.distilled_channels * 2, self.in_channels, 1)
         
