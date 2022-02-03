@@ -7,7 +7,7 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-from .layers import PixelAttention, NonLocalAttention
+from .layers import PixelAttention, NonLocalAttention, LocalSelfAttention
 from .layers import Balance, Scale, stdv_channels
 from .layers import SpectralConv2d
 from .layers import create as create_layer
@@ -25,33 +25,27 @@ def conv_layer(in_channels, out_channels, kernel_size, stride=1, dilation=1, gro
 
 class SpectralIMDModule(nn.Module):
     def __init__(self, in_channels, distillation_rate=0.25, modes=[12,12], 
-                 use_shift=[False,False,False,False], 
-                 use_freq=[False,False,False,False]):
+                 use_shift=[False,False], 
+                 use_freq=[False,False]):
         super().__init__()
         self.in_channels = in_channels
         self.distilled_channels = int(self.in_channels * distillation_rate)
         self.remaining_channels = int(self.in_channels - self.distilled_channels)
-        self.c1 = SpectralConv2d(in_channels=self.in_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[0], freq=use_freq[0])
-        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[1], freq=use_freq[1])
-        self.c3 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[2], freq=use_freq[2])
-        self.c4 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[3], freq=use_freq[3])
+        self.c1 = SpectralConv2d(in_channels=self.in_channels, out_channels=self.in_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[0], freq=use_freq[0])        
+        self.c2 = SpectralConv2d(in_channels=self.remaining_channels, out_channels=self.distilled_channels, modes1=modes[0], modes2=modes[1], shift=use_shift[3], freq=use_freq[3])
         self.act = create_act('leakyrelu', negative_slope=0.05)
-        self.c5 = conv_layer(self.distilled_channels * 4, self.in_channels, 1)
+        self.c3 = conv_layer(self.distilled_channels * 2, self.in_channels, 1)
         
         self.balance = Balance()
         self.attn = NonLocalAttention(self.in_channels)
 
     def forward(self, x):
         out_c1 = self.act(self.c1(x))
-        distilled_c1, remaining_c1 = torch.split(out_c1, (self.distilled_channels, self.remaining_channels), dim=1)
-        out_c2 = self.act(self.c2(remaining_c1))
-        distilled_c2, remaining_c2 = torch.split(out_c2, (self.distilled_channels, self.remaining_channels), dim=1)
-        out_c3 = self.act(self.c3(remaining_c2))
-        distilled_c3, remaining_c3 = torch.split(out_c3, (self.distilled_channels, self.remaining_channels), dim=1)
-        out_c4 = self.c4(remaining_c3)
+        distilled_c1, remaining_c1 = torch.split(out_c1, (self.distilled_channels, self.remaining_channels), dim=1)        
+        out_c2 = self.c2(remaining_c1)
 
-        out = torch.cat([distilled_c1, distilled_c2, distilled_c3, out_c4], dim=1)
-        out_fused = self.balance(self.attn(self.c5(out)), x)
+        out = torch.cat([distilled_c1, out_c2], dim=1)
+        out_fused = self.balance(self.attn(self.c3(out)), x)
         return out_fused
 
 class ResBlock(nn.Module):
@@ -128,7 +122,7 @@ class RDAB(nn.Module):
         # Local Feature Fusion
         self.LFF = nn.Conv2d(G0 + C*G, G0, 1, padding=0, stride=1)
         self.res_balance = Balance()
-        self.res_attn = NonLocalAttention(G0)
+        self.res_attn = LocalSelfAttention(G0, G0, 5, padding=2)
 
     def forward(self, x):
         return self.res_balance(self.LFF(self.convs(x)), self.res_attn(x))
@@ -251,7 +245,7 @@ class RDAIDBN(nn.Module):
 @register('rdaidbn')
 def make_rdaidbn(blocks=20, layers=6, filters=32, attn_fn='PixelAttention', act="gelu",
              out_filters=64, RDANkSize=3, RDABkSize=3, spectral_modes=[12,12],
-             spectral_shift=[False,True,True,False], spectral_freq=[False,True,False,False],
+             spectral_shift=[False,True], spectral_freq=[False,True],
              scale=2, no_upsampling=True):
     args = Namespace()
     args.D = blocks

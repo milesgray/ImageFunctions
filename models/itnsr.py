@@ -157,7 +157,7 @@ class ITNSR(nn.Module):
                 weight = weight.view(bs * q, feat.shape[1], 3)
                 pred = torch.bmm(value.contiguous().view(bs * q, 1, -1), weight).view(bs, q, -1)
                 
-                pred +=score
+                pred += score
                 preds.append(pred)
 
             preds = torch.stack(preds,dim=-1)

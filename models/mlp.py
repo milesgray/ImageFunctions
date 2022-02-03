@@ -18,7 +18,7 @@ def sn_wrapper(module: nn.Module, use_sn: bool, *sn_args, **sn_kwargs) -> nn.Mod
 @register('mlp')
 class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, hidden_list, 
-                act='gelu', 
+                act='sine', 
                 has_norm=False,
                 norm="nn.LayerNorm", 
                 has_bias=False, 

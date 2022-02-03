@@ -62,7 +62,7 @@ class PoolGate(nn.Module):
 @register("channel_gate")
 class ChannelGate(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
-        super(ChannelGate, self).__init__()
+        super().__init__()
         self.gate_channels = gate_channels
         self.mlp = nn.Sequential(
             Flatten(),
