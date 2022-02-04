@@ -69,8 +69,8 @@ model:
       args:
         in_dim: 4
         hidden_list: [256,256,256,256]
-        act: sine
-        use_sn: true
+        act: swish
+        use_sn: false
         has_norm: true
     embedding_scale:
       name: mlp
@@ -94,7 +94,7 @@ d_model:
       args:
         in_dim: 27648
         out_dim: 1
-        use_sn: true
+        use_sn: false
         hidden_list: [256, 256, 256, 256]
         act: gelu
 start_disc: 2
@@ -123,13 +123,13 @@ losses:
       fn:
         name: sobolev_norm
         args:
-      weight: 1.0
+      weight: .1
   img:
     fhspace:
       fn:
         name: fourier_hi_space
         args:
-      weight: 1.0
+      weight: 0.1
     freq:
       fn:
         name: focal_freq
