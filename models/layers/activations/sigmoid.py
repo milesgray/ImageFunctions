@@ -3,16 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .methods import *
+from .methods import xsigmoid, centeredsigmoid, unitcenteredsigmoid
 
 from .registry import register
 
 @register("xsigmoid")
 class XSigmoid(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         return xsigmoid(x)
 
 
