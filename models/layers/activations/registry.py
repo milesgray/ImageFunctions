@@ -24,6 +24,7 @@ lookup = {
     "sigmoid": nn.Sigmoid,
     "silu": nn.SiLU,
     "mish": nn.Mish,
+    "swish": nn.Swish,
     "softplus": nn.Softplus,
     "softshrink": nn.Softshrink,
     "softsign": nn.Softsign,
