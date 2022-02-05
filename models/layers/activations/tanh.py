@@ -8,7 +8,7 @@ from .methods import xtanh, unitcenteredtanh, mish
 from .registry import register
 
 
-@register("mish")
+@register("mish2")
 class Mish(nn.Module):
     """
     Applies the mish function element-wise:
