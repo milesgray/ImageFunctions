@@ -17,10 +17,7 @@ import ImageFunctions.utility as utils
 
 
 class TrainingEngine:
-    def __init__(self, dataset: str, backbone: str, head: str,
-                 id: str=None,
-                 resume_id: str=None,
-                 teach_id: str=None,
+    def __init__(self, args: dict,
                  comet=None, 
                  log=print):
         """Loads a config file based on the `dataset`, `backbone`, and `head`
@@ -39,6 +36,7 @@ class TrainingEngine:
         self.comet = comet
         self.log = log        
         self.args = args
+        self.root_path = args["root_path"]        
         self.dataset = args["dataset"]
         self.backbone = args["backbone"]
         self.head = args["head"]
@@ -46,28 +44,13 @@ class TrainingEngine:
         self.resume_id = args["resume_id"] if "resume_id" in args else None
         self.teacher_id = args["teach_id"] if "teach_id" in args else None
         
-        self.comet.log_parameters(args)
+        self.comet.log_parameters({"init_args": args})
 
         os.environ['CUDA_VISIBLE_DEVICES'] = args["gpu"]
 
-        with open(args["config"], 'r') as f:
-            self.config = yaml.load(f, Loader=yaml.loader.SafeLoader)
-            if self.resume_id:
-                self.config["resume"] = f"/content/gdrive/My Drive/data/models/liif/{self.resume_id}/epoch-last.pth"
-            self.log('config loaded.')
-            
-        save_name = args["name"]
-        if save_name is None:
-            save_name = '_' + args["config"].split('/')[-1][:-len('.yaml')]
-        if args["tag"] is not None:
-            save_name += '_' + args["tag"]
-        self.save_path = pathlib.Path('/content/gdrive/My Drive/data/models/liif/') / save_name
-        if "resume" in self.config and self.config["resume"] is not None:
-            self.comet.log_asset(self.config['resume'])
-            
-        self.save_path.mkdir(parents=True, exist_ok=True)
-        with open(self.save_path / 'config.yaml', 'w') as f:
-            yaml.dump(self.config, f)
+        self.init_config()
+        self.make_save_path()
+        
         if self.config.get('data_norm') is None:
             self.config['data_norm'] = {
                 'inp': {'sub': [0], 'div': [1]},
@@ -84,6 +67,36 @@ class TrainingEngine:
         self.lr_scheduler = comp["lr_scheduler"]
         
         self.loaders = self.make_data_loaders()
+        
+    def init_config(self):
+        try:
+            with open(args["config"], 'r') as f:
+                self.config = yaml.load(f, Loader=yaml.loader.SafeLoader)
+                if self.resume_id:
+                    self.config["resume"] = f"{self.root_path}{self.resume_id}/epoch-last.pth"
+                self.log(f'Config Initialized!  Loaded from {args["config"]}')
+        except Exception as e:
+            self.log(f"Failed to init config:\n{e}")
+            
+    def make_save_path(self):
+        try:
+            save_name = self.args["name"]
+            if save_name is None:
+                save_name = '_' + self.args["config"].split('/')[-1][:-len('.yaml')]
+            if args["tag"] is not None:
+                save_name += '_' + self.args["tag"]
+            self.save_path = pathlib.Path(self.root_path) / save_name
+            if "resume" in self.config and self.config["resume"] is not None:
+                self.comet.log_asset(self.config['resume'])
+                
+            self.save_path.mkdir(parents=True, exist_ok=True)
+            with open(self.save_path / 'config.yaml', 'w') as f:
+                yaml.dump(self.config, f)
+            return True
+        except Exception as e:
+            self.log(f"Failed to make save path:\n{e}")
+            return False
+        
         
     def build(self):
         comp = {}
@@ -212,21 +225,20 @@ class TrainingEngine:
         return loader
 
     def make_data_loaders(self):
-        train_loader = make_data_loader(self.config.get('train_dataset'), tag='train')
-        val_loader = make_data_loader(self.config.get('val_dataset'), tag='val')
+        train_loader = self.make_data_loader(self.config.get('train_dataset'), tag='train')
+        val_loader = self.make_data_loader(self.config.get('val_dataset'), tag='val')
         return {"train":train_loader, "val":val_loader}
         
-    def train(self, epoch_start=0);
-        
-        for epoch in range(epoch_start, epoch_max + 1):
+    def train(self, epoch_start=0):
+        for epoch in range(epoch_start, self.config.get("epoch_max", epoch_start) + 1):
             timer.s()
 
             losses_dict = self.config["losses"].copy()
-            if epoch > self.config["end_teach"] and "teacher" in losses_dict:
+            if epoch > self.config.get("end_teach", 0) and "teacher" in losses_dict:
                 del losses_dict["teacher"]
                 
             train_results = self.step(epoch=epoch,
-                                use_loss_tracker=False,)
+                                      use_loss_tracker=False,)
             if lr_scheduler is not None:
                 lr_scheduler.step()
             msg = f"[Epoch {epoch}]  [{utils.time_text(timer.t())}]"
@@ -236,10 +248,8 @@ class TrainingEngine:
                     msg = f"{msg}\t[{k}] {v:.5f}"
             log_msg(msg)
 
-            self.save_models(self.model, self.d_model, self.optimizer, self.d_optimizer, 
-                        self.lr_scheduler, epoch, self.config, self.comet, self.save_path)
-                
-        
+            self.save_models()
+    
     def step(self, epoch=None, use_loss_tracker=False):
         self.model.train()
 
@@ -320,15 +330,16 @@ class TrainingEngine:
                     if self.comet: self.comet.log_metric(k, loss.item())
 
                 self.optimizer.zero_grad()
-
-                loss_q = sum([v for k,v in results.items() if k in self.loss_dict["q"].keys()]) / \
-                         len([v for k,v in results.items() if k in self.loss_dict["q"].keys()])
-                loss_img = sum([v for k,v in results.items() if k in self.loss_dict["img"].keys()]) / \
-                           len([v for k,v in results.items() if k in self.loss_dict["img"].keys()])
-                loss_t = sum([v for k,v in results.items() if k in self.loss_dict["teacher"].keys()]) / \
-                         len([v for k,v in results.items() if k in self.loss_dict["teacher"].keys()])
-
-                loss = loss_q + loss_img + loss_t
+                if epoch >= config["end_teach"] or "end_teach" not in self.config:
+                    loss_q = sum([v for k,v in results.items() if k in self.loss_dict["q"].keys()]) / \
+                             len([v for k,v in results.items() if k in self.loss_dict["q"].keys()])
+                    loss_img = sum([v for k,v in results.items() if k in self.loss_dict["img"].keys()]) / \
+                               len([v for k,v in results.items() if k in self.loss_dict["img"].keys()])
+                    loss = loss_q + loss_img
+                else:
+                    loss_t = sum([v for k,v in results.items() if k in loss_dict["teacher"].keys()]) / \
+                             len([v for k,v in results.items() if k in loss_dict["teacher"].keys()])
+                    loss = loss_t
                 if use_loss_tracker:
                     results["TRAIN"] = train_loss(loss, None)
                 else:
@@ -338,12 +349,12 @@ class TrainingEngine:
                 self.optimizer.step()
 
                 batch_num += 1
-                if val_loader is not None:
-                    if batch_num == config.get('batch_eval_first', 100) or batch_num % config.get('batch_eval', 1000) == 0:
-                        val_results = validate(self.model, val_loader, config, 
-                                            metric_fns=self.metric_fns,
-                                            epoch=epoch,
-                                            experiment=self.comet)
+                if self.val_loader is not None:
+                    if batch_num == self.config.get('batch_eval_first', 100) or batch_num % config.get('batch_eval', 1000) == 0:
+                        val_results = self.validate(self.model, self.val_loader, self.      config, 
+                                                    metric_fns=self.metric_fns,
+                                                    epoch=epoch,
+                                                    experiment=self.comet)
                 
                 for k,v in val_results.items():
                     results[k] = v
@@ -497,4 +508,43 @@ class TrainingEngine:
         except Exception as e:
             self.log(f"Failed to save preview plot!\n{e}")
         if return_data:
-            return preds, batches    
+            return preds, batches
+        
+    def save_models(self, epoch):
+        try:
+            model_spec = self.config['model']
+            model_spec['sd'] = self.model.state_dict()
+            optimizer_spec = self.config['optimizer']
+            optimizer_spec['sd'] = self.optimizer.state_dict()
+            sv_file = { 
+                'model_spec': self.model.pec.copy(),
+                'optimizer_spec': optimizer_spec.copy(),        
+                'epoch': epoch,
+                'max_val_v': max_val_v,
+                'model': self.model,
+                'optimizer': self.optimizer,
+                'lr_scheduler': self.lr_scheduler,
+                'config': self.config,
+            }
+            if self.d_model is not None:
+                d_model_spec = self.config['d_model'].copy()
+                d_model_spec['sd'] = self.d_model.state_dict()
+                d_optimizer_spec = self.config['d_optimizer'].copy()
+                d_optimizer_spec['sd'] = self.d_optimizer.state_dict()
+                sv_file['d_model_spec'] = self.d_model_spec
+                sv_file['d_optimizer_spec'] = d_optimizer_spec
+                sv_file['d_model'] = self.d_model
+                sv_file['d_optimizer'] = self.d_optimizer
+
+            save_location = os.path.join(self.save_path, 'epoch-last.pth')
+            torch.save(sv_file, save_location)
+            self.comet.log_model(f"{epoch}", save_location)
+
+            if epoch % self.config.get('epoch_save', 10) == 0:
+                torch.save(sv_file,
+                    os.path.join(save_path, 'epoch-{}.pth'.format(epoch)))
+                
+            return True
+        except Exception as e:
+            print(f"Failed to save models!\n{e}")
+            return False

@@ -69,7 +69,7 @@ model:
       args:
         in_dim: 4
         hidden_list: [256,256,256,256]
-        act: swish
+        act: mish
         use_sn: false
         has_norm: true
     embedding_scale:
@@ -109,9 +109,9 @@ end_teach: 1
 
 losses:
   q:
-    l1:
+    bce:
       fn:
-        name: l1
+        name: bce
         args:
       weight: 0.1
     fspace:
@@ -123,7 +123,7 @@ losses:
       fn:
         name: sobolev_norm
         args:
-      weight: .1
+      weight: 0.1
   img:
     fhspace:
       fn:
