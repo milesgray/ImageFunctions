@@ -3,7 +3,7 @@ import torch.nn as nn
 from collections import OrderedDict
 
 from .layers.imdn import *
-from .registry import register
+from models import register
 
 
 # For any upscale factors
