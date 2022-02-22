@@ -4,6 +4,7 @@ from .registry import register, make, lookup, create
 
 from . import asymmetric
 from . import crossentropy
+from . import cyclical
 from . import dice
 from . import diff
 from . import distance

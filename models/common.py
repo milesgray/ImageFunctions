@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from .layers import SpaceToDepth
 
-from .registry import register
+from models import register
 
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(
