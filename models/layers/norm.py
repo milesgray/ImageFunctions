@@ -166,3 +166,98 @@ class FilterResponseNorm(nn.Module):
 
 FilterResponseNorm1d = partial(FilterResponseNorm, ndim=1, learnable_eps=True)
 FilterResponseNorm2d = partial(FilterResponseNorm, ndim=2)
+
+@register("ada_in")
+class AdaIN(nn.Module):
+    """
+    Adaptive Instance normalization.
+    reference: https://github.com/tkarras/progressive_growing_of_gans/blob/master/networks.py#L120
+    """
+    def __init__(self, n_channels, code):
+        super().__init__()
+        
+        self.norm = nn.InstanceNorm2d(n_channels, affine=False, eps=1e-8)
+        self.A = ScaledLinear(code, n_channels * 2)
+        
+        # StyleGAN
+        # self.A.linear.bias.data = torch.cat([torch.ones(n_channels), torch.zeros(n_channels)])
+        
+    def forward(self, x, style):
+        """
+        x - (N x C x H x W)
+        style - (N x (Cx2))
+        """        
+        # Project project style vector(w) to  mu, sigma and reshape it 2D->4D to allow channel-wise operations        
+        style = self.A(style)
+        y = style.view(style.shape[0], 2, style.shape[1]//2).unsqueeze(3).unsqueeze(4)
+
+        x = self.norm(x)
+        
+        return torch.addcmul(y[:, 1], value=1., tensor1=y[:, 0] + 1, tensor2 = x)        
+
+@register("ada_pn")
+class AdaPN(nn.Module):
+    """
+    Pixelwise feature vector normalization.
+    reference: https://github.com/tkarras/progressive_growing_of_gans/blob/master/networks.py#L120
+    """
+    def __init__(self, n_channels, code):
+        super().__init__()
+        self.A = ScaledLinear(code, n_channels * 2)
+
+    def forward(self, x, style, alpha=1e-8):
+        """
+        x - (N x C x H x W)
+        style - (N x (Cx2))
+        :param x: input activations volume
+        :param alpha: small number for numerical stability
+        :return: y => pixel normalized activations
+        """
+        # Project project style vector(w) to  mu, sigma and reshape it 2D->4D to allow channel-wise operations  
+        style = self.A(style)
+        z = style.view(style.shape[0], 2, style.shape[1]//2).unsqueeze(3).unsqueeze(4)
+        # original PixelNorm
+        y = torch.sqrt(torch.mean(x**2, dim=1, keepdim=True) + 1e-8)  # [N1HW]
+        y = x / y  # normalize the input x volume        
+        # addcmul like in AdaIN
+        return torch.addcmul(z[:, 1], value=1., tensor1=z[:, 0] + 1, tensor2=y)
+
+@register("stddev_batch")
+class MinibatchStdDev(nn.Module):
+    """
+    Minibatch standard deviation layer
+    reference: https://github.com/akanimax/pro_gan_pytorch/blob/master/pro_gan_pytorch/CustomLayers.py#L300
+    """
+
+    def __init__(self):
+        """
+        derived class constructor
+        """
+        super().__init__()
+
+    def forward(self, x, alpha=1e-8):
+        """
+        forward pass of the layer
+        :param x: input activation volume
+        :param alpha: small number for numerical stability
+        :return: y => x appended with standard deviation constant map
+        """
+        batch_size, _, height, width = x.shape
+
+        # [B x C x H x W] Subtract mean over batch.
+        y = x - x.mean(dim=0, keepdim=True)
+
+        # [1 x C x H x W]  Calc standard deviation over batch
+        y = torch.sqrt(y.pow(2.).mean(dim=0, keepdim=False) + alpha)
+
+        # [1]  Take average over feature_maps and pixels.
+        y = y.mean().view(1, 1, 1, 1)
+
+        # [B x 1 x H x W]  Replicate over group and pixels.
+        y = y.repeat(batch_size, 1, height, width)
+
+        # [B x C x H x W]  Append as new feature_map.
+        y = torch.cat([x, y], 1)
+
+        # return the computed values:
+        return y
