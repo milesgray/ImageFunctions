@@ -1,6 +1,8 @@
 from functools import partial
+
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .registry import register
 
@@ -24,33 +26,25 @@ class ConditionalBatchNorm2d(nn.Module):
     
 @register("layer_norm")
 class LayerNorm(nn.Module):
-    def __init__(self, num_features, eps=1e-5, affine=True):
+    def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
         super().__init__()
-        self.num_features = num_features
-        self.affine = affine
+        self.weight = nn.Parameter(torch.ones(normalized_shape))
+        self.bias = nn.Parameter(torch.zeros(normalized_shape))
         self.eps = eps
-
-        if self.affine:
-            self.gamma = nn.Parameter(torch.Tensor(num_features).uniform_())
-            self.beta = nn.Parameter(torch.zeros(num_features))
-
+        self.data_format = data_format
+        if self.data_format not in ["channels_last", "channels_first"]:
+            raise NotImplementedError 
+        self.normalized_shape = (normalized_shape, )
+    
     def forward(self, x):
-        shape = [-1] + [1] * (x.dim() - 1)
-        # print(x.size())
-        if x.size(0) == 1:
-            # These two lines run much faster in pytorch 0.4 than the two lines listed below.
-            mean = x.view(-1).mean().view(*shape)
-            std = x.view(-1).std().view(*shape)
-        else:
-            mean = x.view(x.size(0), -1).mean(1).view(*shape)
-            std = x.view(x.size(0), -1).std(1).view(*shape)
-
-        x = (x - mean) / (std + self.eps)
-
-        if self.affine:
-            shape = [1, -1] + [1] * (x.dim() - 2)
-            x = x * self.gamma.view(*shape) + self.beta.view(*shape)
-        return x
+        if self.data_format == "channels_last":
+            return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
+        elif self.data_format == "channels_first":
+            u = x.mean(1, keepdim=True)
+            s = (x - u).pow(2).mean(1, keepdim=True)
+            x = (x - u) / torch.sqrt(s + self.eps)
+            x = self.weight[:, None, None] * x + self.bias[:, None, None]
+            return x
 
 def l2normalize(v, eps=1e-12):
     return v / (v.norm() + eps)

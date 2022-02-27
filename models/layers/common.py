@@ -132,6 +132,7 @@ def get_valid_padding(kernel_size, dilation):
     kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
     padding = (kernel_size - 1) // 2
     return padding
+
 def sequential(*args):
     if len(args) == 1:
         if isinstance(args[0], OrderedDict):
