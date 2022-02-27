@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .registry import register
+from .layers import create as create_layer
+from .layers.activations import create as create_act
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 
@@ -54,7 +57,6 @@ class BasicBlock(nn.Module):
 
         return out
 
-
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -99,7 +101,7 @@ class Bottleneck(nn.Module):
 
         return out
 
-
+@register("resnet")
 class ResNet(nn.Module):
 
     def __init__(self, block, layers, zero_init_residual=False, groups=1,
@@ -203,25 +205,25 @@ def _resnet(arch, block, layers, pretrained, **kwargs):
         model.load_state_dict(state_dict, strict=False)
     return model
 
-
-def resnet18(pretrained=False):
+@register("resnet18")
+def resnet18():
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained)
 
-
-def resnet34(pretrained=False):
+@register("resnet34")
+def resnet34():
     return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], pretrained)
 
-
-def resnet50(pretrained=False):
+@register("resnet50")
+def resnet50():
     return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained,
                    replace_stride_with_dilation=[False, True, True])
 
-
-def resnet101(pretrained=False):
+@register("resnet101")
+def resnet101():
     return _resnet('resnet101', Bottleneck, [3, 4, 23, 3], pretrained,
                    replace_stride_with_dilation=[False, True, True])
 
-
-def resnet152(pretrained=False):
+@register("resnet152")
+def resnet152():
     return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrained,
                    replace_stride_with_dilation=[False, True, True])

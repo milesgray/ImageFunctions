@@ -73,7 +73,7 @@ class ResNeXtER(nn.Module):
         self.norm = norm_layer(self.filters)
         self.act = nn.GELU()
 
-        self.attn = make_layer("balanced_attn", in_planes=self.filters)
+        self.attn = create_layer("balanced_attn", in_planes=self.filters)
         self.layer1 = self._make_layer(Block, self.filters, layers[0])
         self.layer2 = self._make_layer(Block, self.filters * 2, layers[1])
         self.layer3 = self._make_layer(Block, self.filters * 4, layers[2], last_relu=False)
