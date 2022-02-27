@@ -57,7 +57,7 @@ class ResNeXtER(nn.Module):
                  num_filters=128, out_filters=64, norm_layer=None):
         super().__init__()
 
-        self.out_channels = out_filters
+        self.out_dim = out_filters
 
         if norm_layer is None:
             norm_layer = nn.LayerNorm
