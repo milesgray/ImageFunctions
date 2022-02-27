@@ -26,7 +26,7 @@ class Block(nn.Module):
         if norm_layer is None:
             norm_layer = nn.LayerNorm
             
-        self.dwconv = conv7x7(filters)
+        self.dwconv = dwconv7x7(filters)
         self.norm = norm_layer(filters)
         self.act = nn.GELU()
         self.pwconv1 = conv1x1(filters, filters * 4)
@@ -115,7 +115,7 @@ class ResNeXtER(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def base_forward(self, x):
+    def forward(self, x):
         x = self.conv1(x)
         x = self.norm(x)
         x = self.act(x)
