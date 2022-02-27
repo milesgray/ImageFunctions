@@ -26,7 +26,6 @@ class Sine(nn.Module):
         self.w0 = w0
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        self._check_input(x)
         return torch.sin(self.w0 * x)
 
     @staticmethod

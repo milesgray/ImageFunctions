@@ -8,6 +8,7 @@ from .common import *
 from .softmax import *
 from .learnable import *
 from .statistics import *
+from .positional import *
 from .projection import *
 from .wavelet import *
 from .shuffle import *
