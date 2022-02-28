@@ -60,19 +60,23 @@ class ResNeXtER(nn.Module):
 
         if norm_layer is None:
             norm_layer = partial(nn.InstanceNorm2d, affine=True)
+        else:
+            norm_layer = eval(norm_layer) if isinstance(norm_layer, str) else norm_layer
         self._norm_layer = norm_layer
 
         self.filters = num_filters
         
-        self.conv1 = nn.Sequential(
+        self.head = nn.Sequential(
             nn.Conv2d(num_colors, self.filters, 3),
             self._norm_layer(self.filters),
-            nn.GELU()
+            nn.GELU(),
+            create_layer("balanced_attn", in_planes=self.filters)
+        
         )
         self.norm = norm_layer(self.filters)
         self.act = nn.GELU()
-
         self.attn = create_layer("balanced_attn", in_planes=self.filters)
+        
         self.layer1 = self._make_layer(Block, self.filters, layers[0])
         self.layer2 = self._make_layer(Block, self.filters * 2, layers[1])
         self.layer3 = self._make_layer(Block, self.filters * 4, layers[2], last_relu=False)
