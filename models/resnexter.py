@@ -79,7 +79,7 @@ class ResNeXtER(nn.Module):
         
         self.layer1 = self._make_layer(Block, self.filters, layers[0])
         self.layer2 = self._make_layer(Block, self.filters * 2, layers[1])
-        self.layer3 = self._make_layer(Block, self.filters * 4, layers[2], last_relu=False)
+        self.layer3 = self._make_layer(Block, self.filters * 4, layers[2])
         
         self.fuse1 = nn.Conv2d(self.filters * 7, self.filters, kernel_size=7, padding=3)
         self.fuse2 = nn.Conv2d(self.filters * 7, self.filters, kernel_size=5, padding=2)
