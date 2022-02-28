@@ -3,9 +3,9 @@ train_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      repeat: 3
+      repeat: 2
       cache: in_memory
-      last_k: 300
+      last_k: 400
       skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -15,9 +15,9 @@ train_dataset:
       scale_min: 2
       scale_max: 4
       augment: true
+      color_augment: true
+      color_augment_strength: 0.05
       sample_q: 4096
-      vary_q: false
-      color_augment: false
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -28,8 +28,8 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      first_k: 50
-      skip_every: 1
+      first_k: 150
+      skip_every: 3
       repeat: 2
       cache: in_memory
   wrapper:
@@ -59,17 +59,45 @@ model:
       name: resnexter
       args:
         num_colors: 3
-        layers: [3,2,2]
+        layers: [3,2,1]
         num_filters: 64
-        out_filters: 64
+        out_filters: 128
         zero_init_residual: false
-
     imnet_spec:
       name: mlp
       args:
         in_dim: 4
+        hidden_list: [256,256,256,256]
+        act: mish
+        use_sn: false
+        has_norm: true
+    embedding_scale:
+      name: mlp
+      args:
+        in_dim: 2
+        out_dim: 2
+        hidden_list: [64,64]
+        act: leaky_relu
+    embedding_coord:
+      name: mlp
+      args:
+        in_dim: 2
+        out_dim: 2
         hidden_list: [256,256]
-        act: 'gelu'
+        act: leaky_relu
+
+d_model:
+  name: freq_disc
+  args:
+    model_spec:
+      name: mlp
+      args:
+        in_dim: 27648
+        out_dim: 1
+        use_sn: false
+        hidden_list: [256, 256, 256, 256]
+        act: gelu
+start_disc: 2
 
 losses:
   q:
@@ -95,6 +123,13 @@ losses:
         args:
           scale: 3
       weight: 1.0
+  teacher:
+    kl:
+      fn: 
+        name: teacher_kl
+        args: 
+          T: 0.1
+      weight: 0.1
       
 optimizer:
   name: adamw

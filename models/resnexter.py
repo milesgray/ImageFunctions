@@ -90,27 +90,24 @@ class ResNeXtER(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, nn.LayerNorm)):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
 
         if zero_init_residual:
             for m in self.modules():
-                if isinstance(m, Bottleneck):
-                    nn.init.constant_(m.bn3.weight, 0)
-                elif isinstance(m, BasicBlock):
+                if isinstance(m, Block):
                     nn.init.constant_(m.norm.weight, 0)
 
-    def _make_layer(self, block, filters, blocks, stride=1, dilate=False, last_relu=True):
+    def _make_layer(self, block, filters, blocks, 
+                    drop_path=0.1, dropout=0.2):
         """
         :param last_relu: in metric learning paradigm, the final relu is removed (last_relu = False)
         """
         norm_layer =  nn.InstanceNorm2d
 
         layers = list()
-        layers.append(block(filters, drop_path=0.1, norm_layer=norm_layer))
+        layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
         for i in range(1, blocks):
-            layers.append(block(filters, drop_path=0.1, norm_layer=norm_layer))
+            layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
+            layers.append(create_layer("cross_attn", dim=filters, dropout=dropout))
 
         return nn.Sequential(*layers)
 
@@ -130,7 +127,7 @@ class ResNeXtER(nn.Module):
         f2 = self.fuse2(g)
         f3 = self.fuse3(g)
         
-        f = self.balance1(x, self.balance2(f1, self.balance3(f2, f3)))
+        f = self.balance1(self.balance2(x, f1), self.balance3(f2, f3)))
         
         out = self.gff(f)
 

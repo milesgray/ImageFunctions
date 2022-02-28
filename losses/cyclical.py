@@ -83,6 +83,7 @@ class ASLBase(nn.Module):
         log_preds = log_preds * asymmetric_w
         return log_preds
 
+@register("asl_single_label")
 class ASLSingleLabel(ASLBase):
     '''
     This loss is intended for single-label classification problems
@@ -113,6 +114,7 @@ class ASLSingleLabel(ASLBase):
 
         return self.loss_calc(log_preds)
 
+@register("asl_focal_loss")
 class ASL_FocalLoss(ASLBase):
     '''
     This loss is intended for single-label classification problems
@@ -141,6 +143,7 @@ class ASL_FocalLoss(ASLBase):
 
         return self.loss_calc(log_preds)
 
+@register("cyclical_focal_loss")
 class Cyclical_FocalLoss(ASLBase):
     '''
     This loss is intended for single-label classification problems
