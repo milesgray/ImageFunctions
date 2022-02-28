@@ -2,20 +2,22 @@ train_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/frames/
+      root_path: /content/full/
       repeat: 1
       cache: in_memory
-      last_k: 700
+      last_k: 500
       skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
-      inp_size_min: 48
-      inp_size_max: 48
+      inp_size_min: 32
+      inp_size_max: 128
       scale_min: 2
       scale_max: 4
       augment: true
-      sample_q: 2304
+      sample_q: 4096
+      vary_q: false
+      color_augment: false
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -26,9 +28,9 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      first_k: 1000
+      first_k: 50
       skip_every: 1
-      repeat: 1
+      repeat: 2
       cache: in_memory
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -37,7 +39,7 @@ val_dataset:
       inp_size_max: 48
       scale_min: 2
       scale_max: 6
-      sample_q: 2304
+      sample_q: 4096
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -57,9 +59,9 @@ model:
       name: resnexter
       args:
         num_colors: 3
-        layers: [8,4,2]
-        num_filters: 64
-        out_filters: 32
+        layers: [3,3,2]
+        num_filters: 128
+        out_filters: 64
         zero_init_residual: false
 
     imnet_spec:
@@ -93,7 +95,7 @@ losses:
         args:
           scale: 3
       weight: 1.0
-
+      
 optimizer:
   name: adamw
   args:
