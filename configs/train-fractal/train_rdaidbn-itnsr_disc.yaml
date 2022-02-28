@@ -2,20 +2,22 @@ train_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/content/full/
+      root_path: /content/full/
       repeat: 1
       cache: in_memory
-      last_k: 800
+      last_k: 500
       skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
-      inp_size_min: 48
-      inp_size_max: 48
-      scale_min: 2.1
-      scale_max: 5
+      inp_size_min: 32
+      inp_size_max: 128
+      scale_min: 2
+      scale_max: 4
       augment: true
-      sample_q: 4608
+      sample_q: 4096
+      vary_q: false
+      color_augment: false
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -25,10 +27,10 @@ val_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/content/full/
-      first_k: 100
+      root_path: /content/full/
+      first_k: 50
       skip_every: 1
-      repeat: 1
+      repeat: 2
       cache: in_memory
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -37,7 +39,7 @@ val_dataset:
       inp_size_max: 48
       scale_min: 2
       scale_max: 6
-      sample_q: 4608
+      sample_q: 4096
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -54,102 +56,57 @@ model:
     local_ensemble: True
     scale_token: True
     encoder_spec:
-      name: rdaidbn
+      name: resnexter
       args:
-        blocks: 24
-        layers: 6
-        filters: 16
-        no_upsampling: true
+        num_colors: 3
+        layers: [3,3,2]
+        num_filters: 128
+        out_filters: 64
+        zero_init_residual: false
 
     imnet_spec:
       name: mlp
       args:
         in_dim: 4
-        hidden_list: [256,256,256,256]
+        hidden_list: [256,256]
         act: 'gelu'
-
-    embedding_scale:
-      name: mlp
-      args:
-        in_dim: 2
-        out_dim: 2
-        hidden_list: [64,64]
-        act: leaky_relu
-    embedding_coord:
-      name: mlp
-      args:
-        in_dim: 2
-        out_dim: 2
-        hidden_list: [64,64]
-        act: leaky_relu
-d_model:
-  name: freq_disc
-  args:
-    model_spec:
-      name: mlp
-      args:
-        in_dim: 27648
-        out_dim: 1
-        hidden_list: [256, 256, 256, 256]
-        act: gelu
 
 losses:
   q:
-    l1:
+    dst:
       fn:
-        name: l1
-        args:
-      weight: 0.1
-    fspace:
-      fn:
-        name: fourier_space
+        name: dists
         args:
       weight: 1.0
-    sobol:
+    bce:
       fn:
-        name: sobolev_norm
+        name: bce_with_logits
         args:
-      weight: 0.1
+      weight: 0.2
   img:
     freq:
       fn:
-        name: focal_freq
+        name: fourier_space
         args:    
-      weight: 1.0
+      weight: 0.025
     msL1:
       fn:
         name: multiscale_l1
         args:
           scale: 3
       weight: 1.0
-  teacher:
-    kl:
-      fn: 
-        name: teacher_kl
-        args: 
-          T: 0.1
-      weight: 0.1
-  adv:
-    nsat:
-      fn: 
-        name: gan_nonsaturating
-        args: 
-      weight: 0.1
-      
       
 optimizer:
   name: adamw
   args:
     lr: 2.e-4
-d_optimizer:
-  name: adamw
-  args:
-    lr: 1.e-4
-
 epoch_max: 100
+multi_step_lr:
+  milestones: [90]
+  gamma: 0.5
+
 epoch_val: 1
 epoch_save: 1
-batch_eval: 700
 
 resume: ~
 pre_train: ~
