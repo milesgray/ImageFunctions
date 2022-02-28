@@ -116,10 +116,7 @@ class ResNeXtER(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.norm(x)
-        x = self.act(x)
-        x = self.attn(x)
+        x = self.head(x)
 
         c1 = self.layer1(x)
         c2 = self.layer2(torch.cat([x,c1],dim=1))
@@ -131,7 +128,7 @@ class ResNeXtER(nn.Module):
         f2 = self.fuse2(g)
         f3 = self.fuse3(g)
         
-        f = self.balance1(self.balance2(x, f1), self.balance3(f2, f3)))
+        f = self.balance1(self.balance2(x, f1), self.balance3(f2, f3))
         
         out = self.gff(f)
 
