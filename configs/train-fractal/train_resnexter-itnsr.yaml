@@ -5,7 +5,7 @@ train_dataset:
       root_path: /content/frames/
       repeat: 1
       cache: in_memory
-      last_k: 4000
+      last_k: 700
       skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -26,7 +26,7 @@ val_dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      first_k: 60000
+      first_k: 1000
       skip_every: 1
       repeat: 1
       cache: in_memory
@@ -69,12 +69,6 @@ model:
         hidden_list: [256,256]
         act: 'gelu'
 
-teacher:
-  dataset: feedback
-  backbone: rdn
-  head: itnsr
-  id: 21
-
 losses:
   q:
     dst:
@@ -99,14 +93,7 @@ losses:
         args:
           scale: 3
       weight: 1.0
-  teacher:
-    kl:
-      fn: 
-        name: teacher_kl
-        args: 
-          T: 0.1
-      weight: 0.1
-      
+
 optimizer:
   name: adamw
   args:

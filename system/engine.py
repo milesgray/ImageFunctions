@@ -70,11 +70,11 @@ class TrainingEngine:
         
     def init_config(self):
         try:
-            with open(args["config"], 'r') as f:
+            with open(self.args["config"], 'r') as f:
                 self.config = yaml.load(f, Loader=yaml.loader.SafeLoader)
                 if self.resume_id:
                     self.config["resume"] = f"{self.root_path}{self.resume_id}/epoch-last.pth"
-                self.log(f'Config Initialized!  Loaded from {args["config"]}')
+                self.log(f'Config Initialized!  Loaded from {self.args["config"]}')
         except Exception as e:
             self.log(f"Failed to init config:\n{e}")
             
@@ -210,12 +210,12 @@ class TrainingEngine:
         dataset = datasets.make(spec['dataset'])
         dataset = datasets.make(spec['wrapper'], args={'dataset': dataset})
 
-        log_msg('{} dataset: size={}'.format(tag, len(dataset)))
+        self.log('{} dataset: size={}'.format(tag, len(dataset)))
         for k, v in dataset[0].items():
             if hasattr(v, "shape"):
-                log_msg('  {}: shape={}'.format(k, tuple(v.shape)))
+                self.log('  {}: shape={}'.format(k, tuple(v.shape)))
             else:
-                log_msg('  {}: len={}'.format(k, len(v)))
+                self.log('  {}: len={}'.format(k, len(v)))
 
         loader = DataLoader(dataset, 
                             batch_size=spec['batch_size'],

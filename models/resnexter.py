@@ -17,14 +17,13 @@ def dwconv7x7(filters):
 def conv1x1(in_filters, out_filters):
     return nn.Linear(in_filters, out_filters)
 
-
 class Block(nn.Module):
     expansion = 1
 
     def __init__(self, filters, drop_path=0, norm_layer=None, scale_init=1e-5):
         super().__init__()
         if norm_layer is None:
-            norm_layer = nn.LayerNorm
+            norm_layer = nn.InstanceNorm2d
             
         self.dwconv = dwconv7x7(filters)
         self.norm = norm_layer(filters)
@@ -60,7 +59,7 @@ class ResNeXtER(nn.Module):
         self.out_dim = out_filters
 
         if norm_layer is None:
-            norm_layer = nn.LayerNorm
+            norm_layer = partial(nn.InstanceNorm2d, affine=True)
         self._norm_layer = norm_layer
 
         self.filters = num_filters
@@ -106,7 +105,7 @@ class ResNeXtER(nn.Module):
         """
         :param last_relu: in metric learning paradigm, the final relu is removed (last_relu = False)
         """
-        norm_layer = self._norm_layer
+        norm_layer =  nn.InstanceNorm2d
 
         layers = list()
         layers.append(block(filters, drop_path=0.1, norm_layer=norm_layer))
