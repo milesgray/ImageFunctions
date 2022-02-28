@@ -83,7 +83,7 @@ class TrainingEngine:
             save_name = self.args["name"]
             if save_name is None:
                 save_name = '_' + self.args["config"].split('/')[-1][:-len('.yaml')]
-            if args["tag"] is not None:
+            if self.args["tag"] is not None:
                 save_name += '_' + self.args["tag"]
             self.save_path = pathlib.Path(self.root_path) / save_name
             if "resume" in self.config and self.config["resume"] is not None:
