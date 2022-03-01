@@ -1,0 +1,133 @@
+train_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/
+      repeat: 3
+      cache: in_memory
+      last_k: 300
+      skip_every: 1
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 32
+      inp_size_max: 64
+      scale_min: 2
+      scale_max: 4
+      augment: true
+      sample_q: 4096
+      vary_q: false
+      color_augment: false
+      return_hr: true
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+
+val_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/
+      first_k: 50
+      skip_every: 1
+      repeat: 2
+      cache: in_memory
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 48
+      inp_size_max: 48
+      scale_min: 2
+      scale_max: 6
+      sample_q: 4096
+      return_hr: true
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+
+data_norm:
+  inp: {sub: [0], div: [1]}
+  gt: {sub: [0], div: [1]}
+
+model:
+  name: ITNSR
+  args:
+    feat_unfold: True
+    local_ensemble: True
+    scale_token: True
+    encoder_spec:
+      name: resnexter
+      args:
+        num_colors: 3
+        layers: [3,2,2]
+        num_filters: 64
+        out_filters: 64
+        zero_init_residual: false
+
+    imnet_spec:
+      name: mlp
+      args:
+        in_dim: 4
+        hidden_list: [256,256]
+        act: 'gelu'
+optimizer:
+  name: adamw
+  args:
+    lr: 2.e-4
+
+d_model:
+  name: freq_disc
+  args:
+    model_spec:
+      name: mlp
+      args:
+        in_dim: 27648
+        out_dim: 1
+        hidden_list: [256, 256, 256, 256]
+        act: gelu
+d_optimizer:
+  name: adamw
+  args:
+    lr: 1.e-4
+
+losses:
+  q:
+    dst:
+      fn:
+        name: dists
+        args:
+      weight: 1.0
+    bce:
+      fn:
+        name: bce_with_logits
+        args:
+      weight: 0.2
+    freq:
+      fn:
+        name: focal_freq
+        args:
+      weight: 1.0
+  img:
+    freq:
+      fn:
+        name: fourier_space
+        args:    
+      weight: 0.025
+    msL1:
+      fn:
+        name: multiscale_l1
+        args:
+          scale: 3
+      weight: 1.0
+
+
+epoch_max: 100
+multi_step_lr:
+  milestones: [90]
+  gamma: 0.5
+
+epoch_val: 1
+epoch_save: 1
+
+resume: ~
+pre_train: ~

@@ -26,7 +26,7 @@ class Block(nn.Module):
             norm_layer = nn.InstanceNorm2d
             
         self.dwconv = dwconv7x7(filters)
-        self.norm = norm_layer(filters)
+        self.norm = create_layer("layer_norm")(filters, data_format="channels_last")
         self.act = nn.GELU()
         self.pwconv1 = conv1x1(filters, filters * 4)
         self.pwconv2 = conv1x1(filters * 4, filters)

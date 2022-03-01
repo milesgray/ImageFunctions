@@ -480,7 +480,11 @@ def _fft(x):
     y2 = np.fft.fft(xo)
     # Todo: simplify
     y = np.zeros(n, dtype=complex)
-    for k in range(n // 2 - 1):
+    """_summary_
+
+    Returns:
+        _type_: _description_
+    """    for k in range(n // 2 - 1):
         w = np.exp(-2j * np.pi * k / n)
         y[k]            = y1[k] + w * y2[k]
         y[k + (n // 2)] = y1[k] - w * y2[k]
