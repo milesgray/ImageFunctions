@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from .registry import register
 from .layers import create as create_layer
 from .layers.activations import create as create_act
+from .layers.nonlocal_attn import NonLocalAttention
 
 __all__ = ['ResNeXtER', 'resnexter18', 'resnexter34', 'resnexter50', 'resnexter101', 'resnexter152']
 
@@ -26,7 +27,7 @@ class Block(nn.Module):
             norm_layer = nn.InstanceNorm2d
             
         self.dwconv = dwconv7x7(filters)
-        self.norm = create_layer("layer_norm")(normalized_shape=filters, data_format="channels_last")
+        self.norm = norm_layer(filters)
         self.act = nn.GELU()
         self.pwconv1 = conv1x1(filters, filters * 4)
         self.pwconv2 = conv1x1(filters * 4, filters)
@@ -111,7 +112,7 @@ class ResNeXtER(nn.Module):
         layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
         for i in range(1, blocks):
             layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
-            layers.append(create_layer("cross_attn", dim=filters, dropout=dropout))
+            layers.append(NonLocalAttention(filters))
 
         return nn.Sequential(*layers)
 
