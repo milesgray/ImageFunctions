@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from .registry import register
 from .layers import create as create_layer
 from .layers.activations import create as create_act
-from .layers.nonlocal_attn import NonLocalAttention
+from .layers import SpectralConv2
 
 __all__ = ['ResNeXtER', 'resnexter18', 'resnexter34', 'resnexter50', 'resnexter101', 'resnexter152']
 
@@ -112,7 +112,7 @@ class ResNeXtER(nn.Module):
         layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
         for i in range(1, blocks):
             layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
-            layers.append(NonLocalAttention(filters))
+            layers.append(SpectralConv2(filters, filters, 5, 18))
 
         return nn.Sequential(*layers)
 
