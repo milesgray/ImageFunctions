@@ -17,6 +17,7 @@ def dof_stiefel_canonical(rank, n):
     return rank * (n - rank)
 
 
+@register("stiefel_canon")
 class StiefelHouseholderCanonical(torch.nn.Module):
     has_penalty = False
 
@@ -80,7 +81,7 @@ class StiefelHouseholderCanonical(torch.nn.Module):
     def flops(self):
         return self.batch * self.rank * (4 * self.n * self.rank + 3 * self.n + 1)
 
-
+@register("stiefel")
 class StiefelHouseholder(torch.nn.Module):
     has_penalty = False
 

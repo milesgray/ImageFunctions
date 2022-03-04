@@ -16,7 +16,7 @@ import ImageFunctions.models as models
 import ImageFunctions.utility as utils
 
 
-class TrainingEngine:
+class SuperResTrainingEngine:
     def __init__(self, args: dict,
                  comet=None, 
                  log=print):
@@ -66,7 +66,7 @@ class TrainingEngine:
         self.epoch = comp["epoch"]
         self.lr_scheduler = comp["lr_scheduler"]
         
-        self.loaders = self.make_data_loaders()
+        self.loaders = self._make_data_loaders()
         
     def init_config(self):
         try:
@@ -96,8 +96,7 @@ class TrainingEngine:
         except Exception as e:
             self.log(f"Failed to make save path:\n{e}")
             return False
-        
-        
+           
     def build(self):
         comp = {}
         d_model = None
@@ -193,7 +192,7 @@ class TrainingEngine:
             "d_optimizer": d_optimizer
         }
         
-    def make_discriminator(self):
+    def _make_discriminator(self):
         d_model, d_optimizer = None, None
         if 'd_model' in self.config:
             d_model = models.make(self.config['d_model'])        
@@ -203,7 +202,7 @@ class TrainingEngine:
             self.log('model: #params={}'.format(utils.compute_num_params(d_model, text=True)))
         return d_model, d_optimizer
         
-    def make_data_loader(self, spec, tag=''):
+    def _make_data_loader(self, spec, tag=''):
         if spec is None:
             return None
 
@@ -224,9 +223,9 @@ class TrainingEngine:
                             pin_memory=spec['pin_memory'])
         return loader
 
-    def make_data_loaders(self):
-        train_loader = self.make_data_loader(self.config.get('train_dataset'), tag='train')
-        val_loader = self.make_data_loader(self.config.get('val_dataset'), tag='val')
+    def _make_data_loaders(self):
+        train_loader = self._make_data_loader(self.config.get('train_dataset'), tag='train')
+        val_loader = self._make_data_loader(self.config.get('val_dataset'), tag='val')
         return {"train":train_loader, "val":val_loader}
         
     def train(self, epoch_start=0):

@@ -219,42 +219,11 @@ class AdaPN(nn.Module):
         # addcmul like in AdaIN
         return torch.addcmul(z[:, 1], value=1., tensor1=z[:, 0] + 1, tensor2=y)
 
-@register("stddev_batch")
-class MinibatchStdDev(nn.Module):
-    """
-    Minibatch standard deviation layer
-    reference: https://github.com/akanimax/pro_gan_pytorch/blob/master/pro_gan_pytorch/CustomLayers.py#L300
-    """
-
+    
+@register("pixel_norm")
+class PixelNorm(nn.Module):
     def __init__(self):
-        """
-        derived class constructor
-        """
         super().__init__()
 
-    def forward(self, x, alpha=1e-8):
-        """
-        forward pass of the layer
-        :param x: input activation volume
-        :param alpha: small number for numerical stability
-        :return: y => x appended with standard deviation constant map
-        """
-        batch_size, _, height, width = x.shape
-
-        # [B x C x H x W] Subtract mean over batch.
-        y = x - x.mean(dim=0, keepdim=True)
-
-        # [1 x C x H x W]  Calc standard deviation over batch
-        y = torch.sqrt(y.pow(2.).mean(dim=0, keepdim=False) + alpha)
-
-        # [1]  Take average over feature_maps and pixels.
-        y = y.mean().view(1, 1, 1, 1)
-
-        # [B x 1 x H x W]  Replicate over group and pixels.
-        y = y.repeat(batch_size, 1, height, width)
-
-        # [B x C x H x W]  Append as new feature_map.
-        y = torch.cat([x, y], 1)
-
-        # return the computed values:
-        return y
+    def forward(self, x):
+        return x * torch.rsqrt(torch.mean(x ** 2, dim=1, keepdim=True) + 1e-8)
