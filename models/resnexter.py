@@ -113,7 +113,7 @@ class ResNeXtER(nn.Module):
         layers.append(SpectralConv2d(filters, filters, 12, 12))
         for i in range(1, blocks):
             layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
-            layers.append(SpectralConv2d(filters, filters, 5, 18))
+            layers.append(SpectralConv2d(filters, filters, 12, 12))
 
         return nn.Sequential(*layers)
 
