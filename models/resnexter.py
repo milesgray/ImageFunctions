@@ -95,8 +95,6 @@ class ResNeXtER(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            if isinstance(m, SpectralConv2d):
-                nn.init.constant_(m.norm.weight, 0)
 
         if zero_init_residual:
             for m in self.modules():
