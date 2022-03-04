@@ -118,8 +118,20 @@ losses:
       fn:
         name: multiscale_l1
         args:
-          scale: 3
+          scale: 4
       weight: 1.0
+  adv:
+    fake:
+      fn:
+        name: dcgan_disc
+        args:
+      weight: 0.5
+    real:
+      fn:
+        name: gan_nonsaturating_real
+        args:
+      weight: 0.5
+    
 
 
 epoch_max: 100
