@@ -81,7 +81,7 @@ d_model:
     model_spec:
       name: mlp
       args:
-        in_dim: 27648
+        in_dim: 24576
         out_dim: 1
         hidden_list: [256, 256, 256, 256]
         act: gelu
@@ -89,6 +89,7 @@ d_optimizer:
   name: adamw
   args:
     lr: 1.e-4
+start_disc: 5
 
 losses:
   q:
