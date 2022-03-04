@@ -6,6 +6,7 @@ try:
 except ImportError:
     from torch.linalg import householder_product
 
+from .registry import register
 
 def dof_stiefel(rank, n):
     assert rank <= n
