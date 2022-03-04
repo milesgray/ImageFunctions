@@ -95,6 +95,8 @@ class ResNeXtER(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            if isinstance(m, SpectralConv2d):
+                nn.init.constant_(m.norm.weight, 0)
 
         if zero_init_residual:
             for m in self.modules():
@@ -110,9 +112,10 @@ class ResNeXtER(nn.Module):
 
         layers = list()
         layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
+        layers.append(SpectralConv2d(filters, filters, 12, 12))
         for i in range(1, blocks):
             layers.append(block(filters, drop_path=drop_path, norm_layer=norm_layer))
-            layers.append(SpectralConv2(filters, filters, 5, 18))
+            layers.append(SpectralConv2d(filters, filters, 5, 18))
 
         return nn.Sequential(*layers)
 
