@@ -85,7 +85,8 @@ class PixelAttention(nn.Module):
         self.channel_wise = channel_wise
         self.spatial_wise = spatial_wise
         if self.channel_wise:
-            self.channel_conv = nn.Conv2d(f_out, f_out, 1, 
+            self.channel_conv = nn.Conv2d(f_out, f_out, kernel, 
+                                          padding=get_valid_padding(kernel, 0), 
                                           groups=f_out, 
                                           bias=False)
         if self.spatial_wise:

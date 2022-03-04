@@ -26,9 +26,11 @@ class ConditionalBatchNorm2d(nn.Module):
     
 @register("layer_norm")
 class LayerNorm(nn.Module):
-    def __init__(self, normalized_shape, 
+    def __init__(self, 
+                 normalized_shape=None, 
                  eps=1e-6, 
                  data_format="channels_last"):
+        assert normalized_shape is not None
         super().__init__()
         self.weight = nn.Parameter(torch.ones(normalized_shape))
         self.bias = nn.Parameter(torch.zeros(normalized_shape))
@@ -57,7 +59,7 @@ class SpectralNorm(nn.Module):
     Based on the paper "Spectral Normalization for Generative Adversarial Networks" by Takeru Miyato, Toshiki Kataoka, Masanori Koyama, Yuichi Yoshida
     and the Pytorch implementation https://github.com/christiancosgrove/pytorch-spectral-normalization-gan
     """
-    def __init__(self, module, name='weight', power_iterations=1):
+    def __init__(self, module=None, name='weight', power_iterations=1):
         super().__init__()
         self.module = module
         self.name = name
@@ -114,7 +116,7 @@ class SpectralNorm(nn.Module):
 @register("filter_response_norm")
 class FilterResponseNorm(nn.Module):
     """ Filter Response Normalization """
-    def __init__(self, num_features, ndim, eps=None, learnable_eps=False):
+    def __init__(self, num_features=0, ndim=0, eps=None, learnable_eps=False):
         """
         Args:
             num_features
@@ -168,7 +170,7 @@ class AdaIN(nn.Module):
     Adaptive Instance normalization.
     reference: https://github.com/tkarras/progressive_growing_of_gans/blob/master/networks.py#L120
     """
-    def __init__(self, n_channels, code):
+    def __init__(self, n_channels=3, code=10):
         super().__init__()
         
         self.norm = nn.InstanceNorm2d(n_channels, affine=False, eps=1e-8)
@@ -196,7 +198,7 @@ class AdaPN(nn.Module):
     Pixelwise feature vector normalization.
     reference: https://github.com/tkarras/progressive_growing_of_gans/blob/master/networks.py#L120
     """
-    def __init__(self, n_channels, code):
+    def __init__(self, n_channels=3, code=10):
         super().__init__()
         self.A = ScaledLinear(code, n_channels * 2)
 
