@@ -23,7 +23,7 @@ class DCGANGeneratorLoss(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, dis_out_fake):
+    def forward(self, dis_out_real, dis_out_fake):
         return -torch.mean(nn.LogSigmoid()(gen_out_fake))
 
 @register("lsgan_disc")
@@ -57,7 +57,7 @@ class HingeDiscriminatorLoss(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, gen_out_fake):
+    def forward(self, dis_out_real, gen_out_fake):
         return -torch.mean(gen_out_fake)
 
 @register("gan_wgan_disc")
@@ -73,7 +73,7 @@ class WGANGeneratorLoss(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, gen_out_fake):
+    def forward(self, dis_out_real, gen_out_fake):
         return -torch.mean(gen_out_fake)
 
 
@@ -90,13 +90,20 @@ class GradLoss(nn.Module):
             loss = grad_loss.compute_r1_penalty(disc_model, real)
         return loss
 
-@register("gan_nonsaturating")
-class NonSaturatingLoss(nn.Module):
+@register("gan_nonsaturating_fake")
+class FakeNonSaturatingLoss(nn.Module):
     def __init__(self):
         super().__init__()
     
-    def forward(self, fake):
-        return (-F.softsign(fake)).mean()
+    def forward(self, real, fake):
+        return F.softplus(fake).mean()
+@register("gan_nonsaturating_real")
+class RealNonSaturatingLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, real, fake):
+        return F.softplus(-real).mean()
 
 @register("gan_hinge")
 class HingeLoss(nn.Module):
