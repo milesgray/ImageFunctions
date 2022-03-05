@@ -2,7 +2,7 @@ train_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/
+      root_path: /content/frames/
       repeat: 3
       cache: in_memory
       last_k: 300
