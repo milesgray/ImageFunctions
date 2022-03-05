@@ -2,20 +2,22 @@ train_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/content/full/
-      repeat: 1
+      root_path: /content/frames/
+      repeat: 3
       cache: in_memory
-      last_k: 800
+      last_k: 300
       skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
-      inp_size_min: 48
-      inp_size_max: 48
-      scale_min: 2.1
-      scale_max: 5
+      inp_size_min: 32
+      inp_size_max: 64
+      scale_min: 2
+      scale_max: 4
       augment: true
-      sample_q: 4608
+      sample_q: 4096
+      vary_q: false
+      color_augment: false
       return_hr: true
   batch_size: 1
   num_workers: 4
@@ -25,10 +27,10 @@ val_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/content/full/
-      first_k: 100
+      root_path: /content/full/
+      first_k: 50
       skip_every: 1
-      repeat: 1
+      repeat: 2
       cache: in_memory
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -37,7 +39,7 @@ val_dataset:
       inp_size_max: 48
       scale_min: 2
       scale_max: 6
-      sample_q: 4608
+      sample_q: 4096
       return_hr: true
   batch_size: 1
   num_workers: 4

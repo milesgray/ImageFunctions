@@ -37,7 +37,7 @@ class SpectralIMDModule(nn.Module):
         self.c3 = conv_layer(self.distilled_channels * 2, self.in_channels, 1)
         
         self.balance = Balance()
-        self.attn = NonLocalAttention(self.in_channels)
+        self.attn = LocalSelfAttention(self.in_channels, self.in_channels, 7, padding=3)
 
     def forward(self, x):
         out_c1 = self.act(self.c1(x))
