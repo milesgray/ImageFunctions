@@ -103,7 +103,7 @@ class SuperResTrainingEngine:
         d_optimizer = None
         max_val_v = 0
         if self.config.get('resume') is not None:
-            comp = load_checkpoint()
+            comp = self.load_checkpoint()
         else:
             comp["model"] = models.make(self.config['model'])
             if torch.cuda.is_available():
@@ -245,7 +245,7 @@ class SuperResTrainingEngine:
             for k,v in train_results.items():
                 if k != "TRAIN":
                     msg = f"{msg}\t[{k}] {v:.5f}"
-            log_msg(msg)
+            self.log(msg)
 
             self.save_models()
     

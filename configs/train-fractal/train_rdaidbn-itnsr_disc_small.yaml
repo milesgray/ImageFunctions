@@ -1,0 +1,177 @@
+train_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/content/full/
+      repeat: 1
+      cache: in_memory
+      last_k: 800
+      skip_every: 1
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 48
+      inp_size_max: 48
+      scale_min: 2.1
+      scale_max: 5
+      augment: true
+      sample_q: 4608
+      return_hr: true
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+
+val_dataset:
+  dataset:
+    name: image-folder
+    args:
+      root_path: /content/full/content/full/
+      first_k: 100
+      skip_every: 1
+      repeat: 1
+      cache: in_memory
+  wrapper:
+    name: sr-setrange-downsampled-randcrop
+    args:
+      inp_size_min: 48
+      inp_size_max: 48
+      scale_min: 2
+      scale_max: 6
+      sample_q: 4608
+      return_hr: true
+  batch_size: 1
+  num_workers: 4
+  pin_memory: true
+
+data_norm:
+  inp: {sub: [0], div: [1]}
+  gt: {sub: [0], div: [1]}
+
+model:
+  name: ITNSR
+  args:
+    feat_unfold: True
+    local_ensemble: True
+    scale_token: True
+    encoder_spec:
+      name: rdaidbn
+      args:
+        blocks: 12
+        layers: 6
+        filters: 16
+        out_filters: 64
+        spectral_modes: [12,12]
+        spectral_shift: [false, true]
+        spectral_freq: [false, true]
+        no_upsampling: true
+    imnet_spec:
+      name: mlp
+      args:
+        in_dim: 4
+        hidden_list: [256,256,256,256]
+        act: mish
+        use_sn: false
+        has_norm: true
+    embedding_scale:
+      name: mlp
+      args:
+        in_dim: 2
+        out_dim: 2
+        hidden_list: [64,64]
+        act: leaky_relu
+    embedding_coord:
+      name: mlp
+      args:
+        in_dim: 2
+        out_dim: 2
+        hidden_list: [256,256]
+        act: leaky_relu
+d_model:
+  name: freq_disc
+  args:
+    model_spec:
+      name: mlp
+      args:
+        in_dim: 27648
+        out_dim: 1
+        use_sn: false
+        hidden_list: [256, 256, 256, 256]
+        act: gelu
+start_disc: 2
+
+teacher:
+  dataset: feedback
+  backbone: rdn
+  head: itnsr
+  id: 21
+  
+end_teach: 1
+
+losses:
+  q:
+    bce:
+      fn:
+        name: bce
+        args:
+      weight: 0.1
+    fspace:
+      fn:
+        name: fourier_space
+        args:
+      weight: 1.0
+    sobol:
+      fn:
+        name: sobolev_norm
+        args:
+      weight: 0.1
+  img:
+    fhspace:
+      fn:
+        name: fourier_hi_space
+        args:
+      weight: 0.1
+    freq:
+      fn:
+        name: focal_freq
+        args:    
+      weight: 1.0
+    fs:
+      fn:
+        name: fs
+        args:
+      weight: 1.0
+  teacher:
+    kl:
+      fn: 
+        name: teacher_kl
+        args: 
+          T: 0.1
+      weight: 0.1
+  adv:
+    real:
+      fn: 
+        name: gan_nonsaturating_real
+        args: 
+      weight: 0.1
+    fake:
+      fn: 
+        name: gan_nonsaturating_fake
+        args: 
+      weight: 0.1
+      
+optimizer:
+  name: adamw
+  args:
+    lr: 2.e-4
+d_optimizer:
+  name: adamw
+  args:
+    lr: 1.e-4
+
+epoch_max: 100
+epoch_val: 1
+epoch_save: 1
+batch_eval: 700
+
+resume: ~
+pre_train: ~

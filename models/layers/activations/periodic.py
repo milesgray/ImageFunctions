@@ -90,7 +90,7 @@ class SinesCosines(Sine):
         x = self.w0 * x
         return torch.cat([x.sin(), x.cos()], dim=1)
     
-@register("sines_cosines")
+@register("sines_cosines_learnable")
 class SinesCosinesLearnable(SineLearnable):
     """
     Sines-cosines activation function

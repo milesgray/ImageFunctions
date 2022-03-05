@@ -59,7 +59,7 @@ model:
       name: resnexter
       args:
         num_colors: 3
-        layers: [3,2,2]
+        layers: [3,3,3,3]
         num_filters: 64
         out_filters: 64
         zero_init_residual: false
@@ -68,8 +68,8 @@ model:
       name: mlp
       args:
         in_dim: 4
-        hidden_list: [256,256]
-        act: 'gelu'
+        hidden_list: [256,256,256,256]
+        act: sine_learnable
 optimizer:
   name: adamw
   args:
@@ -83,7 +83,7 @@ d_model:
       args:
         in_dim: 24576
         out_dim: 1
-        hidden_list: [256, 256, 256, 256]
+        hidden_list: [256, 256, 256]
         act: gelu
 d_optimizer:
   name: adamw
