@@ -6,6 +6,7 @@ from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
 from .registry import register
+from .registry import create as create_layer
 from .learnable import Balance, Scale
     
 @register("residual")
@@ -23,7 +24,17 @@ class Residual(nn.Module):
 class PreNorm(nn.Module):
     def __init__(self, dim, fn, norm=nn.LayerNorm):
         super().__init__()
-        norm = eval(norm) if isinstance(norm, str) else norm
+        norm = create(norm)
+        self.norm = norm(dim)
+        self.fn = fn
+    def forward(self, x, **kwargs):
+        return self.fn(self.norm(x), **kwargs)
+
+@register("prenorm_residual")
+class PreNormResidual(nn.Module):
+    def __init__(self, dim, fn, norm=nn.LayerNorm):
+        super().__init__()
+        norm = create(norm)
         self.norm = norm(dim)
         self.fn = fn
     def forward(self, x, **kwargs):

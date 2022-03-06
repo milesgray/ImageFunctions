@@ -1,4 +1,5 @@
 import math
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -15,16 +16,20 @@ from .linear_residual import LinearResidual
 
 @register("lft_position")
 class LFTPositionEncoding(nn.Module):
-    def __init__(self, temperature):
+    def __init__(self, temperature, token_dim):
         super().__init__()
         self.temperature = temperature
+        self.token_dim = token_dim
+
+    def make_grid(self, token_dim, temperature=self.temperature):
+        grid_dim = torch.linspace(0, token_dim - 1, token_dim, dtype=torch.float32)
+        grid_dim = 2 * (grid_dim // 2) / token_dim
+        grid_dim = temperature ** grid_dim
+        return grid_dim
 
     def forward(self, x, dim: list, token_dim):
-        self.token_dim = token_dim
         assert len(x.size()) == 5, 'the object of position encoding requires 5-dim tensor! '
-        grid_dim = torch.linspace(0, self.token_dim - 1, self.token_dim, dtype=torch.float32)
-        grid_dim = 2 * (grid_dim // 2) / self.token_dim
-        grid_dim = self.temperature ** grid_dim
+        grid_dim  self.make_grid(token_dim, temperature=self.temperature)
         position = None
         for index in range(len(dim)):
             pos_size = [1, 1, 1, 1, 1, self.token_dim]

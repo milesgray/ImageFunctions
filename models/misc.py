@@ -62,8 +62,9 @@ class MetaSR(nn.Module):
         inp = torch.cat([rel_coord, r_rev.unsqueeze(-1)], dim=-1)
 
         bs, q = coord.shape[:2]
-        pred = self.imnet(inp.view(bs * q, -1)).view(bs * q, feat.shape[1], 3)
-        pred = torch.bmm(q_feat.contiguous().view(bs * q, 1, -1), pred)
+        pred = self.imnet(inp.view(bs * q, -1)
+        pred = torch.bmm(q_feat.contiguous().view(bs * q, 1, -1),   
+                         pred.view(bs * q, feat.shape[1], 3))
         pred = pred.view(bs, q, 3)
         return pred
 

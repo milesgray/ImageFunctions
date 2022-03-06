@@ -1,4 +1,10 @@
-def spectral_penalty_d_optimal(svs, already_abs=False, already_normalized=False, eps=1e-7):
+from .registry import register
+
+@register("spectral_d_optimal")
+def spectral_penalty_d_optimal(svs, 
+                               already_abs=False, 
+                               already_normalized=False, 
+                               eps=1e-7):
     """
     D-Optimal Regularizer as described in https://openreview.net/pdf?id=rJNH6sAqY7
     """
@@ -12,10 +18,13 @@ def spectral_penalty_d_optimal(svs, already_abs=False, already_normalized=False,
     reg = reg / num_svs_total
     return reg
 
-
-def spectral_penalty_divergence(
-        svs, param_a=0.1, already_abs=False, already_normalized=False, already_sorted_descending=False, eps=1e-7
-):
+@register("spectral_divergence")
+def spectral_penalty_divergence(svs, 
+                                param_a=0.1, 
+                                already_abs=False, 
+                                already_normalized=False, 
+                                already_sorted_descending=False, 
+                                eps=1e-7):
     """
     Divergence Regularizer as described in https://openreview.net/pdf?id=rJNH6sAqY7
     """
