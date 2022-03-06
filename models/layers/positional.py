@@ -29,10 +29,10 @@ class LFTPositionEncoding(nn.Module):
 
     def forward(self, x, dim: list, token_dim):
         assert len(x.size()) == 5, 'the object of position encoding requires 5-dim tensor! '
-        grid_dim  self.make_grid(token_dim, temperature=self.temperature)
+        grid_dim = self.make_grid(token_dim, temperature=self.temperature)
         position = None
         for index in range(len(dim)):
-            pos_size = [1, 1, 1, 1, 1, self.token_dim]
+            pos_size = [1, 1, 1, 1, self.token_dim]
             length = x.size(dim[index])
             pos_size[dim[index]] = length
 
