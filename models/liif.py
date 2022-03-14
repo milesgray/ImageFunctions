@@ -72,7 +72,7 @@ class LIIF(nn.Module):
         feat_coord = feat_coord.permute(2, 0, 1) \
                       .unsqueeze(0) \
                           .expand(feat.shape[0], 
-                                  self.encoder.out_dim, 
+                                  2, 
                                   *feat.shape[-2:])
 
         preds = []

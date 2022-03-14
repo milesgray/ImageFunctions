@@ -31,13 +31,15 @@ statistic. Now, the loss ratio is used as a point estimate of the mean to yield 
 *(4)*
 where `σli(t)` is the standard deviation over all known loss ratios `Li(t)/µli(t−1)` until iteration `t` - 1
 """
-import torch
 import numpy as np
+
+import torch
+
 
 class LossTracker:
     def __init__(self, name, 
                  fn=lambda x, y: x,
-                 experiment=None, 
+                 comet=None, 
                  weight=1.0,
                  warmup=np.inf,
                  stats_window=100,
@@ -55,7 +57,7 @@ class LossTracker:
         Args:
             name (str): Identifier for this particular loss function.
             fn (callable): Metric function to use as loss.
-            experiment (comet.Experiment, optional): A comet.ml experiment for logging.
+            comet (comet.Experiment, optional): A comet.ml experiment for logging.
                 Defaults to None.
             weight (float, optional): Static value to multiply each loss result by.
                 Either this value or a dynamic weight will be applied, depending on the
@@ -79,7 +81,7 @@ class LossTracker:
         """
         self.name = name
         self.fn = fn
-        self.exp = experiment
+        self.comet = comet
         self.weight = weight
         self.loss_low_limit = loss_limits[0]
         self.loss_up_limit = loss_limits[1]
@@ -142,7 +144,7 @@ class LossTracker:
             self.value = value
         self.total += self.value
         if self.count >= self.max_history_size:
-            self.expand_buffer()
+            self.cometand_buffer()
         assert self.count < self.max_history_size
         self.value_history[self.count] = self.value
         # update statistical calculations such as mean
@@ -181,17 +183,17 @@ class LossTracker:
             print(f"[ERROR]\tFailed to set metric stats\n{e}")
 
     def log(self, comet=True, console=False):
-        if comet and self.exp:
-            self.exp.log_metric(f"{self.name}_loss", self.value)
-            self.exp.log_metric(f"{self.name}_cov", self.cov)
-            self.exp.log_metric(f"{self.name}_cov_weight", self.cov_weight)
-            self.exp.log_metric(f"{self.name}_var", self.var)
-            self.exp.log_metric(f"{self.name}_std", self.std)
+        if comet and self.comet:
+            self.comet.log_metric(f"{self.name}_loss", self.value)
+            self.comet.log_metric(f"{self.name}_cov", self.cov)
+            self.comet.log_metric(f"{self.name}_cov_weight", self.cov_weight)
+            self.comet.log_metric(f"{self.name}_var", self.var)
+            self.comet.log_metric(f"{self.name}_std", self.std)
         if console:
             msg = f"[{self.name}] [{self.count}]\t{self.value} @ {self.weight}x \t ~ mean: {self.mean} var: {self.var} std: {self.std} cov: {self.cov}"
             print(msg)
-            if self.exp: 
-                self.exp.log_text(msg)
+            if self.comet: 
+                self.comet.log_text(msg)    
 
     def get_history(self):
         return self.value_history[:self.count]

@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from .layers import PixelAttention, MeanShift, Scale, Balance
 from models import register
-
+from .layers.activations import create as create_act
 
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(
@@ -34,7 +34,7 @@ class ResBlock(nn.Module):
         self.res_scale = Scale(init_value=res_scale)
         self.use_pa = pa
         if pa:
-            self.pa_add = PixelAttention(f_in, n_feats)
+            self.pa_add = PixelAttention(n_feats)
             self.pa_sub = PixelAttention(n_feats)
             self.balance_add = Balance()
 
@@ -43,7 +43,7 @@ class ResBlock(nn.Module):
         if self.use_pa:
             y = res.sub(self.pa_sub(x))
             y = self.res_scale(y)
-            res = self.self.balance_add(y, self.pa_add(res))
+            res = self.balance_add(y, self.pa_add(res))
         else:
             res = self.res_scale(res)
         res += x
@@ -84,9 +84,10 @@ class EDSR(nn.Module):
         self.args = args
         n_resblocks = args.n_resblocks
         n_feats = args.n_feats
+        use_bn = args.use_bn
         kernel_size = 3
         scale = args.scale[0]
-        act = nn.ReLU(True)
+        act = nn.ReLU(True) if args.act == "relu" else create_act(args.act)
         self.url = None
         self.use_mean_shift = args.use_mean_shift
         if self.use_mean_shift:
@@ -99,7 +100,7 @@ class EDSR(nn.Module):
         # define body module
         m_body = [
             ResBlock(
-                conv, n_feats, kernel_size, act=act, pa=args.use_pa, res_scale=args.res_scale
+                conv, n_feats, kernel_size, bn=use_bn, act=act, pa=args.use_pa, res_scale=args.res_scale
             ) for _ in range(n_resblocks)
         ]
         m_body.append(conv(n_feats, n_feats, kernel_size))
@@ -155,14 +156,16 @@ class EDSR(nn.Module):
 
 
 @register('edsr-baseline')
-def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
-                       scale=2, no_upsampling=False, use_mean_shift=False, use_pa=False,
+def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1, act="relu",
+                       scale=2, no_upsampling=False, use_bn=False, use_mean_shift=False, use_pa=False,
                        rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289),
                        rgb_range=1):
     args = Namespace()
     args.n_resblocks = n_resblocks
     args.n_feats = n_feats
     args.res_scale = res_scale
+    args.act = act
+    args.use_bn = use_bn
 
     args.use_pa = use_pa
 
@@ -178,14 +181,16 @@ def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
 
 
 @register('edsr')
-def make_edsr(n_resblocks=32, n_feats=256, res_scale=0.1,
-              scale=2, no_upsampling=False, use_mean_shift=False, use_pa=False,
+def make_edsr(n_resblocks=32, n_feats=256, res_scale=0, act="relu",
+              scale=2, no_upsampling=False, use_bn=False, use_mean_shift=False, use_pa=False,
               rgb_mean=(0.40005, 0.42270, 0.45802), rgb_std=(0.28514, 0.31383, 0.28289), 
               rgb_range=1):
     args = Namespace()
     args.n_resblocks = n_resblocks
     args.n_feats = n_feats
     args.res_scale = res_scale
+    args.act = act
+    args.use_bn = use_bn
 
     args.use_pa = use_pa
 

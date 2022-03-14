@@ -290,7 +290,7 @@ class RandCropDataset(Dataset):
 class SRRandCropDataset(RandCropDataset):
     def __init__(self, dataset, inp_size=None, scale_min=1, scale_max=None,
                  augment=False, sample_q=None, color_augment=False, color_augment_strength=0.8,
-                 return_hr=False):
+                 return_hr=False, return_full=False, full_size=256):
         super().__init__(dataset, inp_size=inp_size, augment=augment, 
                          color_augment=color_augment, 
                          color_augment_strength=color_augment_strength)
@@ -300,6 +300,8 @@ class SRRandCropDataset(RandCropDataset):
         self.scale_max = scale_max
         self.sample_q = sample_q
         self.return_hr = return_hr
+        self.return_full = return_full
+        self.full_size = full_size
 
     def __getitem__(self, idx):
         img = self.dataset[idx]
@@ -321,6 +323,11 @@ class SRRandCropDataset(RandCropDataset):
         }
         if self.return_hr:
             result["hr"] = crop_hr
+        if self.return_full:
+            result["full"] = resize_fn(img, (self.full_size, 
+                                            int(self.full_size * (img.shape[1]/img.shape[2]))
+                                            )
+            )
         return result
 
     def make_crops(self, img):
@@ -681,12 +688,11 @@ class ZRSetRangeDownsampledRandCrop(SRSetRangeDownsampledRandCrop):
 
         w_lr = round(random.uniform(min(min(self.inp_size_min*s, img.shape[w_index]), img.shape[h_index]) // s, 
                                     min(min(self.inp_size_max*s, img.shape[w_index]), img.shape[h_index]) // s))
-        w_hr = round(w_lr * s)
         x0 = random.randint(0, img.shape[w_index] - w_hr)
         y0 = random.randint(0, img.shape[h_index] - w_hr)
         crop_hr = img[:, x0: x0 + w_hr, y0: y0 + w_hr]
         if self.return_freq:
-            f_img = tfft.hfft(img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
+            f_img = tfft.hfft(img.permute(2,0,1), norm="ortho").permute(1,2,0)
             f_crop_hr = f_img[:, x0: x0 + w_hr, y0: y0 + w_hr]
             if self.resize_hr:
                 if self.inp_size is None:
@@ -1008,7 +1014,7 @@ class ContrastiveRandCrop(RandCropDataset):
         grid_crop_ed = grid[x0: x0 + w_ed, y0: y0 + w_ed, :]
         
         if self.return_freq:
-            f_edge_img = tfft.hfft(edge_img.movedim((0,1,2),(2,0,1)), norm="ortho").movedim((0,1,2),(1,2,0))
+            f_edge_img = tfft.hfft(edge_img.permute(2,0,1), norm="ortho").permute(1,2,0)
             f_crop_ed = f_edge_img[:, x0: x0 + w_ed, y0: y0 + w_ed]            
         else:
             f_crop_ed = None

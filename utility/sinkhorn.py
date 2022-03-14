@@ -1,5 +1,5 @@
 
-    
+
 """My torch implementation of learning latent permutations ops.
 """
 
@@ -34,7 +34,7 @@ def simple_sinkhorn(MatrixA, n_iter = 20):
                 MatrixA /= MatrixA.sum(dim=2, keepdim=True)
         return MatrixA
 
-def my_sinkhorn(log_alpha, n_iters = 20):
+def sinkhorn(log_alpha, n_iters = 20):
         # torch version
         """Performs incomplete Sinkhorn normalization to log_alpha.
         By a theorem by Sinkhorn and Knopp [1], a sufficiently well-behaved  matrix
@@ -69,7 +69,7 @@ def my_sinkhorn(log_alpha, n_iters = 20):
                 log_alpha = log_alpha - (torch.logsumexp(log_alpha, dim=1, keepdim=True)).view(-1, 1, n)
         return torch.exp(log_alpha)
 
-def my_gumbel_sinkhorn(log_alpha, temp=1.0, n_samples=1, noise_factor=1.0, n_iters=20, squeeze=True):
+def gumbel_sinkhorn(log_alpha, temp=1.0, n_samples=1, noise_factor=1.0, n_iters=20, squeeze=True):
         """Random doubly-stochastic matrices via gumbel noise.
         In the zero-temperature limit sinkhorn(log_alpha/temp) approaches
         a permutation matrix. Therefore, for low temperatures this method can be
@@ -126,7 +126,7 @@ def my_gumbel_sinkhorn(log_alpha, temp=1.0, n_samples=1, noise_factor=1.0, n_ite
 
         my_log_alpha_w_noise = log_alpha_w_noise.clone()
 
-        sink = my_sinkhorn(my_log_alpha_w_noise)
+        sink = sinkhorn(my_log_alpha_w_noise)
         if n_samples > 1 or squeeze is False:
                 sink = sink.view(n_samples, batch_size, n, n)
                 sink = torch.transpose(sink, 1, 0)
@@ -134,7 +134,7 @@ def my_gumbel_sinkhorn(log_alpha, temp=1.0, n_samples=1, noise_factor=1.0, n_ite
                 log_alpha_w_noise = torch.transpose(log_alpha_w_noise, 1, 0)
         return sink, log_alpha_w_noise
 
-def my_sample_uniform_and_order(n_lists, n_numbers, prob_inc):
+def sample_uniform_and_order(n_lists, n_numbers, prob_inc):
         """Samples uniform random numbers, return sorted lists and the indices of their original values
         Returns a 2-D tensor of n_lists lists of n_numbers sorted numbers in the [0,1]
         interval, each of them having n_numbers elements.
@@ -179,7 +179,7 @@ def my_sample_uniform_and_order(n_lists, n_numbers, prob_inc):
         #ordered = ordered * sign
         return (ordered, random, permutations)
 
-def my_sample_permutations(n_permutations, n_objects):
+def sample_permutations(n_permutations, n_objects):
         """Samples a batch permutations from the uniform distribution.
         Returns a sample of n_permutations permutations of n_objects indices.
         Permutations are assumed to be represented as lists of integers
@@ -199,7 +199,7 @@ def my_sample_permutations(n_permutations, n_objects):
         _, permutations = torch.topk(random_pre_perm, k = n_objects)
         return permutations
 
-def my_permute_batch_split(batch_split, permutations):
+def permute_batch_split(batch_split, permutations):
         """Scrambles a batch of objects according to permutations.
         It takes a 3D tensor [batch_size, n_objects, object_size]
         and permutes items in axis=1 according to the 2D integer tensor
@@ -224,7 +224,7 @@ def my_permute_batch_split(batch_split, permutations):
         return perm_batch_split
 
 
-def my_listperm2matperm(listperm):
+def listperm2matperm(listperm):
         """Converts a batch of permutations to its matricial form.
         Args:
         listperm: 2D tensor of permutations of shape [batch_size, n_objects] so that
@@ -239,7 +239,7 @@ def my_listperm2matperm(listperm):
         eye= torch.tensor(eye, dtype=torch.int32)
         return eye
 
-def my_matperm2listperm(matperm):
+def matperm2listperm(matperm):
         """Converts a batch of permutations to its enumeration (list) form.
         Args:
         matperm: a 3D tensor of permutations of
@@ -260,7 +260,7 @@ def my_matperm2listperm(matperm):
         argmax = argmax.view(batch_size, n_objects)
         return argmax
 
-def my_invert_listperm(listperm):
+def invert_listperm(listperm):
         """Inverts a batch of permutations.
         Args:
         listperm: a 2D integer tensor of permutations listperm of
@@ -270,9 +270,9 @@ def my_invert_listperm(listperm):
         A 2D tensor of permutations listperm, where listperm[n,i]
         is the index of the only non-zero entry in matperm[n, i, :]
         """
-        return my_matperm2listperm(torch.transpose(my_listperm2matperm(listperm), 1, 2))
+        return matperm2listperm(torch.transpose(listperm2matperm(listperm), 1, 2))
 
-def my_matching(matrix_batch):
+def matching(matrix_batch):
     """Solves a matching problem for a batch of matrices.
     This is a wrapper for the scipy.optimize.linear_sum_assignment function. It
     solves the optimization problem max_P sum_i,j M_i,j P_i,j with P a
@@ -300,7 +300,7 @@ def my_matching(matrix_batch):
     listperms = torch.from_numpy(listperms)
     return listperms
 
-def my_kendall_tau(batch_perm1, batch_perm2):
+def kendall_tau(batch_perm1, batch_perm2):
     """Wraps scipy.stats kendalltau function.
     Args:
         batch_perm1: A 2D tensor (a batch of matrices) with
@@ -311,7 +311,6 @@ def my_kendall_tau(batch_perm1, batch_perm2):
     """
 
     def kendalltau_batch(x, y):
-
         if x.ndim == 1:
             x = np.reshape(x, [1, x.shape[0]])
         if y.ndim == 1:

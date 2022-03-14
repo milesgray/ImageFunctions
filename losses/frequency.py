@@ -66,7 +66,7 @@ class FilterHigh(nn.Module):
                                     gaussian=gaussian)
         self.recursions = recursions
         self.normalize = normalize
-    
+
     def forward(self, x):
         x = self.filter_low(x)
         x = x - self.filter_low(x)
@@ -86,3 +86,67 @@ class FSLoss(nn.Module):
         y = self.filter(y)
         loss = F.l1_loss(x, y)
         return loss
+
+
+def bandpass_filter(im: torch.Tensor,
+                    band_center=0.3,
+                    band_width=0.1,
+                    sample_spacing=None,
+                    mask=None,
+                    plot=False):
+    '''Bandpass filter the image (assumes the image is square)
+
+    Returns
+    -------
+    im_bandpass: np.ndarray
+    mask: np.ndarray
+        if mask is present, use this mask to set things to 1 instead of bandpass
+    '''
+
+    # find freqs
+    if sample_spacing is None: # use normalized freqs [-1, 1]
+        freq_arr = tfft.fftshift(
+            tfft.fftfreq(n=im.shape[0])
+        )
+        freq_arr /= torch.max(torch.abs(freq_arr))
+    else:
+        sample_spacing = 0.8 # arcmins
+        freq_arr = tfft.fftshift(
+            tfft.fftfreq(n=im.shape[0], d=sample_spacing)
+        ) # 1 / arcmin
+        # print(freq_arr[0], freq_arr[-1])
+
+    # go to freq domain
+    im_f = tfft.fftshift(
+        tfft.fft2(im)
+    )
+    if plot:
+        plt.imshow(im_f.abs())
+        plt.xlabel('frequency x')
+        plt.ylabel('frequency y')
+
+
+    # bandpass
+    if mask is not None:
+        assert mask.shape == im_f.shape, 'mask shape does not match shape in freq domain'
+        mask_bandpass = mask
+    else:
+        mask_bandpass = torch.zeros(im_f.shape)
+        for r in range(torch.shape[0]):
+            for c in range(torch.shape[1]):
+                dist = torch.sqrt(freq_arr[r]**2 + freq_arr[c]**2)
+                if dist > band_center - band_width / 2 and dist < band_center + band_width / 2:
+                    mask_bandpass[r, c] = 1
+
+
+    im_f_masked = torch.multiply(im_f, mask_bandpass)
+    if plot:
+        plt.imshow(torch.abs(im_f_masked))
+        plt.xticks([0, 127.5, 255], labels=[freq_arr[0].round(2), 0, freq_arr[-1].round(2)])
+        plt.yticks([0, 127.5, 255], labels=[freq_arr[0].round(2), 0, freq_arr[-1].round(2)])
+        plt.show()
+
+    im_bandpass = tfft.ifft2(
+        tfft.ifftshift(im_f_masked)
+    )
+    return im_bandpass.real

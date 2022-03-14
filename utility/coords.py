@@ -54,7 +54,9 @@ def generate_var_sized_coords(aspect_ratios: List[float], img_size: int) -> Tens
 
     return coords_scaled
 
-def generate_random_resolution_coords(batch_size: int, img_size: int, scale: float=None, min_scale: float=None) -> Tensor:
+def generate_random_resolution_coords(batch_size: int, img_size: int, 
+                                      scale: float=None, 
+                                      min_scale: float=None) -> Tensor:
     """
     Generating random input coordinate patches.
     It's used when we train on random image patches of different resolution
@@ -142,3 +144,30 @@ def grid_sample(x, offset, scale, scale2):
     output = F.grid_sample(x, grid, padding_mode='zeros')
 
     return output
+
+def batched_predict(model, inp, coord, scale, bsize):
+    """ Batches `query_rgb` calls to an INR Image model over
+    a coordinate field.
+
+    Args:
+        model (nn.Module): Implicit Neural Representational Image Model that defines `query_rgb`
+        inp (torch.Tensor): Input image to generate features from
+        coord (torch.Tensor): 4D Coordinate field to sample RGB values from
+        scale (torch.Tensor): 4D companion field for coordinates to sample RGB values from
+        bsize (int): Batch size to use while running inference
+
+    Returns:
+        torch.Tensor: All of the predictions concatenated along dimension 1
+    """
+    with torch.no_grad():
+        model.gen_feat(inp)
+        n = coord.shape[1]
+        ql = 0
+        preds = []
+        while ql < n:
+            qr = min(ql + bsize, n)
+            pred = model.query_rgb(coord[:, ql: qr, :], scale[:, ql: qr, :])
+            preds.append(pred)
+            ql = qr
+        pred = torch.cat(preds, dim=1)
+    return pred

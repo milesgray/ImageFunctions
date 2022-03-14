@@ -7,6 +7,7 @@ from functools import partial
 
 import torch
 import torch.nn as nn
+
 from .layers import PixelAttention, NonLocalAttention, LocalSelfAttention
 from .layers import Balance, Scale, stdv_channels
 from .layers import SpectralConv2d

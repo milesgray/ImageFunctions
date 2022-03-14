@@ -2,11 +2,11 @@ train_dataset:
   dataset:
     name: image-folder
     args:
-      root_path: /content/full/
+      root_path: /content/frames/
       repeat: 1
       cache: in_memory
-      first_k: 3300
-      skip_every: 3
+      first_k: 600
+      skip_every: 1
   wrapper:
     name: sr-setrange-downsampled-randcrop
     args:
@@ -19,15 +19,19 @@ train_dataset:
       sample_q: 4096
       color_augment: true
       color_augment_strength: 0.2
+      return_hr: true
   batch_size: 1
+  num_workers: 4
+  pin_memory: true
 
 val_dataset:
   dataset:
     name: image-folder
     args:
       root_path: /content/full/
-      last_k: 230
-      repeat: 3
+      last_k: 140
+      repeat: 1
+      skip_every: 3
       cache: in_memory
   wrapper:
     name: sr-setrange-downsampled-randcrop
@@ -40,6 +44,8 @@ val_dataset:
       sample_q: 4096
       return_hr: true
   batch_size: 1
+  num_workers: 4
+  pin_memory: true
 
 data_norm:
   inp: {sub: [0], div: [1]}
@@ -69,3 +75,11 @@ multi_step_lr:
 
 epoch_val: 1
 epoch_save: 10
+
+losses:
+  q:
+    l1:
+      fn:
+        name: l1
+        args:
+      weight: 1.0

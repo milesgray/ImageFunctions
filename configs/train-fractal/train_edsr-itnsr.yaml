@@ -69,20 +69,18 @@ model:
       args:
         out_dim: 3
         hidden_list: [256, 256, 256, 256]
-        act: 
-          name: sine_learnable
-          args:
-            learnable: true
+        act: sine_learnable
         has_norm: true
         norm: nn.LayerNorm
         has_bias: false
         use_residual: true
         use_sn: false
 
+
 optimizer:
   name: adamw
   args:
-    lr: 2.e-4
+    lr: 1.e-4
 epoch_max: 500
 multi_step_lr:
   milestones: [100, 200, 300, 400]

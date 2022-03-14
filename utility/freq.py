@@ -1,3 +1,6 @@
+import torch
+from torch import Tensor
+import torch.nn as nn
 import numpy as np
 from numpy.fft import *
 import scipy.signal as signal
@@ -516,7 +519,11 @@ def _ifft(y):
 ### FFT BASED FILTERS ###########################
 #########################################
 
-def bandpass_filter(im: np.ndarray, band_center=0.3, band_width=0.1, sample_spacing=None, mask=None):
+def bandpass_filter(im: np.ndarray, 
+                    band_center=0.3, 
+                    band_width=0.1, 
+                    sample_spacing=None, 
+                    mask=None):
     '''Bandpass filter the image (assumes the image is square)
     
     Returns

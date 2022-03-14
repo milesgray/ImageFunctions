@@ -3,6 +3,7 @@ from argparse import Namespace
 
 import torch
 import torch.nn as nn
+
 from .layers import ChannelAttention, PixelAttention, BalancedAttention
 from .layers import Balance, Scale
 from .layers import MeanShift
