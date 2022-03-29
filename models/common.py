@@ -93,7 +93,6 @@ class Backbone(nn.Module):
             return None
         return self._out_dim
 
-    @outs
     @property
     def in_dim(self):
         """Input feature dimension."""
