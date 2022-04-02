@@ -8,7 +8,11 @@ from torchvision.transforms import InterpolationMode
 import utility as utils
 import utility.color as color
 
-class Resolution(NamedTuple("Resolution", [("width", int), ("height", int)])):
+class Resolution:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        
     """Class representing the width and height of an image."""
     def scale_to_height(self, height: int) -> "Resolution":
         """Scales this resolution while maintaining the aspect ratio.
