@@ -6,7 +6,7 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 import utility as utils
-import .color
+import utility.color as color
 
 class Resolution(NamedTuple("Resolution", [("width", int), ("height", int)])):
     """Class representing the width and height of an image."""
