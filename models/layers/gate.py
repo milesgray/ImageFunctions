@@ -16,20 +16,22 @@ class GateConv(nn.Module):
                  conv_fn=nn.Conv2d, 
                  act_fn=nn.ELU,
                  gate_fn=nn.Sigmoid,
+                 out_fn=nn.Identity,
                  conv_args={}):
         super().__init__()
         self.conv = conv_fn(in_channel, out_channel * 2, kernel, 
                          **conv_args)
         self.act = act_fn()
         self.gate = gate_fn()
+        self.out = out_fn()
 
     def forward(self, x):
         x = self.conv(x)
-        x, gate = torch.split(x, x.size(1) // 2, dim=1)
+        x, gate = torch.chunk(x, 2, dim=1)
         x = self.act(x)
         gate = self.gate(gate)
         x = x * gate
-        return nn.Hardsigmoid()(x)
+        return self.out(x)
 
 @register("pool_gate")
 class PoolGate(nn.Module):

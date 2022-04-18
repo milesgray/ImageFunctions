@@ -1,15 +1,8 @@
 import math
 import torch
 import numpy as np
-from skimage import color
 
-def rgb2ycbcrT(rgb):
-    rgb = rgb.numpy().transpose(1, 2, 0)
-    yCbCr = sc.rgb2ycbcr(rgb) / 255
-
-    return torch.Tensor(yCbCr[:, :, 0])
-
-def rgb2ycbcr(img, only_y=True):
+def rgb2ycbcr(img: torch.Tensor, only_y=True) -> torch.Tensor:
     '''same as matlab rgb2ycbcr
     only_y: only return Y channel
     Input:
@@ -17,69 +10,27 @@ def rgb2ycbcr(img, only_y=True):
         float, [0, 1]
     '''
     in_img_type = img.dtype
-    img.astype(np.float32)
-    if in_img_type != np.uint8:
+    img.astype(torch.float32)
+    if in_img_type != torch.uint8:
         img *= 255.
     # convert
     if only_y:
-        rlt = np.dot(img, [65.481, 128.553, 24.966]) / 255.0 + 16.0
+        rlt = torch.dot(img, [65.481, 128.553, 24.966]) / 255.0 + 16.0
     else:
-        rlt = np.matmul(img, [[65.481, -37.797, 112.0], [128.553, -74.203, -93.786],
+        rlt = torch.mm(img, [[65.481, -37.797, 112.0], [128.553, -74.203, -93.786],
                               [24.966, 112.0, -18.214]]) / 255.0 + [16, 128, 128]
-    if in_img_type == np.uint8:
+    if in_img_type == torch.uint8:
         rlt = rlt.round()
     else:
         rlt /= 255.
-    return rlt.astype(in_img_type)
+    return rlt.type(in_img_type)
 
-def bgr2ycbcr(img, only_y=True):
-    '''bgr version of rgb2ycbcr
-    only_y: only return Y channel
-    Input:
-        uint8, [0, 255]
-        float, [0, 1]
-    '''
-    in_img_type = img.dtype
-    img.astype(np.float32)
-    if in_img_type != np.uint8:
-        img *= 255.
-    # convert
-    if only_y:
-        rlt = np.dot(img, [24.966, 128.553, 65.481]) / 255.0 + 16.0
-    else:
-        rlt = np.matmul(img, [[24.966, 112.0, -18.214], [128.553, -74.203, -93.786],
-                              [65.481, -37.797, 112.0]]) / 255.0 + [16, 128, 128]
-    if in_img_type == np.uint8:
-        rlt = rlt.round()
-    else:
-        rlt /= 255.
-    return rlt.astype(in_img_type)
-
-def ycbcr2rgb(img):
-    '''same as matlab ycbcr2rgb
-    Input:
-        uint8, [0, 255]
-        float, [0, 1]
-    '''
-    img_type = img.dtype
-    img.astype(np.float32)
-    if img_type != np.uint8:
-        img *= 255.
-    # convert
-    rlt = np.matmul(img, [[0.00456621, 0.00456621, 0.00456621], [0, -0.00153632, 0.00791071],
-                          [0.00625893, -0.00318811, 0]]) * 255.0 + [-222.921, 135.576, -276.836]
-    if img_type == np.uint8:
-        rlt = rlt.round()
-    else:
-        rlt /= 255.
-    return rlt.astype(img_type)
-
-def rgb2lab(img, mean_cent=False):
-    
-    img_lab = color.rgb2lab(img)
-    if(mean_cent):
-        img_lab[:,:,0] = img_lab[:,:,0]-50
-    return img_lab
+def rgb2lab(x: torch.Tensor, l_cent=50, l_norm=1, ab_norm=1) -> torch.Tensor:
+    lab = xyz2lab(rgb2xyz(x))
+    l_rs = (lab[:,[0],:,:]-l_cent)/l_norm
+    ab_rs = lab[:,1:,:,:]/ab_norm
+    out = torch.cat((l_rs,ab_rs),dim=1)
+    return out
 
 def rgb2yiq(x: torch.Tensor) -> torch.Tensor:
     r"""Convert a batch of RGB images to a batch of YIQ images
@@ -94,7 +45,6 @@ def rgb2yiq(x: torch.Tensor) -> torch.Tensor:
         [0.2115, -0.5227, 0.3112]]).t().to(x)
     x_yiq = torch.matmul(x.permute(0, 2, 3, 1), yiq_weights).permute(0, 3, 1, 2)
     return x_yiq
-
 
 def rgb2lhm(x: torch.Tensor) -> torch.Tensor:
     r"""Convert a batch of RGB images to a batch of LHM images
@@ -111,6 +61,38 @@ def rgb2lhm(x: torch.Tensor) -> torch.Tensor:
         [0.34, -0.6, 0.17]]).t().to(x)
     x_lhm = torch.matmul(x.permute(0, 2, 3, 1), lhm_weights).permute(0, 3, 1, 2)
     return x_lhm
+
+def rgb2xyz(x: torch.Tensor) -> torch.Tensor:
+    r"""Convert a batch of RGB images to a batch of XYZ images
+    Args:
+        x: Batch of images with shape (N, 3, H, W). RGB colour space.
+    Returns:
+        Batch of images with shape (N, 3, H, W). XYZ colour space.
+    """
+    mask_below = (x <= 0.04045).to(x)
+    mask_above = (x > 0.04045).to(x)
+
+    tmp = x / 12.92 * mask_below + torch.pow((x + 0.055) / 1.055, 2.4) * mask_above
+
+    weights_rgb_to_xyz = torch.tensor([[0.4124564, 0.3575761, 0.1804375],
+                                       [0.2126729, 0.7151522, 0.0721750],
+                                       [0.0193339, 0.1191920, 0.9503041]]).to(x)
+
+    x_xyz = torch.matmul(tmp.permute(0, 2, 3, 1), weights_rgb_to_xyz.t()).permute(0, 3, 1, 2)
+    return x_xyz
+
+def rgb2lmn(x: torch.Tensor) -> torch.Tensor:
+    r"""Convert a batch of RGB images to a batch of LMN images
+    Args:
+        x: Batch of images with shape (N, 3, H, W). RGB colour space.
+    Returns:
+        Batch of images with shape (N, 3, H, W). LMN colour space.
+    """
+    weights_rgb_to_lmn = torch.tensor([[0.06, 0.63, 0.27],
+                                       [0.30, 0.04, -0.35],
+                                       [0.34, -0.6, 0.17]]).t().to(x)
+    x_lmn = torch.matmul(x.permute(0, 2, 3, 1), weights_rgb_to_lmn).permute(0, 3, 1, 2)
+    return x_lmn
 
 
 def xyz2lab(x: torch.Tensor, illuminant: str = 'D50', observer: str = '2') -> torch.Tensor:
@@ -154,34 +136,133 @@ def xyz2lab(x: torch.Tensor, illuminant: str = 'D50', observer: str = '2') -> to
     x_lab = torch.matmul(tmp.permute(0, 2, 3, 1), weights_xyz_to_lab.t()).permute(0, 3, 1, 2) + bias_xyz_to_lab
     return x_lab
 
-def rgb2xyz(x: torch.Tensor) -> torch.Tensor:
-    r"""Convert a batch of RGB images to a batch of XYZ images
-    Args:
-        x: Batch of images with shape (N, 3, H, W). RGB colour space.
-    Returns:
-        Batch of images with shape (N, 3, H, W). XYZ colour space.
-    """
-    mask_below = (x <= 0.04045).to(x)
-    mask_above = (x > 0.04045).to(x)
+def xyz2rgb(x: torch.Tensor) -> torch.Tensor:
+    # array([[ 3.24048134, -1.53715152, -0.49853633],
+    #        [-0.96925495,  1.87599   ,  0.04155593],
+    #        [ 0.05564664, -0.20404134,  1.05731107]])
 
-    tmp = x / 12.92 * mask_below + torch.pow((x + 0.055) / 1.055, 2.4) * mask_above
+    r = 3.24048134*x[:,0,:,:]-1.53715152*x[:,1,:,:]-0.49853633*x[:,2,:,:]
+    g = -0.96925495*x[:,0,:,:]+1.87599*x[:,1,:,:]+.04155593*x[:,2,:,:]
+    b = .05564664*x[:,0,:,:]-.20404134*x[:,1,:,:]+1.05731107*x[:,2,:,:]
 
-    weights_rgb_to_xyz = torch.tensor([[0.4124564, 0.3575761, 0.1804375],
-                                       [0.2126729, 0.7151522, 0.0721750],
-                                       [0.0193339, 0.1191920, 0.9503041]]).to(x)
+    rgb = torch.cat((r[:,None,:,:],g[:,None,:,:],b[:,None,:,:]),dim=1)
+    rgb = torch.max(rgb,torch.zeros_like(rgb)) # sometimes reaches a small negative number, which causes NaNs
 
-    x_xyz = torch.matmul(tmp.permute(0, 2, 3, 1), weights_rgb_to_xyz.t()).permute(0, 3, 1, 2)
-    return x_xyz
+    mask = (rgb > .0031308).type(torch.FloatTensor)
+    if(rgb.is_cuda):
+        mask = mask.cuda()
 
-def rgb2lmn(x: torch.Tensor) -> torch.Tensor:
-    r"""Convert a batch of RGB images to a batch of LMN images
-    Args:
-        x: Batch of images with shape (N, 3, H, W). RGB colour space.
-    Returns:
-        Batch of images with shape (N, 3, H, W). LMN colour space.
-    """
-    weights_rgb_to_lmn = torch.tensor([[0.06, 0.63, 0.27],
-                                       [0.30, 0.04, -0.35],
-                                       [0.34, -0.6, 0.17]]).t().to(x)
-    x_lmn = torch.matmul(x.permute(0, 2, 3, 1), weights_rgb_to_lmn).permute(0, 3, 1, 2)
-    return x_lmn
+    rgb = (1.055*(rgb**(1./2.4)) - 0.055)*mask + 12.92*rgb*(1-mask)
+
+    # if(torch.sum(torch.isnan(rgb))>0):
+        # print('xyz2rgb')
+        # embed()
+    return rgb
+
+
+def lab2xyz(x: torch.Tensor) -> torch.Tensor:
+    y_int = (x[:,0,:,:]+16.)/116.
+    x_int = (x[:,1,:,:]/500.) + y_int
+    z_int = y_int - (x[:,2,:,:]/200.)
+    if(z_int.is_cuda):
+        z_int = torch.max(torch.Tensor((0,)).cuda(), z_int)
+    else:
+        z_int = torch.max(torch.Tensor((0,)), z_int)
+
+    out = torch.cat((x_int[:,None,:,:],y_int[:,None,:,:],z_int[:,None,:,:]),dim=1)
+    mask = (out > .2068966).type(torch.FloatTensor)
+    if(out.is_cuda):
+        mask = mask.cuda()
+
+    out = (out**3.)*mask + (out - 16./116.)/7.787*(1-mask)
+
+    sc = torch.Tensor((0.95047, 1., 1.08883))[None,:,None,None]
+    sc = sc.to(out.device)
+
+    out = out*sc
+
+    # if(torch.sum(torch.isnan(out))>0):
+        # print('lab2xyz')
+        # embed()
+
+    return out
+
+def lab2rgb(lab_rs, opt):
+    l = lab_rs[:,[0],:,:]*opt.l_norm + opt.l_cent
+    ab = lab_rs[:,1:,:,:]*opt.ab_norm
+    lab = torch.cat((l,ab),dim=1)
+    out = xyz2rgb(lab2xyz(lab))
+    # if(torch.sum(torch.isnan(out))>0):
+        # print('lab2rgb')
+        # embed()
+    return out
+
+
+def bgr2ycbcr(img: torch.Tensor, only_y=True) -> torch.Tensor:
+    '''bgr version of rgb2ycbcr
+    only_y: only return Y channel
+    Input:
+        uint8, [0, 255]
+        float, [0, 1]
+    '''
+    in_img_type = img.dtype
+    img = img.float()
+    if in_img_type != torch.uint8:
+        img *= 255.
+    # convert
+    if only_y:
+        rlt = torch.dot(img, [24.966, 128.553, 65.481]) / 255.0 + 16.0
+    else:
+        rlt = torch.mm(img, [[24.966, 112.0, -18.214], [128.553, -74.203, -93.786],
+                              [65.481, -37.797, 112.0]]) / 255.0 + [16, 128, 128]
+    if in_img_type == torch.uint8:
+        rlt = rlt.round()
+    else:
+        rlt /= 255.
+    return rlt.type(in_img_type)
+
+
+def ycbcr2rgb(img: torch.Tensor) -> torch.Tensor:
+    '''same as matlab ycbcr2rgb
+    Input:
+        uint8, [0, 255]
+        float, [0, 1]
+    '''
+    img_type = img.dtype
+    img = img.float()
+    if img_type != torch.uint8:
+        img *= 255.
+    # convert
+    rlt = torch.mm(img, [[0.00456621, 0.00456621, 0.00456621], [0, -0.00153632, 0.00791071],
+                          [0.00625893, -0.00318811, 0]]) * 255.0 + [-222.921, 135.576, -276.836]
+    if img_type == torch.uint8:
+        rlt = rlt.round()
+    else:
+        rlt /= 255.
+    return rlt.astype(img_type)
+
+
+mapping = {
+    "rgb": {
+        "ycbcr": rgb2ycbcr,
+        "lab": rgb2lab,
+        "yiq": rgb2yiq,
+        "lhm": rgb2lhm,
+        "xyz": rgb2xyz,
+        "lmn": rgb2lmn
+    },
+    "xyz": {
+        "rgb": xyz2rgb,
+        "lab": xyz2lab
+    },
+    "ycbcr": {
+        "rgb": ycbcr2rgb
+    },
+    "bgr": {
+        "ycbcr": bgr2ycbcr
+    },
+    "lab": {
+        "rgb": lab2rgb,
+        "xyz": lab2xyz
+    }
+}
