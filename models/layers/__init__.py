@@ -32,6 +32,8 @@ from .spectral import SpectralConv2d
 from .fourier import FourierINR, FourierConv2d
 from .mutual_affine_conv import MAConv2d
 
+from .batch_norm import SplitBatchNorm
+
 from .cutout import MakeCutouts, WarpRandomPerspective
 
 import functools

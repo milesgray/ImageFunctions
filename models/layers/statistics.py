@@ -2,18 +2,20 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from typing import Tuple
+
 from .registry import register
 
-def mean_channels(x):
+def mean_channels(x: torch.Tensor) -> torch.Tensor:
     assert(x.dim() == 4)
     spatial_sum = x.sum(3, keepdim=True).sum(2, keepdim=True)
     return spatial_sum / (x.size(2) * x.size(3))
-def stdv_channels(x):
+def stdv_channels(x: torch.Tensor) -> torch.Tensor:
     assert(x.dim() == 4)
     mean = mean_channels(x)
     variance = (x - mean).sum(3, keepdim=True).sum(2, keepdim=True) / (x.size(2) * x.size(3))
     return variance
-def get_mean_std_rgb(x):
+def get_mean_std_rgb(x: torch.Tensor):
     r = x[:, 0, :, :]
     g = x[:, 1, :, :]
     b = x[:, 2, :, :]
@@ -21,7 +23,7 @@ def get_mean_std_rgb(x):
     g_std, g_mean = torch.std_mean(g)
     b_std, b_mean = torch.std_mean(b)
     return (r_mean, g_mean, b_mean), (r_std, g_std, b_std)
-def get_mean_std_nd(feat, eps=1e-5):
+def get_mean_std_nd(feat: torch.Tensor, eps=1e-5):
     # eps is a small value added to the variance to avoid divide-by-zero.
     size = feat.size()
     assert (len(size) == 4)

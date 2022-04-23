@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from .registry import register
 
-def kl_divergence(p, q):
+def kl_divergence(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
     p = F.softmax(p)
     q = F.softmax(q)
     s1 = torch.sum(p * torch.log(p / q))
@@ -35,19 +35,21 @@ def _reduce_loss(losses: torch.Tensor, reduction: str) -> torch.Tensor:
 class KLloss(nn.Module):
     def __init__(self):
         super().__init__()
-    def __call__(self, pred, target):
+
+    def forward(self, pred, target):
         loss = kl_divergence(pred, target)
         return loss 
+
 @register("kl_sparse")
 class SparseKLloss(nn.Module):
     def __init__(self):
         super().__init__()
         self.register_buffer('zero', torch.tensor(0.01, dtype=torch.float))
 
-    def __call__(self,input):
-        input = torch.sum(input, 0, keepdim=True)
-        target_zero = self.zero.expand_as(input)
-        loss = kl_divergence(target_zero, input)
+    def forward(self, x):
+        x = torch.sum(x, 0, keepdim=True)
+        target_zero = self.zero.expand_as(x)
+        loss = kl_divergence(target_zero, x)
         return loss
     
 @register("prob_kl")
