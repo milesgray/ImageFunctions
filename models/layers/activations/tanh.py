@@ -28,11 +28,11 @@ class Mish(nn.Module):
         """
         super().__init__()
 
-    def forward(self, input):
+    def forward(self, x):
         """
         Forward pass of the function.
         """
-        return mish(input)
+        return mish(x)
 
 @register("xtanh")
 class XTanh(torch.nn.Module):

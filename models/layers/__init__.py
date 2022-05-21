@@ -36,6 +36,8 @@ from .batch_norm import SplitBatchNorm
 
 from .cutout import MakeCutouts, WarpRandomPerspective
 
+from .ema import ModuleEMA
+
 import functools
 import torch.nn as nn
 import torch.nn.functional as F

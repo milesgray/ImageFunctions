@@ -1,17 +1,20 @@
+# Residual Dense Network for Image Super-Resolution
+# https://arxiv.org/abs/1802.08797
+# modified from: https://github.com/thstkdgus35/EDSR-PyTorch
+
 from argparse import Namespace
 from functools import partial
 
 import torch
 import torch.nn as nn
+
 from .layers import PixelAttention, NonLocalAttention
 from .layers import Balance, stdv_channels
-from .layers import MAConv2d
-from .layers import create as create_layer
 from .layers.activations import create as create_act
 
 from models import register
 
-class Layer(nn.Module):
+class RDB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, 
                  kernel=3,
                  act="gelu",
@@ -20,7 +23,7 @@ class Layer(nn.Module):
         Cin = inChannels
         G  = growRate
         self.conv = nn.Sequential(*[
-            MAConv2d(Cin, G, kernel, padding=(kernel-1)//2, stride=1),
+            nn.Conv2d(Cin, G, kernel, padding=(kernel-1)//2, stride=1),
             create_act(act)
         ])
         self.attn = attn_fn(G)
@@ -29,7 +32,7 @@ class Layer(nn.Module):
         out = self.conv(x)
         return torch.cat((x, self.attn(out)), 1)
 
-class Block(nn.Module):
+class RDB(nn.Module):
     def __init__(self, growRate0, growRate, nConvLayers, 
                  kernel=3,
                  act="gelu",
@@ -41,10 +44,10 @@ class Block(nn.Module):
 
         convs = []
         for c in range(C):
-            convs.append(Layer(G0 + c*G, G,
-                               kernel=kernel,
-                               act=act,
-                               attn_fn=attn_fn))
+            convs.append(RDB_Conv(G0 + c*G, G,
+                                  kernel=kernel,
+                                  act=act,
+                                  attn_fn=attn_fn))
         self.convs = nn.Sequential(*convs)
 
         # Local Feature Fusion
@@ -54,13 +57,7 @@ class Block(nn.Module):
     def forward(self, x):
         return self.res_balance(self.LFF(self.convs(x)), x)
 
-class MARDAN(nn.Module):
-    """ Mutually-Affine Residual Dense Attention Network
-    A network of blocks that concat the results of each attention
-    layer and then fuse together the result into a standard shape,
-    each of which are again concat together and finally globally
-    fused to produce the output.  Mutually Affine 2D Convolutions
-    """
+class RDN(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
@@ -87,10 +84,10 @@ class MARDAN(nn.Module):
         self.SFE_balance = Balance()
 
         # Redidual dense blocks and dense feature fusion
-        self.blocks = nn.ModuleList()
+        self.RDBs = nn.ModuleList()
         for i in range(D):
-            self.blocks.append(
-                Block(growRate0=G0, 
+            self.RDBs.append(
+                RDB(growRate0=G0, 
                     growRate=G, 
                     nConvLayers=C,
                     kernel=RDBkSize,
@@ -137,12 +134,12 @@ class MARDAN(nn.Module):
         f__1 = self.SFENet1(x)
         x = self.SFE_balance(self.SFENet2(f__1), self.SFE_attn(f__1))
 
-        blocks_out = []
-        for block in self.blocks:
-            x = block(x)
-            blocks_out.append(x)
+        RDBs_out = []
+        for rdb in self.RDBs:
+            x = rdb(x)
+            RDBs_out.append(x)
 
-        x = self.GFF(torch.cat(blocks_out, dim=1))
+        x = self.GFF(torch.cat(RDBs_out, dim=1))
         x = self.GFF_balance(x, self.SFE_res_attn(f__1))
 
         if self.args.no_upsampling:
@@ -151,9 +148,9 @@ class MARDAN(nn.Module):
             return self.UpNet(x)
 
 
-@register('mardan')
-def make_mardan(D=20, C=6, G=32, attn_fn='PixelAttention', act="gelu",
-             G0=64, RDNkSize=3, BlockkSize=3,
+@register('rdn_v2')
+def make_rdn(D=20, C=6, G=32, attn_fn='PixelAttention', act="gelu",
+             G0=64, RDNkSize=3, RDBkSize=3, RDNconfig=None,
              scale=2, no_upsampling=True):
     args = Namespace()
     args.D = D
@@ -163,10 +160,17 @@ def make_mardan(D=20, C=6, G=32, attn_fn='PixelAttention', act="gelu",
     args.attn_fn = attn_fn
     args.G0 = G0
     args.RDNkSize = RDNkSize
-    args.RDBkSize = BlockkSize
+    args.RDBkSize = RDBkSize
+    # original RDN suggested parameters
+    RDNstaticConfig = {
+        'A': (20, 6, 32),
+        'B': (16, 8, 64),
+    }
+    if RDNconfig in RDNstaticConfig:
+        args.D, args.C, args.G = RDNstaticConfig[RDNconfig]
 
     args.scale = [scale]
     args.no_upsampling = no_upsampling
 
     args.n_colors = 3
-    return MARDAN(args)
+    return RDN(args)

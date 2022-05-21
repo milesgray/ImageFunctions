@@ -6,13 +6,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
-import models
+
+from models import make as make_model
 from models import register
-from models.layers.activations import make
-from utility import make_coord
+
 from .layers import FourierINR
 
-
+from utility import make_coord
 
 @register('liif_inr')
 class LIIF_INR(nn.Module):
@@ -27,7 +27,7 @@ class LIIF_INR(nn.Module):
         self.feat_unfold = feat_unfold
         self.cell_decode = cell_decode
 
-        self.encoder = models.make(encoder_spec)
+        self.encoder = make_model(encoder_spec)
 
         fourier_args = Namespace()
         fourier_args.scale = 1.0
@@ -46,7 +46,7 @@ class LIIF_INR(nn.Module):
             imnet_in_dim += self.encoder.out_dim # attach coord
             if self.cell_decode:
                 imnet_in_dim += 2
-            self.imnet = models.make(imnet_spec, args={'in_dim': imnet_in_dim})
+            self.imnet = make_model(imnet_spec, args={'in_dim': imnet_in_dim})
         else:
             self.imnet = None
 

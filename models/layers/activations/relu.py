@@ -40,6 +40,3 @@ class TLU(nn.Module):
 
     def forward(self, x):
         return torch.max(x, self.tau)
-
-    def extra_repr(self):
-        return 'num_features={}'.format(self.num_features)

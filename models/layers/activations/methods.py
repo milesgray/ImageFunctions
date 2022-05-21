@@ -49,3 +49,7 @@ def normalizer(x):
     mean = (x - x.mean(dim=1, keepdim=True)) 
     std = x.std(dim=1, keepdim=True)
     return mean / std
+
+@torch.jit.script
+def gaussian(x, a):
+    return torch.exp(-x**2/(2*a**2))

@@ -144,40 +144,7 @@ class PersistentRandomSampler(torch.utils.data.Sampler):
     def fast_forward_to(self, sample_id):
         self.next_sample_id = sample_id
 
-class ModuleEMA(torch.nn.Module):
-    def __init__(self, src, placement='same', momentum=0.9999):
-        super().__init__()
-        assert placement in ('same', 'cpu')
-        self.src = [src]
-        self.placement = placement
-        self.momentum = momentum
-        self.dst = copy.deepcopy(src)
-        self.dst.zero_grad()
-        self.dst.eval()
-        if placement == 'cpu':
-            self.dst = self.dst.cpu()
 
-    def update(self):
-        with torch.no_grad():
-            for prop in ('named_parameters', 'named_buffers'):
-                for (ns, ps), (nd, pd) in zip(getattr(self.src[0], prop)(), getattr(self.dst, prop)()):
-                    assert ns == nd, f'{prop} mismatch: ns="{ns}" and nd="{nd}"'
-                    if ns.endswith('.num_batches_tracked'):
-                        continue
-                    assert hasattr(ps, 'data') and hasattr(pd, 'data'), f'{nd} has no .data'
-                    assert torch.is_floating_point(ps.data) and torch.is_floating_point(pd.data), f'{nd} not a float'
-                    ps_data = ps.data
-                    if self.placement == 'cpu':
-                        ps_data = ps_data.cpu()
-                    pd.data *= self.momentum
-                    pd.data += ps_data * (1 - self.momentum)
-
-    def forward(self, *args, cuda=True, **kwargs):
-        dst = self.dst
-        if cuda and self.placement == 'cpu':
-            dst = self.dst.cuda()
-        with torch.no_grad():
-            return dst.forward(*args, **kwargs)
 
 def generate_validation_fakes(g_model, num_samples, batch_size, z_sz, num_classes, root_out, rng_seed=2020):
     os.makedirs(root_out, exist_ok=False)
@@ -430,3 +397,29 @@ def get_valid_padding(kernel_size, dilation):
     kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
     padding = (kernel_size - 1) // 2
     return padding
+
+def get_params(model, prefixs, suffixes, exclude=None):
+	"""Retrieve all the trainable parameters in the model.
+	Args:
+		model: A Torch.Module object indicates the training model.
+		prefixs: A list of strings indicates the layer prefixes.
+		suffixes: A list of strings indicates included parameter names.
+		exclude: A list of strings indicates excluded parameter names.
+	Return:
+		An enumerator of retrieved parameters.
+	"""
+	for name, module in model.named_modules():
+		for prefix in prefixs:
+			if name == prefix:
+				for n, p in module.named_parameters():
+					n = '.'.join([name, n])
+					if type(exclude) == list and n in exclude:
+						continue
+					if type(exclude) == str and exclude in n:
+						continue
+
+					for suffix in suffixes:
+						if ((n.split('.')[-1].startswith(suffix) or n.endswith(suffix))
+								 and p.requires_grad):
+							yield p
+				break

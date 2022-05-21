@@ -57,16 +57,13 @@ def get_norm_layer(norm_type="instance"):
 
 
 class ResnetBlock(nn.Module):
-
     def __init__(self, dim, padding_type, norm_layer, use_dropout, use_bias):
         super().__init__()
         self.conv_block = self.build_conv_block(
             dim, padding_type, norm_layer, use_dropout, use_bias
         )
 
-    def build_conv_block(
-        self, dim, padding_type, norm_layer, use_dropout, use_bias
-    ):
+    def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
         conv_block = []
         p = 0
         if padding_type == "reflect":
@@ -126,8 +123,11 @@ class LocNet(nn.Module):
 
         backbone = []
         backbone += [
-            nn.Conv2d(
-                input_nc, nc, kernel_size=3, stride=2, padding=1, bias=False
+            nn.Conv2d(input_nc, nc, 
+                      kernel_size=3, 
+                      stride=2, 
+                      padding=1, 
+                      bias=False
             )
         ]
         backbone += [nn.BatchNorm2d(nc)]

@@ -3,110 +3,78 @@
 # modified from: https://github.com/thstkdgus35/EDSR-PyTorch
 
 from argparse import Namespace
-from functools import partial
 
 import torch
 import torch.nn as nn
 
-from .layers import PixelAttention, NonLocalAttention
-from .layers import Balance, stdv_channels
-from .layers.activations import create as create_act
+from .layers import PixelAttention
 
 from models import register
 
+
 class RDB_Conv(nn.Module):
-    def __init__(self, inChannels, growRate, 
-                 kernel=3,
-                 act="gelu",
-                 attn_fn=PixelAttention):
+    def __init__(self, inChannels, growRate, kSize=3):
         super().__init__()
         Cin = inChannels
         G  = growRate
         self.conv = nn.Sequential(*[
-            nn.Conv2d(Cin, G, kernel, padding=(kernel-1)//2, stride=1),
-            create_act(act)
+            nn.Conv2d(Cin, G, kSize, padding=(kSize-1)//2, stride=1),
+            nn.ReLU()
         ])
-        self.attn = attn_fn(G)
+        self.pa = PixelAttention(G)
 
     def forward(self, x):
         out = self.conv(x)
-        return torch.cat((x, self.attn(out)), 1)
+        return torch.cat((x, self.pa(out)), 1)
 
 class RDB(nn.Module):
-    def __init__(self, growRate0, growRate, nConvLayers, 
-                 kernel=3,
-                 act="gelu",
-                 attn_fn=PixelAttention):
-        super().__init__()
+    def __init__(self, growRate0, growRate, nConvLayers, kSize=3):
+        super(RDB, self).__init__()
         G0 = growRate0
         G  = growRate
         C  = nConvLayers
 
         convs = []
         for c in range(C):
-            convs.append(RDB_Conv(G0 + c*G, G,
-                                  kernel=kernel,
-                                  act=act,
-                                  attn_fn=attn_fn))
+            convs.append(RDB_Conv(G0 + c*G, G))
         self.convs = nn.Sequential(*convs)
 
         # Local Feature Fusion
         self.LFF = nn.Conv2d(G0 + C*G, G0, 1, padding=0, stride=1)
-        self.res_balance = Balance()
 
     def forward(self, x):
-        return self.res_balance(self.LFF(self.convs(x)), x)
+        return self.LFF(self.convs(x)) + x
 
 class RDN(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
         r = args.scale[0]
-        nColors = args.n_colors # number of color channels expected as input
-        G0 = args.G0    # baseline channel amount, also the output channel amount
-        kernel = args.RDNkSize    # kernel size for SFE and GFF conv layers
-        RDBkSize = args.RDBkSize    # kernel size of RDB conv layers
-        act = args.act  # activation function for layers
-        D = args.D  # number of RDB blocks
-        C = args.C  # conv layers per RDB block
-        G = args.G  # output channels of each conv layer within RDB block, which are all concat together
-        
-        # configure attention layer function from string input
-        attn_fn = args.attn_fn  if hasattr(args, "attn_fn") else PixelAttention        
-        attn_fn = eval(attn_fn) if isinstance(attn_fn, str) else attn_fn
-        
+        G0 = args.G0
+        kSize = args.RDNkSize
+
+        # number of RDB blocks, conv layers, out channels
+        self.D, C, G = {
+            'A': (20, 6, 32),
+            'B': (16, 8, 64),
+        }[args.RDNconfig]
+
         # Shallow feature extraction net
-        self.SFENet1 = nn.Conv2d(nColors, G0, kernel, padding=(kernel-1)//2, stride=1)
-        self.SFENet2 = nn.Conv2d(G0, G0, kernel, padding=(kernel-1)//2, stride=1)
-        
-        self.SFE_attn = attn_fn(G0)
-        self.SFE_res_attn = attn_fn(G0)
-        self.SFE_balance = Balance()
+        self.SFENet1 = nn.Conv2d(args.n_colors, G0, kSize, padding=(kSize-1)//2, stride=1)
+        self.SFENet2 = nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
 
         # Redidual dense blocks and dense feature fusion
         self.RDBs = nn.ModuleList()
-        for i in range(D):
+        for i in range(self.D):
             self.RDBs.append(
-                RDB(growRate0=G0, 
-                    growRate=G, 
-                    nConvLayers=C,
-                    kernel=RDBkSize,
-                    act=act,
-                    attn_fn=attn_fn)
+                RDB(growRate0 = G0, growRate = G, nConvLayers = C)
             )
 
-        # Global Feature Fusion 
-        #   - This takes all of the RDB block outputs concatenated together and
-        #     combines all of the channels down to `G0`, which is the expected output
-        #     channel dimension size
+        # Global Feature Fusion
         self.GFF = nn.Sequential(*[
-            nn.Conv2d(D * G0, G0, 1, padding=0, stride=1),
-            nn.Conv2d(G0, G0, kernel, padding=(kernel-1)//2, stride=1)
+            nn.Conv2d(self.D * G0, G0, 1, padding=0, stride=1),
+            nn.Conv2d(G0, G0, kSize, padding=(kSize-1)//2, stride=1)
         ])
-        
-        # learns a weighted sum of GFF and SFE_res_attn
-        # - final output if not upsampled
-        self.GFF_balance = Balance()
 
         if args.no_upsampling:
             self.out_dim = G0
@@ -114,60 +82,46 @@ class RDN(nn.Module):
             self.out_dim = args.n_colors
             # Up-sampling net
             if r == 2 or r == 3:
-                self.UpNet = nn.Sequential(*[
+                self.UPNet = nn.Sequential(*[
                     nn.Conv2d(G0, G * r * r, kSize, padding=(kSize-1)//2, stride=1),
                     nn.PixelShuffle(r),
-                    nn.Conv2d(G, nColors, kSize, padding=(kSize-1)//2, stride=1)
+                    nn.Conv2d(G, args.n_colors, kSize, padding=(kSize-1)//2, stride=1)
                 ])
             elif r == 4:
-                self.UpNet = nn.Sequential(*[
+                self.UPNet = nn.Sequential(*[
                     nn.Conv2d(G0, G * 4, kSize, padding=(kSize-1)//2, stride=1),
                     nn.PixelShuffle(2),
                     nn.Conv2d(G, G * 4, kSize, padding=(kSize-1)//2, stride=1),
                     nn.PixelShuffle(2),
-                    nn.Conv2d(G, nColors, kSize, padding=(kSize-1)//2, stride=1)
+                    nn.Conv2d(G, args.n_colors, kSize, padding=(kSize-1)//2, stride=1)
                 ])
             else:
                 raise ValueError("scale must be 2 or 3 or 4.")
 
     def forward(self, x):
         f__1 = self.SFENet1(x)
-        x = self.SFE_balance(self.SFENet2(f__1), self.SFE_attn(f__1))
+        x  = self.SFENet2(f__1)
 
         RDBs_out = []
-        for rdb in self.RDBs:
-            x = rdb(x)
+        for i in range(self.D):
+            x = self.RDBs[i](x)
             RDBs_out.append(x)
 
-        x = self.GFF(torch.cat(RDBs_out, dim=1))
-        x = self.GFF_balance(x, self.SFE_res_attn(f__1))
+        x = self.GFF(torch.cat(RDBs_out,1))
+        x += f__1
 
         if self.args.no_upsampling:
             return x
         else:
-            return self.UpNet(x)
-
+            return self.UPNet(x)
 
 @register('rdn')
-def make_rdn(D=20, C=6, G=32, attn_fn='PixelAttention', act="gelu",
-             G0=64, RDNkSize=3, RDBkSize=3, RDNconfig=None,
-             scale=2, no_upsampling=True):
+def make_rdn(G0=64, RDNkSize=3, RDNconfig='B',
+             scale=2, no_upsampling=False):
     args = Namespace()
-    args.D = D
-    args.C = C
-    args.G = G
-    args.act = act
-    args.attn_fn = attn_fn
     args.G0 = G0
     args.RDNkSize = RDNkSize
-    args.RDBkSize = RDBkSize
-    # original RDN suggested parameters
-    RDNstaticConfig = {
-        'A': (20, 6, 32),
-        'B': (16, 8, 64),
-    }
-    if RDNconfig in RDNstaticConfig:
-        args.D, args.C, args.G = RDNstaticConfig[RDNconfig]
+    args.RDNconfig = RDNconfig
 
     args.scale = [scale]
     args.no_upsampling = no_upsampling
