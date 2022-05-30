@@ -4,15 +4,15 @@ import torch.nn.functional as F
 
 from .registry import register
 
-def drop_path(x, drop_prob):
-  if drop_prob > 0.:
-    keep_prob = 1. - drop_prob
-    mask = torch.FloatTensor(x.size(0), 1, 1, 1) \
-        .bernoulli_(keep_prob) \
-            .to(x.device)
-    x.div_(keep_prob)
-    x.mul_(mask)
-  return x
+def drop_path(x, drop_prob, training: bool=False):
+    if drop_prob > 0. and training:
+        keep_prob = 1. - drop_prob
+        mask = torch.FloatTensor(x.size(0), 1, 1, 1) \
+            .bernoulli_(keep_prob) \
+                .to(x.device)
+        x.div_(keep_prob)
+        x.mul_(mask)
+    return x
 
 @register("drop_path")
 class DropPath(nn.Module):
@@ -23,7 +23,7 @@ class DropPath(nn.Module):
             self.keep_prob =  1.0 - drop_prob
 
     def forward(self, x):
-        if self.drop_prob > 0.:
+        if self.drop_prob > 0. and self.training:
             self.mask = torch.FloatTensor(x.size(0), 1, 1, 1) \
                             .bernoulli_(self.keep_prob) \
                                 .to(x.device)            
