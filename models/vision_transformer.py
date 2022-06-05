@@ -232,39 +232,6 @@ class VisionTransformer(nn.Module):
         x = self.norm(x)
         return x
 
-    def get_intermediate_feat(self, x, n=1):
-        x = self.prepare_tokens(x)
-        # we return the output tokens from the `n` last blocks
-        feat = []
-        attns = []
-        qkvs = []
-        for i, blk in enumerate(self.blocks):
-            x,attn,qkv = blk(x, return_qkv=True)
-            if len(self.blocks) - i <= n:
-                feat.append(self.norm(x))
-                qkvs.append(qkv)
-                attns.append(attn)
-        return feat, attns, qkvs
-
-    def get_last_selfattention(self, x):
-        x = self.prepare_tokens(x)
-        for i, blk in enumerate(self.blocks):
-            if i < len(self.blocks) - 1:
-                x = blk(x)
-            else:
-                # return attention of the last block
-                return blk(x, return_attention=True)
-
-    def get_intermediate_layers(self, x, n=1):
-        x = self.prepare_tokens(x)
-        # we return the output tokens from the `n` last blocks
-        output = []
-        for i, blk in enumerate(self.blocks):
-            x = blk(x)
-            if len(self.blocks) - i <= n:
-                output.append(self.norm(x))
-        return output
-
 @register("vit_tiny")
 def vit_tiny(patch_size=16, **kwargs):
     model = VisionTransformer(

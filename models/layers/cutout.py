@@ -8,7 +8,6 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision import transforms
 from torchvision.transforms import functional as TF
-torch.backends.cudnn.benchmark = False
 
 import kornia
 import kornia.augmentation as K

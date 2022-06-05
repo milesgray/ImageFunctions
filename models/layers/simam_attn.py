@@ -3,12 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .learnable import Scale
+from .learnable import Scale, Balance
 from .registry import register
 
 @register("simam_attn")
 class SimamAttention(torch.nn.Module):
-    def __init__(self, channels = None, e_lambda = 1e-4, lean_gain=False):
+    def __init__(self, channels = None, e_lambda = 1e-4, learn_gain=False, apply_attn=False):
         super().__init__()
         self.channels = channels
         self.activaton = nn.Sigmoid()
@@ -17,23 +17,21 @@ class SimamAttention(torch.nn.Module):
             self.gain = Scale()
         else:
             self.gain = nn.Identity()
+        if apply_attn:
+            self.residual = Balance(0.0)
+        else:
+            self.residual = nn.Identity()
 
-    def __repr__(self):
-        s = self.__class__.__name__ + '('
-        s += ('lambda=%f)' % self.e_lambda)
-        return s
-
-    @staticmethod
-    def get_module_name():
-        return "simam"
 
     def forward(self, x):
+        n = x.shape[2] * x.shape[3] - 1
+        # square of (t - u)
+        d = (x - x.mean(dim=[2,3])).pow(2)
+        # d.sum() / n is channel variance
+        v = d.sum(dim=[2,3]) / n
+        # E_inv groups all importance of X
+        e_inv = d / (4 * (v + self.e_lambda)) + 0.5        
 
-        b, c, h, w = x.size()
-        
-        n = w * h - 1
+        y = x * self.gain(self.activaton(e_inv))
 
-        x_minus_mu_square = (x - x.mean(dim=[2,3], keepdim=True)).pow(2)
-        y = x_minus_mu_square / (4 * (x_minus_mu_square.sum(dim=[2,3], keepdim=True) / n + self.e_lambda)) + 0.5
-
-        return x * self.gain(self.activaton(y))
+        return self.residual(x, y)

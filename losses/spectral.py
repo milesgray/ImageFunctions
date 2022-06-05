@@ -273,83 +273,38 @@ class FocalFrequencyLoss(nn.Module):
     
     
 ###############################################################################
-"""  
-https://openaccess.thecvf.com/content/ICCV2021/papers/Fuoli_Fourier_Space_Losses_for_Efficient_Perceptual_Image_Super-Resolution_ICCV_2021_paper.pdf
- 
-In addition to these spatial domain losses, we propose a
-Fourier space loss LF for supervision from the ground truth
-frequency spectrum during training. First, ground truth y
-and generated image yˆ are pre-processed with a Hann window, 
-as described in Section 3.2. Afterwards, both images are transformed 
-into Fourier space by applying the fast
-Fourier transform (FFT), where we calculate amplitude and
-phase of all frequency components. The L1-loss of amplitude 
-difference LF,|·| and phase difference LF,∠ (we take
-into account the periodicity) between output image and 
-target are averaged to produce the total frequency loss LF .
-Note, since half of all frequency components are redundant,
-the summation for u is performed up to U/2−1 only, without 
-affecting the loss due to Eq.
-"""
 @register("fourier_space")
 class FourierSpaceLoss(nn.Module):
-    def __init__(self, hann_window=3):
+    """  
+    https://openaccess.thecvf.com/content/ICCV2021/papers/Fuoli_Fourier_Space_Losses_for_Efficient_Perceptual_Image_Super-Resolution_ICCV_2021_paper.pdf
+    
+    In addition to these spatial domain losses, we propose a
+    Fourier space loss LF for supervision from the ground truth
+    frequency spectrum during training. First, ground truth y
+    and generated image yˆ are pre-processed with a Hann window, 
+    as described in Section 3.2. Afterwards, both images are transformed 
+    into Fourier space by applying the fast
+    Fourier transform (FFT), where we calculate amplitude and
+    phase of all frequency components. The L1-loss of amplitude 
+    difference LF,|·| and phase difference LF,∠ (we take
+    into account the periodicity) between output image and 
+    target are averaged to produce the total frequency loss LF .
+    Note, since half of all frequency components are redundant,
+    the summation for u is performed up to U/2−1 only, without 
+    affecting the loss due to Eq.
+    """
+    def __init__(self):
         super().__init__()
+        self.fft = torch.fft.fft
         
     def channel_stats(self, x):
         # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
-        fourier = torch.fft.fft(x, norm='ortho')
+        fourier = self.fft(x, norm='ortho')
         # where we calculate amplitude and phase of all frequency components
         amp = torch.sqrt(fourier.real.pow(2) + fourier.imag.pow(2))
         phase = torch.atan2(fourier.imag, fourier.real)
         return amp, phase
         
-    def forward(self, x, y):
-        # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
-        win_shape = x.shape
-        win_length = x.reshape(win_shape[0], win_shape[1], -1).shape[-1]
-        
-        window = torch.hann_window(win_length, 
-                                   periodic=True, 
-                                   requires_grad=True) \
-                                       .to(x.device)
-        x = x.reshape(win_shape[0], win_shape[1], -1) * window
-        y = y.reshape(win_shape[0], win_shape[1], -1) * window
-        loss = 0
-        for i in range(x.shape[1]):
-            x_amp, x_phase = self.channel_stats(x[:,i,...])
-            y_amp, y_phase = self.channel_stats(y[:,i,...])
-            
-            # The L1-loss of amplitude difference LF,|·| and phase difference LF,∠ (we take
-            # into account the periodicity) between output image and  
-            # target are averaged to produce the total frequency loss LF
-            half_u = x_amp.shape[-1] // 2 - 1
-            
-            loss_amp = nn.L1Loss()(x_amp[:,:half_u], y_amp[:,:half_u])
-            loss_phase = nn.L1Loss()(x_phase[:,:half_u], y_phase[:,:half_u])
-            
-            loss += loss_amp + loss_phase / 2
-        loss /= 3
-        
-        return loss 
-    
-@register("fourier_hi_space")
-class FourierHighSpaceLoss(nn.Module):
-    def __init__(self, hann_window=3):
-        super().__init__()
-        
-    def channel_stats(self, x):
-        # both images are transformed into Fourier space by applying the fast Fourier transform (FFT)
-        fourier = torch.fft.fftshift(x)
-        freq = torch.fft.rfftfreq(fourier.shape[-2])
-        if torch.cuda.is_available():
-            freq = freq.cuda()
-        fourier = torch.fft.rfft(x, norm='ortho') * freq
-        # where we calculate amplitude and phase of all frequency components
-        amp = torch.sqrt(fourier.real.pow(2) + fourier.imag.pow(2))
-        phase = fourier.angle()
-        return amp, phase
-    
     def forward(self, x, y):
         # First, ground truth y and generated image yˆ are pre-processed with a Hann window, 
         win_shape = x.shape
