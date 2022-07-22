@@ -6,7 +6,6 @@ import torch.nn.init as init
 
 from .registry import register
 
-
 @register("local_self_attn")
 class LocalSelfAttention(nn.Module):
     def __init__(
@@ -40,6 +39,14 @@ class LocalSelfAttention(nn.Module):
         self.query_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=bias)
         self.value_conv = nn.Conv2d(in_channels, out_channels)
 
+        self.agg = nn.Sequential(
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(out_channels))
+
+        self.reset_parameters()
+
     def forward(self, x):
         batch, channels, height, width = x.size()
 
@@ -60,7 +67,6 @@ class LocalSelfAttention(nn.Module):
         v_out = v_out.contiguous().view(
             batch, self.groups, self.out_channels // self.groups, height, width, -1
         )
-
         q_out = q_out.view(
             batch, self.groups, self.out_channels // self.groups, height, width, 1
         )
