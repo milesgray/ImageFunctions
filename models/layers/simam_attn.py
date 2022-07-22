@@ -17,10 +17,7 @@ class SimamAttention(torch.nn.Module):
             self.gain = Scale()
         else:
             self.gain = nn.Identity()
-        if apply_attn:
-            self.residual = Balance(0.0)
-        else:
-            self.residual = nn.Identity()
+        self.apply_attn = apply_attn
 
 
     def forward(self, x):
@@ -34,4 +31,7 @@ class SimamAttention(torch.nn.Module):
 
         y = x * self.gain(self.activaton(e_inv))
 
-        return self.residual(x, y)
+        if self.apply_attn:
+            return x * y
+        else:
+            return y
