@@ -1,3 +1,18 @@
+import gc
+
+import torch
+import torch.nn as nn
+
+import numpy as np
+
+import umap
+# TODO: import TSNE
+# TODO: import fast_tsne
+
+import tqdm.tqdm as tqdm
+
+import matplotlib.pyplot as plt
+
 class CentroidDistanceConcentrationPlot:
     def __init__(self, loader, loss_temp=0.1, logger=print, experiment=None):
         self.epoch = 0        
@@ -19,28 +34,28 @@ class CentroidDistanceConcentrationPlot:
     def build(self, epoch, net, loader=None, 
               mode="tsne", draw=True, save=True, verbose=True):
         if loader: self.loader = loader
-        self.features, self.labels = self.evaluate(net)
+        self.features, self.labels = self._evaluate(net)
 
         if draw:
             if mode == "tsne":
                 try:
-                    self.reduced_features = self.transform_fast_tsne(self.features.detach().cpu().numpy(), verbose=verbose)
+                    self.reduced_features = self._transform_fast_tsne(self.features.detach().cpu().numpy(), verbose=verbose)
                 except Exception as e:
                     self.logger(f"[ERROR]\tFast TSNE failed:\n{e}")
-                    self.reduced_features = self.transform_tsne(self.features.detach().cpu().numpy(), verbose=verbose)
+                    self.reduced_features = self._transform_tsne(self.features.detach().cpu().numpy(), verbose=verbose)
             elif mode == "umap":
-                self.reduced_features = self.transform_umap(self.features.detach().cpu().numpy(), verbose=verbose)
+                self.reduced_features = self._transform_umap(self.features.detach().cpu().numpy(), verbose=verbose)
             elif mode == "svd":
                 self.reduced_features = torch.svd(self.features)
             self.reduced_features = torch.Tensor(self.reduced_features).cuda()
-            centroid_results = self.find_centroids(self.reduced_features, self.labels, verbose=verbose)
+            centroid_results = self._find_centroids(self.reduced_features, self.labels, verbose=verbose)
             self.centroids, self.distances, self.concentrations = centroid_results
             self.draw(epoch, self.reduced_features, 
                       self.labels, self.centroids, self.concentrations, 
                       figname=f"{mode} Clusters", 
                       save=save, verbose=verbose)
         
-        return self.find_centroids(self.features, self.labels, verbose=verbose)
+        return self._find_centroids(self.features, self.labels, verbose=verbose)
 
     def draw(self, epoch, features, labels, centroids, concentrations, save=True, 
              figsize=20, figname='Clusers', folder=args.results_dir,
@@ -94,7 +109,7 @@ class CentroidDistanceConcentrationPlot:
         plt.close(fig)
         gc.collect()
 
-    def transform_tsne(self, features, iters=1000, perplexity=20, n_components=2, init="pca", 
+    def _transform_tsne(self, features, iters=1000, perplexity=20, n_components=2, init="pca", 
                     method="barnes_hut", n_jobs=-1, verbose=True):
         try:
             if verbose: self.logger(f"[INFO]\tStarting T-SNE fit transform on {features.shape} to {(features.shape[0], n_components)}, training for {iters} iterations")
@@ -106,7 +121,7 @@ class CentroidDistanceConcentrationPlot:
             self.logger(f"[ERROR]\tFailed T-SNE: {e}")
             return features
 
-    def transform_fast_tsne(self, features, verbose=True):
+    def _transform_fast_tsne(self, features, verbose=True):
         try:
             if verbose: self.logger(f"[INFO]\tStarting Fast T-SNE fit transform on {features.shape} to {(features.shape[0], 2)}")
             start = time.time()
@@ -117,11 +132,11 @@ class CentroidDistanceConcentrationPlot:
             self.logger(f"[ERROR]\tFailed Fast T-SNE: {e}")
             return features
 
-    def transform_umap(self, features, verbose=True):
+    def _transform_umap(self, features, verbose=True):
         mapper = umap.UMAP(random_state=42).fit(features)
         return mapper.embedding_.T
 
-    def find_centroids(self, features, labels, attr_name="image", dist_name="Projection", msg_break="\t", verbose=True):        
+    def _find_centroids(self, features, labels, attr_name="image", dist_name="Projection", msg_break="\t", verbose=True):        
         num_label = len(self.classes)
         if verbose: self.logger(f"[DEBUG]\t{num_label} unique class categories")
         centroids = torch.empty((num_label, features.shape[1])).to(features.device)
@@ -130,15 +145,15 @@ class CentroidDistanceConcentrationPlot:
         message = f"[INFO]\tAvg Distance to each {attr_name}'s {features.shape[1]}D {dist_name} centroid:{msg_break}"
         for label_index in tqdm(range(num_label), desc="Finding Centroids"):
             bool_index = (labels == label_index).squeeze()
-            centroids[label_index] = self.find_centroid(features[bool_index, :])
-            distances[label_index], concentrations[label_index] = self.get_distance_stats(features[bool_index, :], centroids[label_index])
+            centroids[label_index] = self._find_centroid(features[bool_index, :])
+            distances[label_index], concentrations[label_index] = self._get_distance_stats(features[bool_index, :], centroids[label_index])
             
         # https://arxiv.org/pdf/2005.04966v1.pdf - We normalize φ for each set of prototypes Cm such that they have a mean of τ 
-        concentrations = self.normalizer(concentrations, self.loss_temp)
+        concentrations = self._normalizer(concentrations, self.loss_temp)
         for label_index in range(num_label):
             message = f"{message}{label_index}: {distances[label_index]:.4f}({concentrations[label_index]:.4f}){msg_break}"
         
-        correct, closest = self.eval_closest_centroid(features, centroids, labels)
+        correct, closest = self._eval_closest_centroid(features, centroids, labels)
         total_correct = correct.sum()
         percent_correct = total_correct / correct.shape[0] * 100
 
@@ -151,15 +166,14 @@ class CentroidDistanceConcentrationPlot:
         
         return centroids, distances, concentrations    
 
-
-    def eval_closest_centroid(self, features, centroids, labels, dists=None): 
+    def _eval_closest_centroid(self, features, centroids, labels, dists=None): 
         if dists is None:
             dists = torch.cdist(features, centroids)   
         closest = torch.argmin(dists, axis=1).to(features.device)
         correct = torch.eq(closest, torch.squeeze(labels.to(features.device))).float()
         return correct, closest    
 
-    def find_centroid(self, features):
+    def _find_centroid(self, features):
         length = features.shape[0]
         dims = features.shape[1]
         result = torch.empty((dims,))
@@ -167,7 +181,7 @@ class CentroidDistanceConcentrationPlot:
             result[i] = torch.sum(features[:, i]) / length
         return result
 
-    def get_distance_stats(self, features, centroid, a=10, formula=2, dist=None):
+    def _get_distance_stats(self, features, centroid, a=10, formula=2, dist=None):
         if dist is None:
             dist = torch.cdist(features, torch.unsqueeze(centroid, 0))
         #φ = SUM |Vz − c|2
@@ -179,7 +193,7 @@ class CentroidDistanceConcentrationPlot:
         
         return dist.mean(), density
 
-    def normalizer(self, density, temp, formula=2):
+    def _normalizer(self, density, temp, formula=2):
         try:
             if formula==1:
                 norm = values / torch.linalg.norm(values)
@@ -190,7 +204,7 @@ class CentroidDistanceConcentrationPlot:
         except:
             return density
 
-    def evaluate(self, net):
+    def _evaluate(self, net):
         classes = []
         features = []
         with torch.no_grad():
