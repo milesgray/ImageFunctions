@@ -12,7 +12,7 @@ from .pool import ZPool, SpatialMaxPool, SpatialMeanPool
 from .gate import GateConv, PoolGate
 from .statistics import stdv_channels
 from .fourier import FourierConv2d
-from ImageFunctions.utility.torch import get_valid_padding
+from .common import get_valid_padding
 
 @register("pixel_attn")
 class PixelAttention(nn.Module):
