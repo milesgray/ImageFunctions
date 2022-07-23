@@ -25,7 +25,7 @@ from .cross_attn  import SelfAttention, CrossAttention
 from .local_self_attn import LocalSelfAttention
 
 from .scale_aware import ScaleAwareConv2d, ScaleAwareAdapt
-from .linear_residual import LinearResidual
+from .linear import LinearResidual
 from .stiefel import StiefelHouseholder, StiefelHouseholderCanonical
 from .imdn import *
 from .spectral import SpectralConv2d

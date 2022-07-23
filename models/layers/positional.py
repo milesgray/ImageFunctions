@@ -12,7 +12,7 @@ from einops import rearrange
 from .registry import register
 
 from .activations import create as create_activation
-from .linear_residual import LinearResidual
+from .linear import LinearResidual
 
 @register("lft_position")
 class LFTPositionEncoding(nn.Module):
