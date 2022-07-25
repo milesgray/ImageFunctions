@@ -3,11 +3,11 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-from .layers import PixelAttention, NonLocalAttention
-from .layers import Balance, stdv_channels
-from .layers import MAConv2d
-from .layers import create as create_layer
-from .layers.activations import create as create_act
+from ..layers import PixelAttention, NonLocalAttention
+from ..layers import Balance, stdv_channels
+from ..layers import MAConv2d
+from ..layers import create as create_layer
+from ..layers.activations import create as create_act
 
 from models import register
 

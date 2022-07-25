@@ -7,9 +7,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .layers import PixelAttention, MeanShift, Scale, Balance
+from ..layers import PixelAttention, MeanShift, Scale, Balance
 from models import register
-from .layers.activations import create as create_act
+from ..layers.activations import create as create_act
 
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(

@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 from models import register
-from .layers import LinearResidual
-from .layers import create as create_layer
-from .layers.activations import create as create_act
+from ..layers import LinearResidual
+from ..layers import create as create_layer
+from ..layers.activations import create as create_act
 
 def sn_wrapper(module: nn.Module, use_sn: bool, *sn_args, **sn_kwargs) -> nn.Module:
     """

@@ -27,3 +27,13 @@ class HASH(nn.Module):
         loss = 0.005*(ls+ld)+self.l1(sr,hr) 
 
         return loss
+
+class SphereDist(nn.Module):
+    def __init__(self, cosine_eps = 1e-4):
+        super().__init__()
+        self.cosine_eps = cosine_eps
+        
+    def forward(self, x, y):        
+        return torch.arccos(torch.vdot(x, y) / 
+                            (1.+self.cosine_eps)
+                            )

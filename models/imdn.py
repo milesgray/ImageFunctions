@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from collections import OrderedDict
 
-from .layers.imdn import *
+from ..layers.imdn import *
 from models import register
 
 
