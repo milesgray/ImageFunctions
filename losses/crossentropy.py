@@ -61,7 +61,7 @@ class WeightedCrossEntropyLoss(torch.nn.CrossEntropyLoss):
     Network has to have NO NONLINEARITY!
     """
     def __init__(self, weight=None):
-        super(WeightedCrossEntropyLoss, self).__init__()
+        super().__init__()
         self.weight = weight
 
     def forward(self, inp, target):
@@ -91,30 +91,35 @@ class WeightedCrossEntropyLossV2(torch.nn.Module):
     Network has to have NO LINEARITY!
     copy from: https://github.com/wolny/pytorch-3dunet/blob/6e5a24b6438f8c631289c10638a17dea14d42051/unet3d/losses.py#L121
     """
+    def __init__(self, weight=None):
+        super().__init__()
+        self.weight = weight
 
     def forward(self, net_output, gt):
-        # compute weight
-        # shp_x = net_output.shape
-        # shp_y = gt.shape
-        # print(shp_x, shp_y)
-        # with torch.no_grad():
-        #     if len(shp_x) != len(shp_y):
-        #         gt = gt.view((shp_y[0], 1, *shp_y[1:]))
+        if self.weight is None:
+            # compute weight
+            shp_x = net_output.shape
+            shp_y = gt.shape
+            #print(shp_x, shp_y)
+            with torch.no_grad():
+                if len(shp_x) != len(shp_y):
+                    gt = gt.view((shp_y[0], 1, *shp_y[1:]))
 
-        #     if all([i == j for i, j in zip(net_output.shape, gt.shape)]):
-        #         # if this is the case then gt is probably already a one hot encoding
-        #         y_onehot = gt
-        #     else:
-        #         gt = gt.long()
-        #         y_onehot = torch.zeros(shp_x)
-        #         if net_output.device.type == "cuda":
-        #             y_onehot = y_onehot.cuda(net_output.device.index)
-        #         y_onehot.scatter_(1, gt, 1)
-        # y_onehot = y_onehot.transpose(0,1).contiguous()
-        # class_weights = (torch.einsum("cbxyz->c", y_onehot).type(torch.float32) + 1e-10)/torch.numel(y_onehot)
-        # print('class_weights', class_weights)
-        # class_weights = class_weights.view(-1)
-        class_weights = torch.cuda.FloatTensor([0.2,0.8])
+                if all([i == j for i, j in zip(net_output.shape, gt.shape)]):
+                    # if this is the case then gt is probably already a one hot encoding
+                    y_onehot = gt
+                else:
+                    gt = gt.long()
+                    y_onehot = torch.zeros(shp_x)
+                    if net_output.device.type == "cuda":
+                        y_onehot = y_onehot.cuda(net_output.device.index)
+                    y_onehot.scatter_(1, gt, 1)
+            y_onehot = y_onehot.transpose(0,1).contiguous()
+            class_weights = (torch.einsum("cbxyz->c", y_onehot).type(torch.float32) + 1e-10)/torch.numel(y_onehot)
+            #print('class_weights', class_weights)
+            class_weights = class_weights.view(-1)
+        else:
+            class_weights = self.weight
         gt = gt.long()
         num_classes = net_output.size()[1]
         # class_weights = self._class_weights(inp)
@@ -131,32 +136,31 @@ class WeightedCrossEntropyLossV2(torch.nn.Module):
         net_output = net_output.view(-1, num_classes) #shape=(vox_num, class_num)
 
         gt = gt.view(-1,)
-        # print('*'*20)
         return F.cross_entropy(net_output, gt) # , weight=class_weights
 
-    # @staticmethod
-    # def _class_weights(input):
-    #     # normalize the input first
-    #     input = F.softmax(input, _stacklevel=5)
-    #     flattened = flatten(input)
-    #     nominator = (1. - flattened).sum(-1)
-    #     denominator = flattened.sum(-1)
-    #     class_weights = Variable(nominator / denominator, requires_grad=False)
-    #     return class_weights
+    @staticmethod
+    def _class_weights(input):
+        # normalize the input first
+        input = F.softmax(input, _stacklevel=5)
+        flattened = self._flatten(input)
+        nominator = (1. - flattened).sum(-1)
+        denominator = flattened.sum(-1)
+        class_weights = Variable(nominator / denominator, requires_grad=False)
+        return class_weights
 
-def flatten(tensor):
-    """Flattens a given tensor such that the channel axis is first.
-    The shapes are transformed as follows:
-       (N, C, D, H, W) -> (C, N * D * H * W)
-    """
-    C = tensor.size(1)
-    # new axis order
-    axis_order = (1, 0) + tuple(range(2, tensor.dim()))
-    # Transpose: (N, C, D, H, W) -> (C, N, D, H, W)
-    transposed = tensor.permute(axis_order)
-    # Flatten: (C, N, D, H, W) -> (C, N * D * H * W)
-    transposed = transposed.contiguous()
-    return transposed.view(C, -1)
+    def _flatten(self, tensor):
+        """Flattens a given tensor such that the channel axis is first.
+        The shapes are transformed as follows:
+        (N, C, D, H, W) -> (C, N * D * H * W)
+        """
+        C = tensor.size(1)
+        # new axis order
+        axis_order = (1, 0) + tuple(range(2, tensor.dim()))
+        # Transpose: (N, C, D, H, W) -> (C, N, D, H, W)
+        transposed = tensor.permute(axis_order)
+        # Flatten: (C, N, D, H, W) -> (C, N * D * H * W)
+        transposed = transposed.contiguous()
+        return transposed.view(C, -1)
 
 def compute_edts_forPenalizedLoss(GT):
     """
@@ -250,83 +254,6 @@ class TaylorCrossEntropyLoss(nn.Module):
 
 # Code taken from https://github.com/fhopfmueller/bi-tempered-loss-pytorch/blob/master/bi_tempered_loss_pytorch.py
 
-def log_t(u, t):
-    """Compute log_t for `u'."""
-    if t==1.0:
-        return u.log()
-    else:
-        return (u.pow(1.0 - t) - 1.0) / (1.0 - t)
-
-def exp_t(u, t):
-    """Compute exp_t for `u'."""
-    if t==1:
-        return u.exp()
-    else:
-        return (1.0 + (1.0-t)*u).relu().pow(1.0 / (1.0 - t))
-
-def compute_normalization_fixed_point(activations, t, num_iters):
-
-    """Returns the normalization value for each example (t > 1.0).
-    Args:
-      activations: A multi-dimensional tensor with last dimension `num_classes`.
-      t: Temperature 2 (> 1.0 for tail heaviness).
-      num_iters: Number of iterations to run the method.
-    Return: A tensor of same shape as activation with the last dimension being 1.
-    """
-    mu, _ = torch.max(activations, -1, keepdim=True)
-    normalized_activations_step_0 = activations - mu
-
-    normalized_activations = normalized_activations_step_0
-
-    for _ in range(num_iters):
-        logt_partition = torch.sum(
-                exp_t(normalized_activations, t), -1, keepdim=True)
-        normalized_activations = normalized_activations_step_0 * \
-                logt_partition.pow(1.0-t)
-
-    logt_partition = torch.sum(
-            exp_t(normalized_activations, t), -1, keepdim=True)
-    normalization_constants = - log_t(1.0 / logt_partition, t) + mu
-
-    return normalization_constants
-
-def compute_normalization_binary_search(activations, t, num_iters):
-
-    """Returns the normalization value for each example (t < 1.0).
-    Args:
-      activations: A multi-dimensional tensor with last dimension `num_classes`.
-      t: Temperature 2 (< 1.0 for finite support).
-      num_iters: Number of iterations to run the method.
-    Return: A tensor of same rank as activation with the last dimension being 1.
-    """
-
-    mu, _ = torch.max(activations, -1, keepdim=True)
-    normalized_activations = activations - mu
-
-    effective_dim = \
-        torch.sum(
-                (normalized_activations > -1.0 / (1.0-t)).to(torch.int32),
-            dim=-1, keepdim=True).to(activations.dtype)
-
-    shape_partition = activations.shape[:-1] + (1,)
-    lower = torch.zeros(shape_partition, dtype=activations.dtype, device=activations.device)
-    upper = -log_t(1.0/effective_dim, t) * torch.ones_like(lower)
-
-    for _ in range(num_iters):
-        logt_partition = (upper + lower)/2.0
-        sum_probs = torch.sum(
-                exp_t(normalized_activations - logt_partition, t),
-                dim=-1, keepdim=True)
-        update = (sum_probs < 1.0).to(activations.dtype)
-        lower = torch.reshape(
-                lower * update + (1.0-update) * logt_partition,
-                shape_partition)
-        upper = torch.reshape(
-                upper * (1.0 - update) + update * logt_partition,
-                shape_partition)
-
-    logt_partition = (upper + lower)/2.0
-    return logt_partition + mu
 class ComputeNormalization(torch.autograd.Function):
     """
     Class implementing custom backward pass for compute_normalization. See compute_normalization.
@@ -334,12 +261,12 @@ class ComputeNormalization(torch.autograd.Function):
     @staticmethod
     def forward(ctx, activations, t, num_iters):
         if t < 1.0:
-            normalization_constants = compute_normalization_binary_search(activations, t, num_iters)
+            normalization_constants = self.compute_normalization_binary_search(activations, t, num_iters)
         else:
-            normalization_constants = compute_normalization_fixed_point(activations, t, num_iters)
+            normalization_constants = self.compute_normalization_fixed_point(activations, t, num_iters)
 
         ctx.save_for_backward(activations, normalization_constants)
-        ctx.t=t
+        ctx.t = t
         return normalization_constants
 
     @staticmethod
@@ -353,6 +280,87 @@ class ComputeNormalization(torch.autograd.Function):
         grad_input = escorts * grad_output
         
         return grad_input, None, None
+
+    @staticmethod
+    def log_t(u, t):
+        """Compute log_t for `u'."""
+        if t==1.0:
+            return u.log()
+        else:
+            return (u.pow(1.0 - t) - 1.0) / (1.0 - t)
+    @staticmethod
+    def exp_t(u, t):
+        """Compute exp_t for `u'."""
+        if t==1:
+            return u.exp()
+        else:
+            return (1.0 + (1.0-t)*u).relu().pow(1.0 / (1.0 - t))
+            
+    @staticmethod
+    def compute_normalization_fixed_point(activations, t, num_iters):
+
+        """Returns the normalization value for each example (t > 1.0).
+        Args:
+        activations: A multi-dimensional tensor with last dimension `num_classes`.
+        t: Temperature 2 (> 1.0 for tail heaviness).
+        num_iters: Number of iterations to run the method.
+        Return: A tensor of same shape as activation with the last dimension being 1.
+        """
+        mu, _ = torch.max(activations, -1, keepdim=True)
+        normalized_activations_step_0 = activations - mu
+
+        normalized_activations = normalized_activations_step_0
+
+        for _ in range(num_iters):
+            logt_partition = torch.sum(
+                    self.exp_t(normalized_activations, t), -1, keepdim=True)
+            normalized_activations = normalized_activations_step_0 * \
+                    logt_partition.pow(1.0-t)
+
+        logt_partition = torch.sum(
+                exp_t(normalized_activations, t), -1, keepdim=True)
+        normalization_constants = - log_t(1.0 / logt_partition, t) + mu
+
+        return normalization_constants
+
+    @staticmethod
+    def compute_normalization_binary_search(activations, t, num_iters):
+
+        """Returns the normalization value for each example (t < 1.0).
+        Args:
+        activations: A multi-dimensional tensor with last dimension `num_classes`.
+        t: Temperature 2 (< 1.0 for finite support).
+        num_iters: Number of iterations to run the method.
+        Return: A tensor of same rank as activation with the last dimension being 1.
+        """
+
+        mu, _ = torch.max(activations, -1, keepdim=True)
+        normalized_activations = activations - mu
+
+        effective_dim = \
+            torch.sum(
+                    (normalized_activations > -1.0 / (1.0-t)).to(torch.int32),
+                dim=-1, keepdim=True).to(activations.dtype)
+
+        shape_partition = activations.shape[:-1] + (1,)
+        lower = torch.zeros(shape_partition, dtype=activations.dtype, device=activations.device)
+        upper = -log_t(1.0/effective_dim, t) * torch.ones_like(lower)
+
+        for _ in range(num_iters):
+            logt_partition = (upper + lower)/2.0
+            sum_probs = torch.sum(
+                    exp_t(normalized_activations - logt_partition, t),
+                    dim=-1, keepdim=True)
+            update = (sum_probs < 1.0).to(activations.dtype)
+            lower = torch.reshape(
+                    lower * update + (1.0-update) * logt_partition,
+                    shape_partition)
+            upper = torch.reshape(
+                    upper * (1.0 - update) + update * logt_partition,
+                    shape_partition)
+
+        logt_partition = (upper + lower)/2.0
+        return logt_partition + mu        
 
 def compute_normalization(activations, t, num_iters=5):
     """Returns the normalization value for each example. 
@@ -481,98 +489,6 @@ def bi_tempered_logistic_loss(activations,
     if reduction == 'mean':
         return loss_values.mean()
 
-def _squeeze_binary_labels(label):
-    if label.size(1) == 1:
-        squeeze_label = label.view(len(label), -1)
-    else:
-        inds = torch.nonzero(label >= 1).squeeze()
-        squeeze_label = inds[:,-1]
-    return squeeze_label
-
-def cross_entropy(pred, label, weight=None, reduction='mean', avg_factor=None):
-    # element-wise losses
-    if label.size(-1) != pred.size(0):
-        label = _squeeze_binary_labels(label)
-
-    loss = F.cross_entropy(pred, label, reduction='none')
-
-    # apply weights and do the reduction
-    if weight is not None:
-        weight = weight.float()
-    loss = weight_reduce_loss(
-        loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
-
-    return loss
-
-def _expand_binary_labels(labels, label_weights, label_channels):
-    bin_labels = labels.new_full((labels.size(0), label_channels), 0)
-    inds = torch.nonzero(labels >= 1).squeeze()
-    if inds.numel() > 0:
-        bin_labels[inds, labels[inds] - 1] = 1
-    if label_weights is None:
-        bin_label_weights = None
-    else:
-        bin_label_weights = label_weights.view(-1, 1).expand(
-            label_weights.size(0), label_channels)
-    return bin_labels, bin_label_weights
-
-def binary_cross_entropy(pred,
-                         label,
-                         weight=None,
-                         reduction='mean',
-                         avg_factor=None):
-    if pred.dim() != label.dim():
-        label, weight = _expand_binary_labels(label, weight, pred.size(-1))
-
-    # weighted element-wise losses
-    if weight is not None:
-        weight = weight.float()
-
-    loss = F.binary_cross_entropy_with_logits(
-        pred, label.float(), weight, reduction='none')
-    loss = weight_reduce_loss(loss, reduction=reduction, avg_factor=avg_factor)
-
-    return loss
-
-def partial_cross_entropy(pred,
-                          label,
-                          weight=None,
-                          reduction='mean',
-                          avg_factor=None):
-    if pred.dim() != label.dim():
-        label, weight = _expand_binary_labels(label, weight, pred.size(-1))
-
-    # weighted element-wise losses
-    if weight is not None:
-        weight = weight.float()
-
-    mask = label == -1
-    loss = F.binary_cross_entropy_with_logits(
-        pred, label.float(), weight, reduction='none')
-    if mask.sum() > 0:
-        loss *= (1-mask).float()
-        avg_factor = (1-mask).float().sum()
-
-    # do the reduction for the weighted loss
-    loss = weight_reduce_loss(loss, reduction=reduction, avg_factor=avg_factor)
-
-    return loss
-
-def kpos_cross_entropy(pred, label, weight=None, reduction='mean', avg_factor=None):
-    # element-wise losses
-    if pred.dim() != label.dim():
-        label, weight = _expand_binary_labels(label, weight, pred.size(-1))
-
-    target = label.float() / torch.sum(label, dim=1, keepdim=True).float()
-
-    loss = - target * F.log_softmax(pred, dim=1)
-    # apply weights and do the reduction
-    if weight is not None:
-        weight = weight.float()
-    loss = weight_reduce_loss(
-        loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
-
-    return loss
 
 @register("cev3")
 class CrossEntropyV3Loss(nn.Module):
@@ -598,13 +514,13 @@ class CrossEntropyV3Loss(nn.Module):
 
         if self.use_sigmoid:
             if self.partial:
-                self.cls_criterion = partial_cross_entropy
+                self.cls_criterion = self.partial_cross_entropy
             else:
-                self.cls_criterion = binary_cross_entropy
+                self.cls_criterion = self.binary_cross_entropy
         elif self.use_kpos:
-            self.cls_criterion = kpos_cross_entropy
+            self.cls_criterion = self.kpos_cross_entropy
         else:
-            self.cls_criterion = cross_entropy
+            self.cls_criterion = self.cross_entropy
 
     def forward(self,
                 cls_score,
@@ -633,6 +549,107 @@ class CrossEntropyV3Loss(nn.Module):
             avg_factor=avg_factor,
             **kwargs)
         return loss_cls
+
+    @classmethod
+    def _squeeze_binary_labels(label):
+        if label.size(1) == 1:
+            squeeze_label = label.view(len(label), -1)
+        else:
+            inds = torch.nonzero(label >= 1).squeeze()
+            squeeze_label = inds[:,-1]
+        return squeeze_label
+
+    @classmethod
+    def cross_entropy(pred, label, weight=None, reduction='mean', avg_factor=None):
+        # element-wise losses
+        if label.size(-1) != pred.size(0):
+            label = self._squeeze_binary_labels(label)
+
+        loss = F.cross_entropy(pred, label, reduction='none')
+
+        # apply weights and do the reduction
+        if weight is not None:
+            weight = weight.float()
+        loss = weight_reduce_loss(
+            loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
+
+        return loss
+
+    def _expand_binary_labels(labels, label_weights, label_channels):
+        bin_labels = labels.new_full((labels.size(0), label_channels), 0)
+        inds = torch.nonzero(labels >= 1).squeeze()
+        if inds.numel() > 0:
+            bin_labels[inds, labels[inds] - 1] = 1
+        if label_weights is None:
+            bin_label_weights = None
+        else:
+            bin_label_weights = label_weights.view(-1, 1).expand(
+                label_weights.size(0), label_channels)
+        return bin_labels, bin_label_weights
+    
+    @classmethod
+    def binary_cross_entropy(pred, label,
+                             weight=None,
+                             reduction='mean',
+                             avg_factor=None):
+        if pred.dim() != label.dim():
+            label, weight = self._expand_binary_labels(label, weight, pred.size(-1))
+
+        # weighted element-wise losses
+        if weight is not None:
+            weight = weight.float()
+
+        loss = F.binary_cross_entropy_with_logits(
+            pred, label.float(), weight, reduction='none')
+        loss = weight_reduce_loss(loss, reduction=reduction, avg_factor=avg_factor)
+
+        return loss
+
+    @classmethod
+    def partial_cross_entropy(pred, label,
+                              weight=None,
+                              reduction='mean',
+                              avg_factor=None):
+        if pred.dim() != label.dim():
+            label, weight = self._expand_binary_labels(label, weight, pred.size(-1))
+
+        # weighted element-wise losses
+        if weight is not None:
+            weight = weight.float()
+
+        mask = label == -1
+        loss = F.binary_cross_entropy_with_logits(
+            pred, label.float(), weight, reduction='none')
+        if mask.sum() > 0:
+            loss *= (1-mask).float()
+            avg_factor = (1-mask).float().sum()
+
+        # do the reduction for the weighted loss
+        loss = weight_reduce_loss(loss, 
+                reduction=reduction, avg_factor=avg_factor)
+
+        return loss
+
+    @classmethod
+    def kpos_cross_entropy(pred, label, 
+                           weight=None, 
+                           reduction='mean', 
+                           avg_factor=None):
+        # element-wise losses
+        if pred.dim() != label.dim():
+            label, weight = self._expand_binary_labels(label, weight, pred.size(-1))
+
+        target = label.float() / torch.sum(label, dim=1, keepdim=True).float()
+
+        loss = - target * F.log_softmax(pred, dim=1)
+        # apply weights and do the reduction
+        if weight is not None:
+            weight = weight.float()
+        loss = weight_reduce_loss(loss, 
+                weight=weight, reduction=reduction, avg_factor=avg_factor)
+
+        return loss
+
 
 def inverse_sigmoid(Y):
     X = []

@@ -9,11 +9,12 @@ import utility as utils
 import utility.color as color
 
 class Resolution:
-    def __init__(self, width, height):
+    """Class representing the width and height of an image."""
+
+    def __init__(self, width: int, height: int) -> None:
         self.width = width
         self.height = height
-        
-    """Class representing the width and height of an image."""
+    
     def scale_to_height(self, height: int) -> "Resolution":
         """Scales this resolution while maintaining the aspect ratio.
         Args:
@@ -28,6 +29,17 @@ class Resolution:
         """Returns a square version of this resolution."""
         size = min(self.width, self.height)
         return Resolution(size, size)
+
+    def divisible(self, divisor: int) -> "Resolution":        
+        """Trims this resolution to make divisible by a divisor.
+        Args:
+            divisor (int): The desired number to be divisible by
+        Returns:
+            a resolution with trimmed to be divisible by divisor
+        """
+        height = self.height - self.height % divisor
+        width = self.width - self.width % divisor
+        return Resolution(width, height)
 
 class ImageWrap:
     def __init__(self, img, space="bgr"):
@@ -174,5 +186,176 @@ def to_y_channel(img):
         img = img[..., None]
     return img * 255.
 
-# ----
-# COLOR SPACES
+
+def make_divisible(image: np.ndarray, divisor: int) -> np.ndarray:
+    """Trim the image if not divisible by the divisor."""
+    height, width = image.shape[:2]
+    if height % divisor == 0 and width % divisor == 0:
+        return image
+
+    new_height = height - height % divisor
+    new_width = width - width % divisor
+
+    return image[:new_height, :new_width]
+
+def variance_of_laplacian(image: np.ndarray) -> np.ndarray:
+    """Compute the variance of the Laplacian which measure the focus."""
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    return cv2.Laplacian(gray, cv2.CVX_64F).var()
+
+def image_to_uint8(image: np.ndarray) -> np.ndarray:
+    """Convert the image to a uint8 array."""
+    if image.dtype == np.uint8:
+        return image
+    if not issubclass(image.dtype.type, np.floating):
+        raise ValueError(
+                f'Input image should be a floating type but is of type {image.dtype!r}')
+    return (image * UINT8_MAX).clip(0.0, UINT8_MAX).astype(np.uint8)
+
+
+def image_to_uint16(image: np.ndarray) -> np.ndarray:
+    """Convert the image to a uint16 array."""
+    if image.dtype == np.uint16:
+        return image
+    if not issubclass(image.dtype.type, np.floating):
+        raise ValueError(
+                f'Input image should be a floating type but is of type {image.dtype!r}')
+    return (image * UINT16_MAX).clip(0.0, UINT16_MAX).astype(np.uint16)
+
+
+def image_to_float32(image: np.ndarray) -> np.ndarray:
+    """Convert the image to a float32 array and scale values appropriately."""
+    if image.dtype == np.float32:
+        return image
+
+    dtype = image.dtype
+    image = image.astype(np.float32)
+    if dtype == np.uint8:
+        return image / UINT8_MAX
+    elif dtype == np.uint16:
+        return image / UINT16_MAX
+    elif dtype == np.float64:
+        return image
+    elif dtype == np.float16:
+        return image
+
+    raise ValueError(f'Not sure how to handle dtype {dtype}')
+
+
+
+def checkerboard(h, w, size=8, true_val=1.0, false_val=0.0):
+    """Creates a checkerboard pattern with height h and width w."""
+    i = int(math.ceil(h / (size * 2)))
+    j = int(math.ceil(w / (size * 2)))
+    pattern = np.kron([[1, 0] * j, [0, 1] * j] * i,
+                                        np.ones((size, size)))[:h, :w]
+
+    true = np.full_like(pattern, fill_value=true_val)
+    false = np.full_like(pattern, fill_value=false_val)
+    return np.where(pattern > 0, true, false)
+
+
+def pad_image(image, pad=0, pad_mode='constant', pad_value=0.0):
+    """Pads a batched image array."""
+    batch_shape = image.shape[:-3]
+    padding = [
+            *[(0, 0) for _ in batch_shape],
+            (pad, pad), (pad, pad), (0, 0),
+    ]
+    if pad_mode == 'constant':
+        return np.pad(image, padding, pad_mode, constant_values=pad_value)
+    else:
+        return np.pad(image, padding, pad_mode)
+
+
+def split_tiles(image, tile_size):
+    """Splits the image into tiles of size `tile_size`."""
+    # The copy is necessary due to the use of the memory layout.
+    if image.ndim == 2:
+        image = image[..., None]
+    image = np.array(image)
+    image = make_divisible(image, tile_size).copy()
+    height = width = tile_size
+    nrows, ncols, depth = image.shape
+    stride = image.strides
+
+    nrows, m = divmod(nrows, height)
+    ncols, n = divmod(ncols, width)
+    if m != 0 or n != 0:
+        raise ValueError('Image must be divisible by tile size.')
+
+    return np.lib.stride_tricks.as_strided(
+            np.ravel(image),
+            shape=(nrows, ncols, height, width, depth),
+            strides=(height * stride[0], width * stride[1], *stride),
+            writeable=False)
+
+
+def join_tiles(tiles):
+    """Reconstructs the image from tiles."""
+    return np.concatenate(np.concatenate(tiles, 1), 1)
+
+
+def make_grid(batch, grid_height=None, zoom=1, old_buffer=None, border_size=1):
+    """Creates a grid out an image batch.
+    Args:
+        batch: numpy array of shape [batch_size, height, width, n_channels]. The
+            data can either be float in [0, 1] or int in [0, 255]. If the data has
+            only 1 channel it will be converted to a grey 3 channel image.
+        grid_height: optional int, number of rows to have. If not given, it is
+            set so that the output is a square. If -1, then tiling will only be
+            vertical.
+        zoom: optional int, how much to zoom the input. Default is no zoom.
+        old_buffer: Buffer to write grid into if possible. If not set, or if shape
+            doesn't match, we create a new buffer.
+        border_size: int specifying the white spacing between the images.
+    Returns:
+        A numpy array corresponding to the full grid, with 3 channels and values
+        in the [0, 255] range.
+    Raises:
+        ValueError: if the n_channels is not one of [1, 3].
+    """
+
+    batch_size, height, width, n_channels = batch.shape
+
+    if grid_height is None:
+        n = int(math.ceil(math.sqrt(batch_size)))
+        grid_height = n
+        grid_width = n
+    elif grid_height == -1:
+        grid_height = batch_size
+        grid_width = 1
+    else:
+        grid_width = int(math.ceil(batch_size/grid_height))
+
+    if n_channels == 1:
+        batch = np.tile(batch, (1, 1, 1, 3))
+        n_channels = 3
+
+    if n_channels != 3:
+        raise ValueError('Image batch must have either 1 or 3 channels, but '
+                                         'was {}'.format(n_channels))
+
+    # We create the numpy buffer if we don't have an old buffer or if the size has
+    # changed.
+    shape = (height * grid_height + border_size * (grid_height - 1),
+                     width * grid_width + border_size * (grid_width - 1),
+                     n_channels)
+    if old_buffer is not None and old_buffer.shape == shape:
+        buf = old_buffer
+    else:
+        buf = np.full(shape, 255, dtype=np.uint8)
+
+    multiplier = 1 if np.issubdtype(batch.dtype, np.integer) else 255
+
+    for k in range(batch_size):                                       
+        i = k // grid_width
+        j = k % grid_width
+        arr = batch[k]
+        x, y = i * (height + border_size), j * (width + border_size)
+        buf[x:x + height, y:y + width, :] = np.clip(multiplier * arr,
+                                                                                                0, 255).astype(np.uint8)
+
+    if zoom > 1:
+        buf = buf.repeat(zoom, axis=0).repeat(zoom, axis=1)
+    return buf
