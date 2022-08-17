@@ -56,9 +56,15 @@ def gaussian(x, a):
 
 @torch.jit.script
 def hat(x):
-    if x >= 2 or x < 0:
-        return torch.zeros_like(x)
-    elif x >= 0 and x < 1:
-        return x
-    else:
-        return 2 - x
+    ones = torch.ones_like(x)
+    zeros = torch.zeros_like(x)
+    ge_two = x.ge(ones * 2)
+    lt_zero = x.lt(zeros)
+    ge_zero = x.ge(torch.zeros_like(x))
+    lt_one = x.lt(torch.ones_like(x))
+    to_zero = torch.logical_or(ge_two, lt_zero)
+    to_x = torch.logical_and(ge_zero, lt_one)
+    to_2_minus = torch.logical_not(torch.logical_and(to_zero, to_x))
+    x[to_zero] = 0
+    x[to_2_minus] = 2 - x[to_2_minus]
+    return x
