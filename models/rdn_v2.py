@@ -8,8 +8,8 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from ..layers import PixelAttention, NonLocalAttention
-from ..layers import Balance, stdv_channels
+from ImageFunctions.layers import PixelAttention, NonLocalAttention
+from ImageFunctions.layers import Balance, stdv_channels
 from ..layers.activations import create as create_act
 
 from models import register

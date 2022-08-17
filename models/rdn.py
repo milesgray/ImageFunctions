@@ -7,7 +7,7 @@ from argparse import Namespace
 import torch
 import torch.nn as nn
 
-from ..layers import PixelAttention
+from ImageFunctions.layers import PixelAttention
 
 from models import register
 

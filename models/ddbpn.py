@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from models import register
-from ..layers import MeanShift, HessianAttention, PixelAttention
+from ImageFunctions.layers import MeanShift, HessianAttention, PixelAttention
 #from layers import FourierINR
 
 #######################################

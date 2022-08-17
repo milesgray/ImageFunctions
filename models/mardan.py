@@ -3,10 +3,10 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-from ..layers import PixelAttention, NonLocalAttention
-from ..layers import Balance, stdv_channels
-from ..layers import MAConv2d
-from ..layers import create as create_layer
+from ImageFunctions.layers import PixelAttention, NonLocalAttention
+from ImageFunctions.layers import Balance, stdv_channels
+from ImageFunctions.layers import MAConv2d
+from ImageFunctions.layers import create as create_layer
 from ..layers.activations import create as create_act
 
 from models import register

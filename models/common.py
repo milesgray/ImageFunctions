@@ -2,7 +2,6 @@ import math
 
 import torch
 import torch.nn as nn
-4
 from models import register
 
 def default_conv(in_channels, out_channels, kernel_size, bias=True):

@@ -10,7 +10,7 @@ import numpy as np
 from models import make as make_model
 from models import register
 
-from ..layers import FourierINR
+from ImageFunctions.layers import FourierINR
 
 from utility import make_coord
 

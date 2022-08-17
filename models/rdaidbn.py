@@ -8,10 +8,10 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from ..layers import PixelAttention, NonLocalAttention, LocalSelfAttention
-from ..layers import Balance, Scale, stdv_channels
-from ..layers import SpectralConv2d
-from ..layers import create as create_layer
+from ImageFunctions.layers import PixelAttention, NonLocalAttention, LocalSelfAttention
+from ImageFunctions.layers import Balance, Scale, stdv_channels
+from ImageFunctions.layers import SpectralConv2d
+from ImageFunctions.layers import create as create_layer
 from ..layers.activations import create as create_act
 
 from models import register
