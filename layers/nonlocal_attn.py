@@ -39,7 +39,6 @@ class NonLocalAttention(nn.Module):
             kernel_size=1, 
             padding=0, bias=False)
         # Learnable gain parameter
-        #self.gamma = nn.Parameter(torch.tensor(0.), requires_grad=True)
         self.gamma = Scale(0.0)
         self.residual_balance = Balance(0.0)
 
