@@ -174,16 +174,16 @@ class GDiceLossV2(nn.Module):
         if self.apply_nonlin is not None:
             net_output = self.apply_nonlin(net_output)
 
-        input = flatten(net_output)
+        x = flatten(net_output)
         target = flatten(y_onehot)
         target = target.float()
         target_sum = target.sum(-1)
         class_weights = Variable(1. / (target_sum * target_sum).clamp(min=self.smooth), requires_grad=False)
 
-        intersect = (input * target).sum(-1) * class_weights
+        intersect = (x * target).sum(-1) * class_weights
         intersect = intersect.sum()
 
-        denominator = ((input + target).sum(-1) * class_weights).sum()
+        denominator = ((x + target).sum(-1) * class_weights).sum()
 
         return  - 2. * intersect / denominator.clamp(min=self.smooth)
 
@@ -468,7 +468,7 @@ class PenaltyGDiceLoss(nn.Module):
 @register("dice_topk_loss")
 class DC_and_topk_loss(nn.Module):
     def __init__(self, soft_dice_kwargs, ce_kwargs, aggregate="sum"):
-        super(DC_and_topk_loss, self).__init__()
+        super().__init__()
         self.aggregate = aggregate
         self.ce = TopKLoss(**ce_kwargs)
         self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **soft_dice_kwargs)

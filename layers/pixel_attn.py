@@ -8,10 +8,8 @@ import torch.nn.functional as F
 from .registry import register
 from .learnable import Scale, Balance
 from .softmax import SpatialSoftmax2d, ChannelSoftmax2d
-from .pool import ZPool, SpatialMaxPool, SpatialMeanPool
 from .gate import GateConv, PoolGate
 from .statistics import stdv_channels
-from .fourier import FourierConv2d
 from .common import get_valid_padding
 
 @register("pixel_attn")
@@ -27,7 +25,9 @@ class PixelAttention(nn.Module):
                  add_contrast: bool=False,
                  learn_weight: bool=True, 
                  channel_wise: bool=True, 
+                 channel_out_fn: callable=torch.mul,
                  spatial_wise: bool=True,
+                 spatial_out_fn: callable=torch.mul,
                  dropout: float=0.0):
         """Highly configurable novel attention mask that
         attends to both channel-wise and spatial-wise views in different ways
@@ -54,7 +54,9 @@ class PixelAttention(nn.Module):
             add_contrast (bool, optional): [description]. Defaults to False.
             learn_weight (bool, optional): [description]. Defaults to True.
             channel_wise (bool, optional): [description]. Defaults to True.
+            channel_out_fn (callable, optional): [description]. Defaults to torch.mul.
             spatial_wise (bool, optional): [description]. Defaults to True.
+            spatial_out_fn (callable, optional): [description]. Defaults to torch.mul.
             dropout (float, optional): [description]. Defaults to 0.0.
         """
         super().__init__()
@@ -89,10 +91,12 @@ class PixelAttention(nn.Module):
                                           padding=get_valid_padding(kernel, 0), 
                                           groups=f_out, 
                                           bias=False)
+            self.channel_out_fn = channel_out_fn
         if self.spatial_wise:
             self.spatial_conv = nn.Conv2d(f_out, f_out, spatial_k, 
                                           padding=get_valid_padding(spatial_k, 0), 
                                           bias=False)
+            self.spatial_out_fn = spatial_out_fn                                          
         if not self.channel_wise and not self.spatial_wise:
             self.conv = GateConv(f_out, f_out, 1, 
                                  conv_args={"bias":False})
@@ -145,7 +149,7 @@ class PixelAttention(nn.Module):
                             size=x.shape[-2:], 
                             mode=self.interpolation, 
                             align_corners=True)
-            spatial_out = torch.mul(x, spatial_y)
+            spatial_out = self.spatial_out_fn(x, spatial_y)
         if self.channel_wise:
             channel_y = self.channel_conv(x)
             channel_y = self.sigmoid(channel_y)
@@ -155,7 +159,7 @@ class PixelAttention(nn.Module):
                 channel_y = self.channel_softmax(channel_y)
             if self.use_dropout:
                 channel_y = self.dropout(channel_y)
-            channel_out = torch.mul(x, channel_y)
+            channel_out = self.channel_out_fn(x, channel_y)
         if self.channel_wise and self.spatial_wise:
             out = self.global_balance(spatial_out, channel_out)
         elif self.channel_wise:

@@ -12,7 +12,7 @@ class ABRLovaszLoss(nn.Module):
     """Lovasz loss for Alpha process"""
 
     def __init__(self, ignore_index=None, only_present=True):
-        super(ABRLovaszLoss, self).__init__()
+        super().__init__()
         self.ignore_index = ignore_index
         self.only_present = only_present
         # self.weight = torch.FloatTensor([0.80777327, 1.00125961, 0.90997236, 1.10867908, 1.17541499,
@@ -38,7 +38,7 @@ class SegmentationLoss(nn.Module):
     """Lovasz loss for Alpha process"""
 
     def __init__(self, ignore_index=None, only_present=True):
-        super(SegmentationLoss, self).__init__()
+        super().__init__()
         self.ignore_index = ignore_index
         self.only_present = only_present
 
@@ -62,7 +62,7 @@ class ABRLovaszCELoss(nn.Module):
     """Lovasz loss for Alpha process"""
 
     def __init__(self, ignore_index=None, only_present=True):
-        super(ABRLovaszCELoss, self).__init__()
+        super().__init__()
         self.ignore_index = ignore_index
         self.only_present = only_present
 
@@ -90,7 +90,7 @@ class LovaszSoftmaxLoss(nn.Module):
     """Lovasz loss for Deep Supervision"""
 
     def __init__(self, ignore_index=None, only_present=False, per_image=False):
-        super(LovaszSoftmaxLoss, self).__init__()
+        super().__init__()
         self.ignore_index = ignore_index
         self.only_present = only_present
         self.per_image = per_image
@@ -325,7 +325,7 @@ class AAF_Loss(nn.Module):
     """
 
     def __init__(self, ignore_index=255, num_classes=7):
-        super(AAF_Loss, self).__init__()
+        super().__init__()
         self.ignore_index = ignore_index
         self.num_classes = num_classes
         self.kld_margin = 3.0

@@ -100,10 +100,10 @@ class ChannelGate(nn.Module):
         return x * scale
 
 
-def logsumexp_2d(tensor):
-    tensor_flatten = tensor.view(tensor.size(0), tensor.size(1), -1)
-    s, _ = torch.max(tensor_flatten, dim=2, keepdim=True)
-    outputs = s + (tensor_flatten - s).exp().sum(dim=2, keepdim=True).log()
+def logsumexp_2d(x):
+    x = x.view(x.size(0), x.size(1), -1)
+    s, _ = torch.max(x, dim=2, keepdim=True)
+    outputs = s + (x - s).exp().sum(dim=2, keepdim=True).log()
     return outputs
 
 @register('spatial_gate')

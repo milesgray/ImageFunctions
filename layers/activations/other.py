@@ -26,5 +26,5 @@ class Hat(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         return hat(x)
