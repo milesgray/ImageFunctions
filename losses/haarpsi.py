@@ -18,6 +18,8 @@ from torch.nn.modules.loss import _Loss
 from piq.utils import _validate_input, _reduce
 from piq.functional import similarity_map, rgb2yiq, haar_filter
 
+from .registry import register
+
 
 def haarpsi(x: torch.Tensor, y: torch.Tensor, reduction: str = 'mean',
             data_range: Union[int, float] = 1., scales: int = 3, subsample: bool = True,
@@ -130,7 +132,7 @@ def haarpsi(x: torch.Tensor, y: torch.Tensor, reduction: str = 'mean',
 
     return _reduce(score, reduction)
 
-
+@register("haar_psi")
 class HaarPSILoss(_Loss):
     r"""Creates a criterion that measures  Haar Wavelet-Based Perceptual Similarity loss between
     each element in the input and target.

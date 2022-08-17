@@ -6,8 +6,8 @@ import torch.fft as tfft
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ImageFunctions.models.layers.activations import make as make_activation
-from ImageFunctions.models.layers import make as make_layer
+from ImageFunctions.layers.activations import make as make_activation
+from ImageFunctions.layers import make as make_layer
 from ImageFunctions.models import make as make_model
 from .registry import register
 

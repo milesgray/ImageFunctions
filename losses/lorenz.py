@@ -4,10 +4,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-
 from torch.nn import BCELoss
 
+from .registry import register
 
+@register("abr_lovasz")
 class ABRLovaszLoss(nn.Module):
     """Lovasz loss for Alpha process"""
 
@@ -33,7 +34,7 @@ class ABRLovaszLoss(nn.Module):
         loss_dsn = self.criterion(pred_dsn, targets[0])
         return loss + 0.4 * loss_dsn
 
-
+@register("segmentation")
 class SegmentationLoss(nn.Module):
     """Lovasz loss for Alpha process"""
 
@@ -57,7 +58,7 @@ class SegmentationLoss(nn.Module):
 
         return total_loss
 
-
+@register("abr_lovasz_ce")
 class ABRLovaszCELoss(nn.Module):
     """Lovasz loss for Alpha process"""
 
@@ -85,7 +86,7 @@ class ABRLovaszCELoss(nn.Module):
 
         return total_loss
 
-
+@register("lovasz_softmax")
 class LovaszSoftmaxLoss(nn.Module):
     """Lovasz loss for Deep Supervision"""
 
@@ -318,7 +319,7 @@ def mean(l, ignore_nan=True, empty=0):
 def isnan(x):
     return x != x
 
-
+@register("aaf")
 class AAF_Loss(nn.Module):
     """
     Loss function for multiple outputs
