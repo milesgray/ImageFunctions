@@ -12,7 +12,7 @@ from ImageFunctions.layers import PixelAttention, NonLocalAttention, LocalSelfAt
 from ImageFunctions.layers import Balance, Scale, stdv_channels
 from ImageFunctions.layers import SpectralConv2d
 from ImageFunctions.layers import create as create_layer
-from ..layers.activations import create as create_act
+from ImageFunctions.layers.activations import create as create_act
 
 from models import register
 

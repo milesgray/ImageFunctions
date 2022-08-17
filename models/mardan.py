@@ -7,7 +7,7 @@ from ImageFunctions.layers import PixelAttention, NonLocalAttention
 from ImageFunctions.layers import Balance, stdv_channels
 from ImageFunctions.layers import MAConv2d
 from ImageFunctions.layers import create as create_layer
-from ..layers.activations import create as create_act
+from ImageFunctions.layers.activations import create as create_act
 
 from models import register
 

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from .registry import register
 from ImageFunctions.layers import create as create_layer
-from ..layers.activations import create as create_act
+from ImageFunctions.layers.activations import create as create_act
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 
