@@ -53,3 +53,12 @@ def normalizer(x):
 @torch.jit.script
 def gaussian(x, a):
     return torch.exp(-x**2/(2*a**2))
+
+@torch.jit.script
+def hat(x):
+    if x >= 2 or x < 0:
+        return torch.zeros_like(x)
+    elif x >= 0 and x < 1:
+        return x
+    else:
+        return 2 - x

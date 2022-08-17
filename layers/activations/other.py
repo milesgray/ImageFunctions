@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .methods import logcosh, gaussian
+from .methods import logcosh, gaussian, hat
 
 from .registry import register
 
@@ -20,3 +20,11 @@ class Gaussian(torch.nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return gaussian(x, a)
+
+@register("hat")
+class Hat(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return hat(x)
