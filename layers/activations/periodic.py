@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from ..learnable import Scale
+from ImageFunctions.layers.learnable import Scale
 from .methods import *
 
 from .registry import register
