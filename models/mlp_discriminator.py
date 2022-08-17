@@ -9,8 +9,8 @@ from torch import Tensor
 import numpy as np
 
 import models
-import models.layers as layers
-import models.layers.activations as activations
+import ImageFunctions.layers as layers
+import ImageFunctions.layers.activations as activations
 from models import register
 from utility import make_coord
 
